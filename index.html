@@ -1,0 +1,99 @@
+<!doctype html><html lang="uz"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Koreys lug'at</title><script src="https://telegram.org/js/telegram-web-app.js"></script><script src="/socket.io/socket.io.js"></script>
+<style>
+:root{--bg:#fff;--fg:#1a1a1a;--c:#f1f3f6;--ac:#2563eb}@media(prefers-color-scheme:dark){:root{--bg:#15171c;--fg:#eee;--c:#242830}}
+*{box-sizing:border-box}body{margin:0;font:16px system-ui;background:var(--bg);color:var(--fg);padding-bottom:70px}
+nav{position:fixed;bottom:0;left:0;right:0;display:flex;background:var(--c);padding:6px}nav button{flex:1;background:none;border:0;color:var(--fg);padding:10px 2px;font-size:13px}nav .on{color:var(--ac);font-weight:700}
+main{padding:14px;max-width:640px;margin:auto}.card{background:var(--c);border-radius:12px;padding:14px;margin:8px 0}
+button.b,select,input{font:inherit;padding:10px 14px;border-radius:10px;border:1px solid #8884;background:var(--bg);color:var(--fg);margin:3px}
+button.b{background:var(--ac);color:#fff;border:0}button.g{background:var(--c);color:var(--fg)}.big{font-size:34px;text-align:center;padding:30px 0}
+.opt{display:block;width:100%;text-align:left}.ok{background:#16a34a!important;color:#fff}.no{background:#dc2626!important;color:#fff}.s{opacity:.65;font-size:13px}
+</style></head><body><main id="m"></main><nav id="nav"></nav>
+<script>
+const tg=window.Telegram?.WebApp;tg?.expand();
+const dev=new URLSearchParams(location.search).get('dev');let me,S={tab:'dict'};
+const $=s=>document.querySelector(s),H=h=>($('#m').innerHTML=h);
+async function api(p,o={}){const h={'x-init':tg?.initData||'','x-dev':dev||''},t=localStorage.tok;if(t)h.authorization='Bearer '+t;let b=o.body;
+  if(b&&!(b instanceof FormData)){h['content-type']='application/json';b=JSON.stringify(b)}
+  const r=await fetch('/api'+p,{method:o.body?'POST':'GET',headers:h,body:b});
+  if(r.status==401){login();throw 0}if(r.status==402){gate();throw 0}if(r.status==403){alert("Bu funksiya sizga o'chirilgan");throw 0}return r.json()}
+const esc=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const POS={ot:'Ot',fel:"Fe'l",ravish:'Ravish',sifat:'Sifat'};
+function speak(t){const u=new SpeechSynthesisUtterance(t);u.lang='ko-KR';speechSynthesis.cancel();speechSynthesis.speak(u)}
+const shuf=a=>[...a].sort(()=>Math.random()-.5);
+async function login(){const c=await (await fetch('/config')).json();H(`<h2>🇰🇷 Koreys lug'at</h2><div class=card>Davom etish uchun Google orqali kiring<div id=gb style="margin-top:10px"></div>${c.dev?'<p class=s>DEV: ?dev=ID bilan oching</p>':''}</div>`);
+  if(!c.google)return $('#gb').textContent='GOOGLE_CLIENT_ID sozlanmagan';
+  const s=document.createElement('script');s.src='https://accounts.google.com/gsi/client';s.onload=()=>{google.accounts.id.initialize({client_id:c.google,callback:async r=>{const x=await (await fetch('/auth/google',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({credential:r.credential})})).json();if(x.token){localStorage.tok=x.token;init()}else alert('Kirish xatosi')}});google.accounts.id.renderButton($('#gb'),{theme:'outline',size:'large',text:'continue_with'})};document.body.appendChild(s)}
+function gate(){const t=me.trial;H(`<h3>🔒 Pullik bo'lim</h3><div class=card>`+(t=='none'||t=='rejected'?`<p>Birinchi marta kirdingizmi? 1 oy bepul sinov so'rang — admin tasdiqlaydi.</p><button class=b onclick="askTrial()">🚀 O'rganishni boshlash</button>`:t=='pending'?'<p>⏳ So\'rovingiz admin tekshiruvida.</p>':'<p>Bepul sinov muddati tugagan.</p>')+`<hr><button class="b g" onclick="go('pay')">💳 Obuna sotib olish</button></div>`)}
+async function askTrial(){const r=await api('/trial',{body:{}});me.trial=r.trial;gate()}
+const has=p=>me.is_admin==2||(me.is_admin==1&&me.perms.split(',').includes(p));
+async function init(){try{me=await api('/me')}catch{return}
+  const tabs=[['dict',"📚 Lug'at"],['task','📝 Topshiriq'],['game',"🎮 O'yin"],['pay',"💳 Obuna"]];if(me.is_admin)tabs.push(['admin','⚙️']);
+  $('#nav').innerHTML=tabs.map(t=>`<button data-t="${t[0]}" onclick="go('${t[0]}')">${t[1]}</button>`).join('');go('dict')}
+function go(t){S.tab=t;document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.t==t));({dict:vDicts,task:vTasks,game:vGame,pay:vPay,admin:vAdmin})[t]()}
+// ---- lug'atlar
+async function vDicts(){const d=await api('/dicts');H('<h3>Lug\'atlar</h3>'+(d.map(x=>`<div class=card onclick="openDict(${x.id})"><b>${esc(x.name)}</b> ${x.free?'🆓':x.ok?'✅':'🔒'}<div class=s>${x.levels} daraja</div></div>`).join('')||'<p>Hali lug\'at yo\'q</p>'))}
+async function openDict(id,level,pos,sec){const t=await api('/tree/'+id);S.f={dict:id};S.tree=t;
+  H(`<button class="b g" onclick="vDicts()">←</button><h3>${esc(t.d.name)}</h3><div class=s>Daraja</div>`+
+  Array.from({length:t.d.levels},(_,i)=>`<button class="b ${level==i+1?'':'g'}" onclick="openDict(${id},${i+1})">${i+1}</button>`).join('')+
+  (level?`<div class=s>So'z turi</div>`+['',...Object.keys(POS)].map(p=>`<button class="b ${(pos||'')==p?'':'g'}" onclick="openDict(${id},${level},'${p}')">${p?POS[p]:'Barchasi'}</button>`).join(''):'')+
+  (level&&pos!=null?`<div class=s>Bo'lim</div><button class="b ${!sec?'':'g'}" onclick="openDict(${id},${level},'${pos}',0)">Barchasi</button>`+
+   [...new Set(t.rows.filter(r=>r.level==level&&(!pos||r.pos==pos)).map(r=>r.section))].sort().map(s=>`<button class="b ${sec==s?'':'g'}" onclick="openDict(${id},${level},'${pos}',${s})">${s}-bo'lim</button>`).join(''):'')+
+  (level&&pos!=null?`<hr><div class=s>Qaysi so'zlar</div><select id=wm><option value="">Hammasi</option><option value=new>Yangi</option><option value=learned>O'rganilgan (takrorlash)</option></select>
+   <div>${[['cards','🃏 Kartochka'],['test','❓ Test'],['listen','🎧 Eshitish'],['speak','🎤 Gapirish'],['chat','💬 Suhbat'],['list',"📖 Ro'yxat"]].map(m=>`<button class=b onclick="start('${m[0]}',${id},${level},'${pos}',${sec||0})">${m[1]}</button>`).join('')}</div>`:''))}
+async function start(mode,dict,level,pos,sec,pre){let w=pre;if(!w){const p=new URLSearchParams({dict,level,pos,section:sec||'',mode:$('#wm')?.value||''});w=await api('/words?'+p)}
+  if(!w.length)return alert("So'z yo'q");S.run={mode,w:mode=='list'?w:shuf(w),i:0,score:0,back:()=>pre?go('task'):openDict(dict,level,pos,sec)};step()}
+async function mark(id,on){await api('/learned',{body:{id,on}});const x=S.run.w.find(w=>w.id==id);x.learned=on;step(true)}
+function opts(w){const o=shuf(S.run.w.filter(x=>x.id!=w.id)).slice(0,3).map(x=>x.uz);return shuf([w.uz,...o])}
+function step(keep){const r=S.run,w=r.w[r.i],bk='<button class="b g" onclick="S.run.back()">←</button>';
+  if(r.mode=='list')return H(bk+r.w.map(x=>`<div class=card>${esc(x.ko)} — ${esc(x.uz)} <button class="b g" onclick="mark(${x.id},${x.learned?0:1})">${x.learned?'✅':'⬜'}</button></div>`).join(''));
+  if(!w)return H(bk+`<div class="card big">🎉 ${r.score}/${r.w.length}</div>`);
+  const lm=`<button class="b g" onclick="mark(${w.id},${w.learned?0:1})">${w.learned?"✅ O'rganilgan":"⬜ O'rgandim"}</button>`,nx='<button class=b onclick="S.run.i++;step()">Keyingi →</button>',pr=`<div class=s>${r.i+1}/${r.w.length}</div>`;
+  if(r.mode=='cards')return H(bk+pr+`<div class="card big" onclick="this.innerHTML='${esc(w.uz).replace(/'/g,"\\'")}'">${esc(w.ko)}<div class=s>bosing</div></div>${lm}${nx}`);
+  if(r.mode=='test'||r.mode=='listen'){const o=r.o&&r.oi==r.i?r.o:(r.o=opts(w),r.oi=r.i,r.o);
+    if(r.mode=='listen'&&!keep)speak(w.ko);
+    return H(bk+pr+`<div class="card big">${r.mode=='listen'?`<button class=b onclick="speak('${w.ko.replace(/'/g,"\\'")}')">🔊</button>`:esc(w.ko)}</div>`+o.map(t=>`<button class="b g opt" onclick="pick(this,${t==w.uz})">${esc(t)}</button>`).join('')+lm)}
+  if(r.mode=='speak'){return H(bk+pr+`<div class="card big">${esc(w.uz)}</div><div class=s>Koreyschasini ayting</div><button class=b onclick="listen()">🎤 Gapirish</button><div id=hr class=s></div>${lm}${nx}`)}
+  if(r.mode=='chat')return H(bk+pr+`<div class=card>🤖 «${esc(w.uz)}» koreyschada nima?</div><input id=ans style="width:70%" placeholder="한국어"><button class=b onclick="chk()">OK</button><div id=hr></div>${lm}${nx}`)}
+function pick(b,ok){if(S.run.done==S.run.i)return;S.run.done=S.run.i;b.classList.add(ok?'ok':'no');if(ok)S.run.score++;setTimeout(()=>{S.run.i++;step()},700)}
+function listen(){const R=window.SpeechRecognition||window.webkitSpeechRecognition;if(!R)return alert('Brauzer ovozni tanimaydi');
+  const r=new R();r.lang='ko-KR';r.onresult=e=>{const t=e.results[0][0].transcript,w=S.run.w[S.run.i];const ok=t.replace(/\s/g,'')==w.ko.replace(/\s/g,'');$('#hr').innerHTML=(ok?'✅ ':'❌ ')+esc(t)+' → '+esc(w.ko);if(ok)S.run.score++};r.start()}
+function chk(){const w=S.run.w[S.run.i],ok=$('#ans').value.trim()==w.ko;$('#hr').innerHTML=ok?'✅ To\'g\'ri!':'❌ '+esc(w.ko);if(ok)S.run.score++}
+// ---- topshiriqlar
+async function vTasks(){const t=await api('/tasks');H("<h3>Topshiriqlar</h3>"+(t.map(x=>`<div class=card><b>${esc(x.title)}</b><div class=s>${esc(x.dname)} · ${x.level}-daraja</div>${['cards','test','listen','speak','chat'].map(m=>`<button class="b g" onclick="start('${m}',${x.dict_id},${x.level},'',0)">${m}</button>`).join('')}<button class="b g" onclick="startL(${x.dict_id},${x.level})">♻️ O'rganilganlar</button></div>`).join('')||'<p>Topshiriq yo\'q</p>'))}
+async function startL(d,l){const w=await api(`/words?dict=${d}&level=${l}&mode=learned`);if(!w.length)return alert("Hali o'rganilgan so'z yo'q");start('cards',d,l,'',0,w)}
+// ---- o'yinlar (xona)
+let sk;function sock(){if(!sk){sk=io({auth:{init:tg?.initData||'',dev}});sk.on('room',roomV);sk.on('err',alert);sk.on('start',qs=>{G.qs=qs;G.i=0;gq()});sk.on('end',r=>H('<h3>🏁 Natija</h3>'+r.players.sort((a,b)=>b.score-a.score).map(p=>`<div class=card>${esc(p.name)}: ${p.score}</div>`).join('')+'<button class=b onclick="go(\'game\')">OK</button>'))}return sk}
+let G={};
+async function vGame(){const d=(await api('/dicts')).filter(x=>x.ok);H(`<h3>🎮 O'yinlar</h3><div class=card><b>Xona yaratish</b><br><select id=gd>${d.map(x=>`<option value=${x.id}>${esc(x.name)}</option>`).join('')}</select><input id=gl type=number placeholder="Daraja" style="width:90px"><button class=b onclick="mk()">Yaratish</button></div>
+<div class=card><b>Xonaga kirish</b><br><input id=gc placeholder="Xona kodi" inputmode=numeric><button class=b onclick="jn()">Kirish</button></div>`)}
+function mk(){sock().emit('create',{dict:+$('#gd').value,level:+$('#gl').value||0},r=>r.e?alert(r.e):(G.host=1,sk.emit('join',r.code,x=>x.e&&alert(x.e))))}
+function jn(){G.host=0;sock().emit('join',$('#gc').value.trim(),r=>r.e&&alert(r.e))}
+function roomV(r){if(G.playing)return;H(`<h3>Xona kodi: ${r.code}</h3><p class=s>Do'stlaringizga kodni bering (kamida 2 o'yinchi)</p>`+r.players.map(p=>`<div class=card>👤 ${esc(p.name)}</div>`).join('')+(G.host?'<button class=b onclick="sk.emit(\'start\')">▶️ Boshlash</button>':'<p>Boshlovchi kutilmoqda...</p>'))}
+function gq(){G.playing=1;const q=G.qs[G.i];if(!q)return H('<p>Boshqalar tugatishini kutamiz...</p>');
+  H(`<div class=s>${G.i+1}/${G.qs.length}</div><div class="card big">${esc(q.ko)}</div>`+q.opts.map(o=>`<button class="b g opt" onclick="ga(this)">${esc(o)}</button>`).join(''))}
+function ga(b){sk.emit('answer',{i:G.i,c:b.textContent});G.i++;gq()}
+// ---- obuna
+const D=ms=>ms>Date.now()?new Date(ms).toLocaleDateString():'—';
+async function vPay(){const [pl,mt,p]=await Promise.all([api('/plans'),api('/methods'),api('/mypay')]);
+H(`<h3>💳 Obuna</h3><div class=card>${me.active?`✅ Faol${me.is_admin?'':' · '+D(me.paid_until)+' gacha'}`:'❌ Obuna yo\'q'}</div>
+<div class=card><b>1. Tarif</b><br>${pl.map(x=>`<label style=display:block><input type=radio name=pl value=${x.id}> ${x.months} oy — ${x.price.toLocaleString()} so'm</label>`).join('')||'<span class=s>Admin hali tarif kiritmagan</span>'}</div>
+<div class=card><b>2. To'lov usuli</b><br>${mt.map(x=>`<label style=display:block><input type=radio name=mt value=${x.id}> <b>${esc(x.name)}</b>: ${esc(x.number)||'—'}<div class=s>${esc(x.holder)}</div></label>`).join('')}</div>
+<div class=card><b>3. Skrinshot</b><br><input type=file id=sh accept=image/*><button class=b onclick="sendPay()">✅ To'lovni qildim, tekshirishga yuborish</button><div class=s>Tekshiruv 24 soat ichida amalga oshiriladi.</div></div>`+p.map(x=>`<div class=card>#${x.id}: ${x.status}</div>`).join(''))}
+async function sendPay(){const f=$('#sh').files[0],pl=document.querySelector('[name=pl]:checked'),mt=document.querySelector('[name=mt]:checked');if(!f||!pl||!mt)return alert('Tarif, usul va rasmni tanlang');
+  const fd=new FormData();fd.append('shot',f);fd.append('plan_id',pl.value);fd.append('method_id',mt.value);await api('/pay',{body:fd});alert('Yuborildi. 24 soat ichida tekshiriladi.');vPay()}
+// ---- admin
+async function vAdmin(){const sec=[];const ad=async(p,b)=>{await api('/admin'+p,{body:b});vAdmin()};window.adm=ad;
+  const d=await api('/dicts'),ops=d.map(x=>`<option value=${x.id}>${esc(x.name)}</option>`).join('');
+  if(has('trials')){const t=await api('/admin/trials');sec.push(`<div class=card><b>🚀 Bepul sinov so'rovlari (${t.length})</b>${t.map(u=>`<div>${esc(u.name)} <span class=s>${esc(u.email||u.id)}</span><br><button class=b onclick="adm('/trial/${u.id}',{ok:1})">Qabul (1 oy)</button><button class="b g" onclick="adm('/trial/${u.id}',{ok:0})">Rad</button></div>`).join('')}</div>`)}
+  if(has('payments')){const p=await api('/admin/pending');sec.push(`<div class=card><b>💰 To'lovlar (${p.length})</b>${p.map(x=>`<div><a href="/shots/${x.file}" target=_blank><img src="/shots/${x.file}" width=120></a> ${esc(x.name)} · ${x.months||'?'} oy · ${(x.price||0).toLocaleString()} · ${esc(x.mname||'')}<br><button class=b onclick="adm('/pay/${x.id}',{ok:1})">Qabul</button><button class="b g" onclick="adm('/pay/${x.id}',{ok:0})">Rad</button></div>`).join('')}</div>`)}
+  if(has('plans')){const pl=await api('/plans');sec.push(`<div class=card><b>🏷 Tariflar</b>${pl.map(x=>`<div>${x.months} oy — ${x.price.toLocaleString()} <button class="b g" onclick="adm('/plan',{del:${x.id}})">🗑</button></div>`).join('')}<input id=pm type=number placeholder="Oy" style="width:80px"><input id=pp type=number placeholder="Narx (so'm)" style="width:140px"><button class=b onclick="adm('/plan',{months:$('#pm').value,price:$('#pp').value})">Qo'shish</button></div>`)}
+  if(has('methods')){const m=await api('/admin/methods');sec.push(`<div class=card><b>🏦 To'lov usullari</b>${m.map(x=>`<div class=card><b>${esc(x.name)}</b><input id=mn${x.id} value="${esc(x.number)}" placeholder="Karta/telefon raqami"><input id=mh${x.id} value="${esc(x.holder)}" placeholder="Ism familiya"><label><input type=checkbox id=mo${x.id} ${x.on_?'checked':''}> yoqiq</label><button class=b onclick="adm('/method',{id:${x.id},name:'${esc(x.name)}',number:$('#mn${x.id}').value,holder:$('#mh${x.id}').value,on:$('#mo${x.id}').checked})">Saqlash</button></div>`).join('')}</div>`)}
+  if(has('dicts'))sec.push(`<div class=card><b>📚 Yangi lug'at</b><br><input id=dn placeholder="Nomi"><input id=dl type=number placeholder="Daraja soni" style="width:110px"><input id=ds type=number placeholder="Bo'limda so'z (30)" style="width:130px"><button class=b onclick="adm('/dict',{name:$('#dn').value,levels:$('#dl').value,sec:$('#ds').value})">Qo'shish</button>${d.map(x=>`<div>${esc(x.name)} (${x.levels}) <button class="b g" onclick="adm('/dict/${x.id}',{free:${x.free?0:1}})">${x.free?'🆓→pullik':'pullik→🆓'}</button><button class="b g" onclick="confirm('O\\'chirilsinmi?')&&adm('/dict/${x.id}',{del:1})">🗑</button></div>`).join('')}</div>`);
+  if(has('import'))sec.push(`<div class=card><b>📖 Kitob/fayldan so'z import</b><div class=s>.txt .csv .pdf — tarjimasi bo'lsa (koreys, tarjima) olinadi, bo'lmasa avtomatik tarjima qilinadi</div><select id=id>${ops}</select><input id=il type=number value=1 style="width:70px"><select id=ip>${Object.entries(POS).map(([k,v])=>`<option value=${k}>${v}</option>`).join('')}</select><input type=file id=if><button class=b onclick="imp()">Yuklash</button></div>`);
+  if(has('tasks'))sec.push(`<div class=card><b>📝 Topshiriq yaratish</b><select id=td>${ops}</select><input id=tl type=number value=1 style="width:70px"><input id=tt placeholder="Nomi"><button class=b onclick="adm('/task',{dict_id:$('#td').value,level:$('#tl').value,title:$('#tt').value})">Qo'shish</button></div>`);
+  if(has('users')||has('admins')){const us=await api('/admin/users');sec.push(`<div class=card><b>👥 Foydalanuvchilar (${us.length})</b>`+(has('admins')?`<div><input id=ae placeholder="Admin qo'shish: email"><button class=b onclick="adm('/admin',{email:$('#ae').value,admin:1})">Admin qil</button></div>`:'')+us.map(u=>`<div class=card><b>${esc(u.name)}</b> ${u.is_admin==2?'👑':u.is_admin?'🛡':''}<div class=s>${esc(u.email||'TG '+u.id)} · obuna: ${D(u.paid_until)} · sinov: ${u.trial}</div>`+(has('users')?`<button class="b g" onclick="adm('/user',{id:${u.id},months:1})">+1 oy</button>`:'')+(has('admins')&&u.is_admin!=2?`<button class="b g" onclick="adm('/admin',{id:${u.id},admin:${u.is_admin?0:1}})">${u.is_admin?'Adminlikni olish':'Admin qil'}</button>`:'')+(has('admins')&&u.is_admin==1?`<div>${me.PERMS.map(p=>`<label style="display:inline-block;margin:3px"><input type=checkbox class=pm${u.id} value=${p} ${u.perms.split(',').includes(p)?'checked':''}> ${p}</label>`).join('')}<button class=b onclick="adm('/admin',{id:${u.id},perms:[...document.querySelectorAll('.pm${u.id}:checked')].map(x=>x.value)})">Huquqlarni saqlash</button></div>`:'')+'</div>').join('')+'</div>')}
+  H('<h3>⚙️ Admin</h3>'+sec.join(''))}
+async function imp(){const f=$('#if').files[0];if(!f)return;const fd=new FormData();fd.append('dict_id',$('#id').value);fd.append('level',$('#il').value);fd.append('pos',$('#ip').value);fd.append('file',f);const r=await api('/admin/import',{body:fd});alert(`${r.added} ta qo'shildi (${r.translated} ta avto-tarjima, ${r.skipped} ta tarjimasiz o'tkazildi)`);vAdmin()}
+init();
+</script></body></html>
