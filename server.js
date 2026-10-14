@@ -79,29 +79,51 @@ app.post('/api/admin/dict/:id',adm('dicts'),(r,s)=>{const b=r.body;
   if(b.levels)run('update dicts set levels=? where id=?',+b.levels,r.params.id);
   if(b.del){run('delete from words where dict_id=?',r.params.id);run('delete from dicts where id=?',r.params.id)}s.json({ok:1})});
 async function tr(t){if(!TRANSLATE_URL)return '';try{const x=await fetch(TRANSLATE_URL,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({q:t,source:'ko',target:TRANSLATE_TARGET,api_key:TRANSLATE_KEY||undefined})});return (await x.json()).translatedText||''}catch{return ''}}
-app.post('/api/admin/import',adm('import'),up.single('file'),async(r,s)=>{
-  const {dict_id,level=1,pos='ot'}=r.body,d=one('select * from dicts where id=?',dict_id);if(!d||!r.file)return s.status(400).json({e:'bad'});
-  let txt;const buf=fs.readFileSync(r.file.path);fs.unlinkSync(r.file.path);
-  const nm=r.file.originalname.toLowerCase();
+async function extract(file,defPos){
+  const buf=fs.readFileSync(file.path);fs.unlinkSync(file.path);const nm=file.originalname.toLowerCase();let txt;
   try{
     if(/\.pdf$/.test(nm))txt=(await require('pdf-parse')(buf)).text;
     else if(/\.(xlsx|xls|ods)$/.test(nm)){const X=require('xlsx'),wb=X.read(buf);txt=wb.SheetNames.map(n=>X.utils.sheet_to_csv(wb.Sheets[n])).join('\n')}
     else if(/\.docx$/.test(nm))txt=(await require('mammoth').extractRawText({buffer:buf})).value;
     else if(/\.(html?|xml)$/.test(nm))txt=buf.toString('utf8').replace(/<(script|style)[\s\S]*?<\/\1>/gi,'').replace(/<br\s*\/?>|<\/(p|div|li|tr|h\d)>/gi,'\n').replace(/<[^>]+>/g,' ');
     else txt=buf.toString('utf8').replace(/^\uFEFF/,'');
-  }catch{return s.status(400).json({e:'file'})}
+  }catch{return null}
   const items=[],seen=new Set();
   for(const line of txt.split(/\r?\n/)){const c=line.split(/[,;\t|]|\s[-–—]\s/).map(x=>x.trim());
-    if(c.length>=2&&/[가-힣]/.test(c[0])&&c[1]&&!/[가-힣]/.test(c[1])){if(!seen.has(c[0])){seen.add(c[0]);items.push({ko:c[0],uz:c[1],pos:c[2]||pos})}}
-    else for(const w of line.match(/[가-힣]{1,12}/g)||[])if(!seen.has(w)){seen.add(w);items.push({ko:w,uz:'',pos})}}
-  let n=0,t=0,skip=0;const ins=db.prepare('insert into words(dict_id,level,pos,section,ko,uz) values(?,?,?,?,?,?)');
-  for(const it of items.slice(0,3000)){
+    if(c.length>=2&&/[가-힣]/.test(c[0])&&c[1]&&!/[가-힣]/.test(c[1])){if(!seen.has(c[0])){seen.add(c[0]);items.push({ko:c[0],uz:c[1],pos:c[2]||defPos})}}
+    else for(const w of line.match(/[가-힣]{1,12}/g)||[])if(!seen.has(w)){seen.add(w);items.push({ko:w,uz:'',pos:defPos})}}
+  return items;
+}
+async function addWords(d,items,levelOf){
+  const ready=[];let t=0,skip=0;
+  for(const it of items.slice(0,5000)){
     if(one('select 1 from words where dict_id=? and ko=?',d.id,it.ko))continue;
     if(!it.uz){it.uz=await tr(it.ko);if(it.uz)t++}
     if(!it.uz){skip++;continue}
-    const cnt=one('select count(*) n from words where dict_id=? and level=? and pos=?',d.id,level,it.pos).n;
-    ins.run(d.id,+level,it.pos,Math.floor(cnt/d.sec)+1,it.ko,it.uz);n++}
-  s.json({added:n,translated:t,skipped:skip})});
+    ready.push(it)}
+  const ins=db.prepare('insert into words(dict_id,level,pos,section,ko,uz) values(?,?,?,?,?,?)'),cnt={},per={};
+  db.transaction(()=>{ready.forEach((it,i)=>{const lv=levelOf(i,ready.length),k=lv+'|'+it.pos;
+    if(cnt[k]==null)cnt[k]=one('select count(*) n from words where dict_id=? and level=? and pos=?',d.id,lv,it.pos).n;
+    ins.run(d.id,lv,it.pos,Math.floor(cnt[k]/d.sec)+1,it.ko,it.uz);cnt[k]++;per[lv]=(per[lv]||0)+1})})();
+  return {added:ready.length,translated:t,skipped:skip,perLevel:per};
+}
+app.post('/api/admin/import',adm('import'),up.single('file'),async(r,s)=>{
+  const {dict_id,level=1,pos='ot'}=r.body,d=one('select * from dicts where id=?',dict_id);if(!d||!r.file)return s.status(400).json({e:'bad'});
+  const items=await extract(r.file,pos);if(!items)return s.status(400).json({e:'file'});
+  s.json(await addWords(d,items,()=>+level))});
+// kitob: fayldan lug'at yaratish, so'zlarni darajalarga bo'lish
+app.post('/api/admin/book',adm('import'),up.single('file'),async(r,s)=>{
+  const b=r.body,name=(b.name||'').trim(),pos=b.pos||'ot';let L=Math.max(1,Math.min(+b.levels||1,30));
+  if(!name||!r.file)return s.status(400).json({e:'bad'});
+  const items=await extract(r.file,pos);if(!items)return s.status(400).json({e:'file'});
+  let levelOf;
+  if(b.split==='level'){const lv=Math.max(1,+b.level||1);L=Math.max(L,lv);levelOf=()=>lv}
+  else if(b.split==='custom'){const cs=String(b.counts||'').split(/[,;\s]+/).map(Number).filter(n=>n>0);if(!cs.length)return s.status(400).json({e:'counts'});
+    L=Math.max(L,cs.length);const cum=[];cs.reduce((a,n,i)=>(cum[i]=a+n),0);
+    levelOf=i=>{const k=cum.findIndex(c=>i<c);return k<0?cs.length:k+1}}
+  else levelOf=(i,n)=>Math.min(L,Math.floor(i*L/n)+1);
+  const id=run('insert into dicts(name,levels,sec) values(?,?,?)',name,L,+b.sec||30).lastInsertRowid,d=one('select * from dicts where id=?',id);
+  s.json({dict_id:id,levels:L,...await addWords(d,items,levelOf)})});
 app.post('/api/admin/task',adm('tasks'),(r,s)=>{run('insert into tasks(dict_id,level,title) values(?,?,?)',r.body.dict_id,r.body.level,r.body.title);s.json({ok:1})});
 app.post('/api/admin/task/:id/del',adm('tasks'),(r,s)=>{run('delete from tasks where id=?',r.params.id);s.json({ok:1})});
 app.post('/api/admin/plan',adm('plans'),(r,s)=>{const b=r.body;b.del?run('delete from plans where id=?',b.del):run('insert into plans(months,price) values(?,?)',+b.months,+b.price);s.json({ok:1})});
