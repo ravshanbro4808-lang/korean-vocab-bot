@@ -13,6 +13,7 @@ create table if not exists access(user_id int,dict_id int,primary key(user_id,di
 create table if not exists tasks(id integer primary key autoincrement,dict_id int,level int,title text);
 create table if not exists plans(id integer primary key autoincrement,months int,price int);
 create table if not exists methods(id integer primary key autoincrement,name text,number text,holder text,on_ int default 1);
+create table if not exists scores(user_id int,name text,week int,pts int default 0,primary key(user_id,week));
 create table if not exists pays(id integer primary key autoincrement,user_id int,plan_id int,method_id int,file text,status text default 'pending',ts int);`);
 if(!one0('select 1 from methods'))for(const n of['Click','Payme','Karta'])db.prepare('insert into methods(name,number,holder) values(?,?,?)').run(n,'','');
 function one0(s){return db.prepare(s).get()}
@@ -33,8 +34,10 @@ function auth({init,dev,token}){
 const active=u=>u.is_admin||u.paid_until>Date.now();
 const can=(u,d)=>active(u)||d.free||!!one('select 1 from access where user_id=? and dict_id=?',u.id,d.id);
 const has=(u,p)=>u.is_admin==2||(u.is_admin==1&&u.perms.split(',').includes(p));
+const wk=()=>Math.floor(Date.now()/(7*DAY));
+const addScore=(id,name,p)=>{if(p>0)run('insert into scores(user_id,name,week,pts) values(?,?,?,?) on conflict(user_id,week) do update set pts=pts+excluded.pts',id,name,wk(),p)};
 const app=express();app.use(express.json());app.get('/',(r,s)=>s.sendFile(__dirname+'/index.html'));app.use('/shots',express.static(DATA+'/uploads'));
-const up=multer({dest:DATA+'/uploads/'}),gc=GOOGLE_CLIENT_ID&&new OAuth2Client(GOOGLE_CLIENT_ID);
+const up=multer({dest:DATA+'/uploads/',limits:{fileSize:25*1024*1024}}),gc=GOOGLE_CLIENT_ID&&new OAuth2Client(GOOGLE_CLIENT_ID);
 app.get('/config',(r,s)=>s.json({google:GOOGLE_CLIENT_ID||null,dev:!!DEV}));
 app.post('/auth/google',async(r,s)=>{try{const t=await gc.verifyIdToken({idToken:r.body.credential,audience:GOOGLE_CLIENT_ID}),p=t.getPayload();
   if(!p.email_verified)return s.status(401).json({e:'email'});const em=p.email.toLowerCase();
@@ -45,6 +48,9 @@ app.post('/auth/google',async(r,s)=>{try{const t=await gc.verifyIdToken({idToken
 app.use('/api',(req,res,next)=>{const u=auth({init:req.get('x-init'),dev:req.get('x-dev'),token:(req.get('authorization')||'').slice(7)});if(!u)return res.status(401).json({e:'auth'});req.u=u;next()});
 const adm=p=>(r,s,n)=>has(r.u,p)?n():s.status(403).json({e:'perm'});
 app.get('/api/me',(r,s)=>s.json({id:r.u.id,name:r.u.name,email:r.u.email,is_admin:r.u.is_admin,perms:r.u.perms,paid_until:r.u.paid_until,trial:r.u.trial,active:active(r.u),PERMS}));
+app.get('/api/stats',(r,s)=>s.json({learned:one('select count(*) n from learned where user_id=?',r.u.id).n,rank:(one('select pts from scores where user_id=? and week=?',r.u.id,wk())||{}).pts||0}));
+app.post('/api/score',(r,s)=>{addScore(r.u.id,r.u.name,Math.min(+r.body.points||0,500));s.json({ok:1})});
+app.get('/api/rating',(r,s)=>s.json(q('select name,pts from scores where week=? order by pts desc limit 20',wk())));
 app.get('/api/plans',(r,s)=>s.json(q('select * from plans order by months')));
 app.get('/api/methods',(r,s)=>s.json(q('select * from methods where on_=1')));
 app.get('/api/dicts',(r,s)=>s.json(q('select * from dicts').map(d=>({...d,ok:can(r.u,d)}))));
@@ -76,7 +82,14 @@ async function tr(t){if(!TRANSLATE_URL)return '';try{const x=await fetch(TRANSLA
 app.post('/api/admin/import',adm('import'),up.single('file'),async(r,s)=>{
   const {dict_id,level=1,pos='ot'}=r.body,d=one('select * from dicts where id=?',dict_id);if(!d||!r.file)return s.status(400).json({e:'bad'});
   let txt;const buf=fs.readFileSync(r.file.path);fs.unlinkSync(r.file.path);
-  if(/\.pdf$/i.test(r.file.originalname)){try{txt=(await require('pdf-parse')(buf)).text}catch{return s.status(400).json({e:'pdf'})}}else txt=buf.toString('utf8').replace(/^\uFEFF/,'');
+  const nm=r.file.originalname.toLowerCase();
+  try{
+    if(/\.pdf$/.test(nm))txt=(await require('pdf-parse')(buf)).text;
+    else if(/\.(xlsx|xls|ods)$/.test(nm)){const X=require('xlsx'),wb=X.read(buf);txt=wb.SheetNames.map(n=>X.utils.sheet_to_csv(wb.Sheets[n])).join('\n')}
+    else if(/\.docx$/.test(nm))txt=(await require('mammoth').extractRawText({buffer:buf})).value;
+    else if(/\.(html?|xml)$/.test(nm))txt=buf.toString('utf8').replace(/<(script|style)[\s\S]*?<\/\1>/gi,'').replace(/<br\s*\/?>|<\/(p|div|li|tr|h\d)>/gi,'\n').replace(/<[^>]+>/g,' ');
+    else txt=buf.toString('utf8').replace(/^\uFEFF/,'');
+  }catch{return s.status(400).json({e:'file'})}
   const items=[],seen=new Set();
   for(const line of txt.split(/\r?\n/)){const c=line.split(/[,;\t|]|\s[-–—]\s/).map(x=>x.trim());
     if(c.length>=2&&/[가-힣]/.test(c[0])&&c[1]&&!/[가-힣]/.test(c[1])){if(!seen.has(c[0])){seen.add(c[0]);items.push({ko:c[0],uz:c[1],pos:c[2]||pos})}}
@@ -134,7 +147,7 @@ io.on('connection',sock=>{
   sock.on('answer',({i,c})=>{const r=rooms[sock.data.code],p=r&&r.players[u.id];if(!p||p.done||i!==p.i)return;
     if(r.qs[i].ans===c)p.score++;p.i++;if(p.i>=r.qs.length)p.done=true;
     io.to(r.code).emit('room',view(r));
-    if(Object.values(r.players).every(x=>x.done)){io.to(r.code).emit('end',view(r));delete rooms[r.code]}});
+    if(Object.values(r.players).every(x=>x.done)){for(const [pid,p] of Object.entries(r.players))addScore(+pid,p.name,p.score);io.to(r.code).emit('end',view(r));delete rooms[r.code]}});
 });
 let bot;
 if(BOT_TOKEN){bot=new Telegraf(BOT_TOKEN);

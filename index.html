@@ -1,99 +1,140 @@
-<!doctype html><html lang="uz"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Koreys lug'at</title><script src="https://telegram.org/js/telegram-web-app.js"></script><script src="/socket.io/socket.io.js"></script>
+<!doctype html><html lang="uz"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Kores tili lug'ati</title><script src="https://telegram.org/js/telegram-web-app.js"></script><script src="/socket.io/socket.io.js"></script>
 <style>
-:root{--bg:#fff;--fg:#1a1a1a;--c:#f1f3f6;--ac:#2563eb}@media(prefers-color-scheme:dark){:root{--bg:#15171c;--fg:#eee;--c:#242830}}
-*{box-sizing:border-box}body{margin:0;font:16px system-ui;background:var(--bg);color:var(--fg);padding-bottom:70px}
-nav{position:fixed;bottom:0;left:0;right:0;display:flex;background:var(--c);padding:6px}nav button{flex:1;background:none;border:0;color:var(--fg);padding:10px 2px;font-size:13px}nav .on{color:var(--ac);font-weight:700}
-main{padding:14px;max-width:640px;margin:auto}.card{background:var(--c);border-radius:12px;padding:14px;margin:8px 0}
-button.b,select,input{font:inherit;padding:10px 14px;border-radius:10px;border:1px solid #8884;background:var(--bg);color:var(--fg);margin:3px}
-button.b{background:var(--ac);color:#fff;border:0}button.g{background:var(--c);color:var(--fg)}.big{font-size:34px;text-align:center;padding:30px 0}
-.opt{display:block;width:100%;text-align:left}.ok{background:#16a34a!important;color:#fff}.no{background:#dc2626!important;color:#fff}.s{opacity:.65;font-size:13px}
-</style></head><body><main id="m"></main><nav id="nav"></nav>
+:root{--bg:#f2f4f8;--fg:#14161c;--c:#fff;--bd:#e3e6ee;--mu:#6b7280;--ac:#e8bb62;--ad:#a8761a;--dk:#14161c}
+@media(prefers-color-scheme:dark){:root{--bg:#10131a;--fg:#eef0f5;--c:#1a1f29;--bd:#2a3140;--mu:#98a1b3;--dk:#eef0f5}}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}body{margin:0;font:16px system-ui,sans-serif;background:var(--bg);color:var(--fg)}
+#hd{position:sticky;top:0;z-index:5;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px;background:var(--bg);border-bottom:1px solid var(--bd)}
+#hd b{font-size:18px;flex:1}.ic{background:none;border:0;color:var(--fg);font-size:20px;padding:6px 10px}
+main{padding:14px 16px 100px;max-width:640px;margin:auto}
+.hi{display:flex;gap:12px;align-items:center;margin:4px 0 14px}.hi h2{margin:0;font-size:24px}.hi small{color:var(--mu)}
+.av{width:52px;height:52px;border-radius:50%;background:linear-gradient(145deg,#d9a73f,#a8761a);color:#fff;display:grid;place-items:center;font-size:22px;font-weight:700}
+.card{display:flex;align-items:center;gap:14px;background:var(--c);border:1px solid var(--bd);border-radius:20px;padding:16px;margin:10px 0}
+.card .em{font-size:30px;background:#f5ead6;border-radius:14px;padding:10px}.card>div{flex:1}.card small{color:var(--mu)}.card i{color:var(--mu);font-style:normal;font-size:22px}
+.sec{margin:22px 0 10px;font-size:22px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.book{position:relative;overflow:hidden;border-radius:22px;padding:16px;color:#fff;min-height:150px;display:flex;flex-direction:column;box-shadow:0 8px 18px #0002}
+.book:last-child:nth-child(odd){grid-column:span 2;min-height:130px}.book h3{margin:0 0 4px;font-size:22px}.book small{opacity:.8}
+.pill{margin-top:auto;align-self:flex-start;background:#0003;border-radius:14px;padding:7px 12px;font-weight:600;font-size:14px;position:relative;z-index:1}
+.gh{position:absolute;right:-4px;bottom:-24px;font-size:110px;font-style:normal;opacity:.15;font-weight:700}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:12px 0}.stats>div{background:var(--c);border:1px solid var(--bd);border-radius:18px;padding:14px}.stats b{font-size:26px;display:block}.stats small{color:var(--mu)}
+.cta{position:fixed;left:0;right:0;bottom:0;padding:12px 16px calc(12px + env(safe-area-inset-bottom));background:linear-gradient(transparent,var(--bg) 35%)}
+.cta button,.gold{width:100%;border:0;border-radius:18px;padding:17px;font-size:18px;font-weight:600;background:var(--ac);color:#14161c}
+.b{font:inherit;padding:11px 16px;border-radius:14px;border:0;background:var(--dk);color:var(--bg);margin:3px}.g{background:var(--c);color:var(--fg);border:1px solid var(--bd)}
+.s{color:var(--mu);font-size:13px}.opt{display:block;width:100%;text-align:left;margin:8px 0;padding:15px}.ok{background:#16a34a!important;color:#fff!important}.no{background:#dc2626!important;color:#fff!important}.sel{outline:2px solid var(--ac)}
+.big{font-size:36px;text-align:center;padding:34px 0}select,input{font:inherit;padding:11px 14px;border-radius:12px;border:1px solid var(--bd);background:var(--c);color:var(--fg);margin:3px;max-width:100%}
+.chip{display:inline-block;margin:4px;border:1.5px solid var(--bd);border-radius:16px;padding:10px 14px;background:var(--c);text-align:center}.chip input{display:none}.chip:has(input:checked){border-color:var(--ad);background:#f7ecd5;color:#14161c}
+#ov{position:fixed;inset:0;z-index:20}#ov .bg{position:absolute;inset:0;background:#0007}#ov .sh{position:absolute;left:0;right:0;bottom:0;background:var(--bg);border-radius:26px 26px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom));max-height:88vh;overflow:auto}
+.mg{display:grid;grid-template-columns:1fr 1fr;gap:10px}.rk{display:flex;justify-content:space-between;padding:14px;background:var(--c);border:1px solid var(--bd);border-radius:16px;margin:8px 0}
+</style></head><body><div id="hd"></div><main id="m"></main>
 <script>
 const tg=window.Telegram?.WebApp;tg?.expand();
-const dev=new URLSearchParams(location.search).get('dev');let me,S={tab:'dict'};
+const dev=new URLSearchParams(location.search).get('dev');let me,S={hist:[]};
 const $=s=>document.querySelector(s),H=h=>($('#m').innerHTML=h);
 async function api(p,o={}){const h={'x-init':tg?.initData||'','x-dev':dev||''},t=localStorage.tok;if(t)h.authorization='Bearer '+t;let b=o.body;
   if(b&&!(b instanceof FormData)){h['content-type']='application/json';b=JSON.stringify(b)}
   const r=await fetch('/api'+p,{method:o.body?'POST':'GET',headers:h,body:b});
   if(r.status==401){login();throw 0}if(r.status==402){gate();throw 0}if(r.status==403){alert("Bu funksiya sizga o'chirilgan");throw 0}return r.json()}
-const esc=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const esc=t=>String(t??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const POS={ot:'Ot',fel:"Fe'l",ravish:'Ravish',sifat:'Sifat'};
 function speak(t){const u=new SpeechSynthesisUtterance(t);u.lang='ko-KR';speechSynthesis.cancel();speechSynthesis.speak(u)}
 const shuf=a=>[...a].sort(()=>Math.random()-.5);
-async function login(){const c=await (await fetch('/config')).json();H(`<h2>🇰🇷 Koreys lug'at</h2><div class=card>Davom etish uchun Google orqali kiring<div id=gb style="margin-top:10px"></div>${c.dev?'<p class=s>DEV: ?dev=ID bilan oching</p>':''}</div>`);
+const D=ms=>ms>Date.now()?new Date(ms).toLocaleDateString():'—';
+const has=p=>me.is_admin==2||(me.is_admin==1&&me.perms.split(',').includes(p));
+const GR=[['#2f5fb3','#1f3f86'],['#2e8a69','#175c46'],['#d4543f','#a8321f'],['#d48a1c','#b0680c'],['#4a3f93','#2d2766'],['#0f8a9d','#0a5d6b']];
+function head(t,bk){$('#hd').innerHTML=`<button class=ic onclick="${bk||'tg&&tg.close()'}">${bk?'←':'✕'}</button><b>${t}</b>${me&&me.is_admin?`<button class=ic onclick="nav(vAdmin)">⚙️</button>`:''}`}
+function nav(fn,...a){clearInterval(S.ti);S.hist.push([fn,a]);fn(...a)}
+function back(){clearInterval(S.ti);S.hist.pop();const h=S.hist[S.hist.length-1];h?h[0](...h[1]):home()}
+function leave(){clearInterval(S.ti);const h=S.hist[S.hist.length-1];h[0](...h[1])}
+const bk=()=>S.hist.length>1?'back()':null;
+async function login(){const c=await (await fetch('/config')).json();head("Kores tili lug'ati");H(`<div class=card><div>Davom etish uchun Google orqali kiring<div id=gb style="margin-top:10px"></div></div></div>${c.dev?'<p class=s>DEV: ?dev=ID bilan oching</p>':''}`);
   if(!c.google)return $('#gb').textContent='GOOGLE_CLIENT_ID sozlanmagan';
   const s=document.createElement('script');s.src='https://accounts.google.com/gsi/client';s.onload=()=>{google.accounts.id.initialize({client_id:c.google,callback:async r=>{const x=await (await fetch('/auth/google',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({credential:r.credential})})).json();if(x.token){localStorage.tok=x.token;init()}else alert('Kirish xatosi')}});google.accounts.id.renderButton($('#gb'),{theme:'outline',size:'large',text:'continue_with'})};document.body.appendChild(s)}
-function gate(){const t=me.trial;H(`<h3>🔒 Pullik bo'lim</h3><div class=card>`+(t=='none'||t=='rejected'?`<p>Birinchi marta kirdingizmi? 1 oy bepul sinov so'rang — admin tasdiqlaydi.</p><button class=b onclick="askTrial()">🚀 O'rganishni boshlash</button>`:t=='pending'?'<p>⏳ So\'rovingiz admin tekshiruvida.</p>':'<p>Bepul sinov muddati tugagan.</p>')+`<hr><button class="b g" onclick="go('pay')">💳 Obuna sotib olish</button></div>`)}
+async function init(){try{me=await api('/me')}catch{return}S.hist=[[home,[]]];home()}
+// ---------- bosh sahifa
+function book(x,i){const g=GR[i%GR.length];return `<div class=book style="background:linear-gradient(145deg,${g[0]},${g[1]})" onclick="${x.ok?`nav(openDict,${x.id})`:'gate()'}"><h3>${esc(x.name)}</h3><small>${x.free?'Bepul':'Lug\'at'}</small><span class=pill>${x.ok?'✓':'🔒'} ${x.levels} daraja</span><i class=gh>${esc([...String(x.name)][0])}</i></div>`}
+async function home(){head("Kores tili lug'ati");const [d,st]=await Promise.all([api('/dicts'),api('/stats')]);me=await api('/me');
+H(`<div class=hi><div class=av>${esc([...String(me.name||'?')][0])}</div><div><small>Annyeong! 안녕하세요</small><h2>Salom, ${esc(me.name)}</h2></div></div>
+<div class=card onclick="nav(gHub)"><span class=em>🎮</span><div><b>O'yinlar</b><br><small>So'z va grammatikani o'ynab mustahkamlang</small></div><i>›</i></div>
+<div class=card onclick="nav(vTasks)"><span class=em>📝</span><div><b>Topshiriqlar</b><br><small>Daraja bo'yicha mashqlar</small></div><i>›</i></div>
+<h3 class=sec>Kitoblar</h3><div class=grid>${d.map(book).join('')||'<p class=s>Hali lug\'at yo\'q</p>'}</div>
+<div class=card onclick="sheet()"><div><small>${me.active?'OBUNA FAOL':"OBUNA YO'Q"}</small><br><b>${me.active?(me.is_admin?'Admin':D(me.paid_until)+' gacha'):"Boshlang'ich daraja — bepul"}</b></div><i>›</i></div>
+<div class=stats><div><b>${st.learned}</b><small>so'z o'rganildi</small></div><div><b>${d.filter(x=>x.ok).length} / ${d.length}</b><small>kitob ochiq</small></div><div><b>${st.rank}</b><small>haftalik ball</small></div></div>`+(me.active?'':'<div class=cta><button onclick="sheet()">Obuna sotib olish</button></div>'))}
+function gate(){head("Pullik bo'lim",bk());const t=me.trial;H(`<div class=card><div>`+(t=='none'||t=='rejected'?`<p>Birinchi marta kirdingizmi? 1 oy bepul sinov so'rang — admin tasdiqlaydi.</p><button class=gold onclick="askTrial()">🚀 O'rganishni boshlash</button>`:t=='pending'?'<p>⏳ So\'rovingiz admin tekshiruvida.</p>':'<p>Bepul sinov muddati tugagan.</p>')+`<br><br><button class="b g" onclick="sheet()">💳 Obuna sotib olish</button></div></div>`)}
 async function askTrial(){const r=await api('/trial',{body:{}});me.trial=r.trial;gate()}
-const has=p=>me.is_admin==2||(me.is_admin==1&&me.perms.split(',').includes(p));
-async function init(){try{me=await api('/me')}catch{return}
-  const tabs=[['dict',"📚 Lug'at"],['task','📝 Topshiriq'],['game',"🎮 O'yin"],['pay',"💳 Obuna"]];if(me.is_admin)tabs.push(['admin','⚙️']);
-  $('#nav').innerHTML=tabs.map(t=>`<button data-t="${t[0]}" onclick="go('${t[0]}')">${t[1]}</button>`).join('');go('dict')}
-function go(t){S.tab=t;document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.t==t));({dict:vDicts,task:vTasks,game:vGame,pay:vPay,admin:vAdmin})[t]()}
-// ---- lug'atlar
-async function vDicts(){const d=await api('/dicts');H('<h3>Lug\'atlar</h3>'+(d.map(x=>`<div class=card onclick="openDict(${x.id})"><b>${esc(x.name)}</b> ${x.free?'🆓':x.ok?'✅':'🔒'}<div class=s>${x.levels} daraja</div></div>`).join('')||'<p>Hali lug\'at yo\'q</p>'))}
-async function openDict(id,level,pos,sec){const t=await api('/tree/'+id);S.f={dict:id};S.tree=t;
-  H(`<button class="b g" onclick="vDicts()">←</button><h3>${esc(t.d.name)}</h3><div class=s>Daraja</div>`+
-  Array.from({length:t.d.levels},(_,i)=>`<button class="b ${level==i+1?'':'g'}" onclick="openDict(${id},${i+1})">${i+1}</button>`).join('')+
-  (level?`<div class=s>So'z turi</div>`+['',...Object.keys(POS)].map(p=>`<button class="b ${(pos||'')==p?'':'g'}" onclick="openDict(${id},${level},'${p}')">${p?POS[p]:'Barchasi'}</button>`).join(''):'')+
-  (level&&pos!=null?`<div class=s>Bo'lim</div><button class="b ${!sec?'':'g'}" onclick="openDict(${id},${level},'${pos}',0)">Barchasi</button>`+
-   [...new Set(t.rows.filter(r=>r.level==level&&(!pos||r.pos==pos)).map(r=>r.section))].sort().map(s=>`<button class="b ${sec==s?'':'g'}" onclick="openDict(${id},${level},'${pos}',${s})">${s}-bo'lim</button>`).join(''):'')+
-  (level&&pos!=null?`<hr><div class=s>Qaysi so'zlar</div><select id=wm><option value="">Hammasi</option><option value=new>Yangi</option><option value=learned>O'rganilgan (takrorlash)</option></select>
-   <div>${[['cards','🃏 Kartochka'],['test','❓ Test'],['listen','🎧 Eshitish'],['speak','🎤 Gapirish'],['chat','💬 Suhbat'],['list',"📖 Ro'yxat"]].map(m=>`<button class=b onclick="start('${m[0]}',${id},${level},'${pos}',${sec||0})">${m[1]}</button>`).join('')}</div>`:''))}
-async function start(mode,dict,level,pos,sec,pre){let w=pre;if(!w){const p=new URLSearchParams({dict,level,pos,section:sec||'',mode:$('#wm')?.value||''});w=await api('/words?'+p)}
-  if(!w.length)return alert("So'z yo'q");S.run={mode,w:mode=='list'?w:shuf(w),i:0,score:0,back:()=>pre?go('task'):openDict(dict,level,pos,sec)};step()}
+// ---------- kitob (lug'at)
+async function openDict(id,level,pos,sec){S.hist[S.hist.length-1]=[openDict,[id,level,pos,sec]];const t=await api('/tree/'+id);head(esc(t.d.name),'back()');
+H(`<div class=s>Daraja</div>`+Array.from({length:t.d.levels},(_,i)=>`<button class="b ${level==i+1?'':'g'}" onclick="openDict(${id},${i+1})">${i+1}</button>`).join('')+
+(level?`<div class=s>So'z turi</div>`+['',...Object.keys(POS)].map(p=>`<button class="b ${(pos||'')==p?'':'g'}" onclick="openDict(${id},${level},'${p}')">${p?POS[p]:'Barchasi'}</button>`).join(''):'')+
+(level&&pos!=null?`<div class=s>Bo'lim</div><button class="b ${!sec?'':'g'}" onclick="openDict(${id},${level},'${pos}',0)">Barchasi</button>`+
+ [...new Set(t.rows.filter(r=>r.level==level&&(!pos||r.pos==pos)).map(r=>r.section))].sort((a,b)=>a-b).map(s=>`<button class="b ${sec==s?'':'g'}" onclick="openDict(${id},${level},'${pos}',${s})">${s}-bo'lim</button>`).join('')+
+ `<hr><div class=s>Qaysi so'zlar</div><select id=wm><option value="">Hammasi</option><option value=new>Yangi</option><option value=learned>O'rganilgan (takrorlash)</option></select><div>${[['cards','🃏 Kartochka'],['test','❓ Test'],['listen','🎧 Eshitish'],['speak','🎤 Gapirish'],['chat','💬 Suhbat'],['list',"📖 Ro'yxat"]].map(m=>`<button class=b onclick="start('${m[0]}',${id},${level},'${pos}',${sec||0})">${m[1]}</button>`).join('')}</div>`:''))}
+async function start(mode,dict,level,pos,sec){const p=new URLSearchParams({dict,level,pos,section:sec||'',mode:$('#wm')?.value||''});const w=await api('/words?'+p);run(mode,w)}
+function run(mode,w){if(!w.length)return alert("So'z yo'q");S.run={mode,w:mode=='list'?w:shuf(w),i:0,score:0};if(mode=='speed'){S.run.deadline=Date.now()+60000;S.ti=setInterval(()=>{const t=Math.max(0,Math.ceil((S.run.deadline-Date.now())/1000)),e=$('#tm');if(e)e.textContent='⏱ '+t;if(t<=0){clearInterval(S.ti);S.run.i=S.run.w.length;step()}},500)}step()}
 async function mark(id,on){await api('/learned',{body:{id,on}});const x=S.run.w.find(w=>w.id==id);x.learned=on;step(true)}
 function opts(w){const o=shuf(S.run.w.filter(x=>x.id!=w.id)).slice(0,3).map(x=>x.uz);return shuf([w.uz,...o])}
-function step(keep){const r=S.run,w=r.w[r.i],bk='<button class="b g" onclick="S.run.back()">←</button>';
-  if(r.mode=='list')return H(bk+r.w.map(x=>`<div class=card>${esc(x.ko)} — ${esc(x.uz)} <button class="b g" onclick="mark(${x.id},${x.learned?0:1})">${x.learned?'✅':'⬜'}</button></div>`).join(''));
-  if(!w)return H(bk+`<div class="card big">🎉 ${r.score}/${r.w.length}</div>`);
-  const lm=`<button class="b g" onclick="mark(${w.id},${w.learned?0:1})">${w.learned?"✅ O'rganilgan":"⬜ O'rgandim"}</button>`,nx='<button class=b onclick="S.run.i++;step()">Keyingi →</button>',pr=`<div class=s>${r.i+1}/${r.w.length}</div>`;
-  if(r.mode=='cards')return H(bk+pr+`<div class="card big" onclick="this.innerHTML='${esc(w.uz).replace(/'/g,"\\'")}'">${esc(w.ko)}<div class=s>bosing</div></div>${lm}${nx}`);
-  if(r.mode=='test'||r.mode=='listen'){const o=r.o&&r.oi==r.i?r.o:(r.o=opts(w),r.oi=r.i,r.o);
-    if(r.mode=='listen'&&!keep)speak(w.ko);
-    return H(bk+pr+`<div class="card big">${r.mode=='listen'?`<button class=b onclick="speak('${w.ko.replace(/'/g,"\\'")}')">🔊</button>`:esc(w.ko)}</div>`+o.map(t=>`<button class="b g opt" onclick="pick(this,${t==w.uz})">${esc(t)}</button>`).join('')+lm)}
-  if(r.mode=='speak'){return H(bk+pr+`<div class="card big">${esc(w.uz)}</div><div class=s>Koreyschasini ayting</div><button class=b onclick="listen()">🎤 Gapirish</button><div id=hr class=s></div>${lm}${nx}`)}
-  if(r.mode=='chat')return H(bk+pr+`<div class=card>🤖 «${esc(w.uz)}» koreyschada nima?</div><input id=ans style="width:70%" placeholder="한국어"><button class=b onclick="chk()">OK</button><div id=hr></div>${lm}${nx}`)}
-function pick(b,ok){if(S.run.done==S.run.i)return;S.run.done=S.run.i;b.classList.add(ok?'ok':'no');if(ok)S.run.score++;setTimeout(()=>{S.run.i++;step()},700)}
+function step(keep){const r=S.run;head('Mashq','leave()');if(r.mode=='speed'&&r.i>=r.w.length&&Date.now()<r.deadline){r.w=shuf(r.w);r.i=0}
+  const w=r.w[r.i];
+  if(r.mode=='list')return H(r.w.map(x=>`<div class=card><div>${esc(x.ko)} — ${esc(x.uz)}</div><button class="b g" onclick="mark(${x.id},${x.learned?0:1})">${x.learned?'✅':'⬜'}</button></div>`).join(''));
+  if(!w){clearInterval(S.ti);if(!r.sent){r.sent=1;api('/score',{body:{points:r.score}}).catch(()=>{})}return H(`<div class="card big" style="display:block">🎉 ${r.score}${r.mode=='speed'?' ball':'/'+r.w.length}</div><button class="gold" onclick="leave()">OK</button>`)}
+  const lm=`<button class="b g" onclick="mark(${w.id},${w.learned?0:1})">${w.learned?"✅ O'rganilgan":"⬜ O'rgandim"}</button>`,nx='<button class=b onclick="S.run.i++;step()">Keyingi →</button>',pr=`<div class=s>${r.mode=='speed'?'<span id=tm>⏱ 60</span> · ball '+r.score:(r.i+1)+'/'+r.w.length}</div>`;
+  if(r.mode=='cards')return H(pr+`<div class="card big" style="display:block" onclick="this.innerHTML='${esc(w.uz).replace(/'/g,"\\'")}'">${esc(w.ko)}<div class=s>bosing</div></div>${lm}${nx}`);
+  if(['test','listen','speed'].includes(r.mode)){const o=r.o&&r.oi==r.i?r.o:(r.o=opts(w),r.oi=r.i,r.o);if(r.mode=='listen'&&!keep)speak(w.ko);
+    return H(pr+`<div class="card big" style="display:block">${r.mode=='listen'?`<button class=b onclick="speak('${w.ko.replace(/'/g,"\\'")}')">🔊</button>`:esc(w.ko)}</div>`+o.map(t=>`<button class="b g opt" onclick="pick(this,${t==w.uz})">${esc(t)}</button>`).join('')+(r.mode=='speed'?'':lm))}
+  if(r.mode=='speak')return H(pr+`<div class="card big" style="display:block">${esc(w.uz)}</div><div class=s>Koreyschasini ayting</div><button class=b onclick="listen()">🎤 Gapirish</button><div id=hr class=s></div>${lm}${nx}`);
+  if(r.mode=='chat')return H(pr+`<div class=card>🤖 «${esc(w.uz)}» koreyschada nima?</div><input id=ans style="width:70%" placeholder="한국어"><button class=b onclick="chk()">OK</button><div id=hr></div>${lm}${nx}`)}
+function pick(b,ok){const r=S.run;if(r.done===r.i+'_'+r.score+'_'+r.w.length&&0)return;if(r.lock)return;r.lock=1;b.classList.add(ok?'ok':'no');if(ok)r.score++;setTimeout(()=>{r.lock=0;r.i++;step()},600)}
 function listen(){const R=window.SpeechRecognition||window.webkitSpeechRecognition;if(!R)return alert('Brauzer ovozni tanimaydi');
   const r=new R();r.lang='ko-KR';r.onresult=e=>{const t=e.results[0][0].transcript,w=S.run.w[S.run.i];const ok=t.replace(/\s/g,'')==w.ko.replace(/\s/g,'');$('#hr').innerHTML=(ok?'✅ ':'❌ ')+esc(t)+' → '+esc(w.ko);if(ok)S.run.score++};r.start()}
 function chk(){const w=S.run.w[S.run.i],ok=$('#ans').value.trim()==w.ko;$('#hr').innerHTML=ok?'✅ To\'g\'ri!':'❌ '+esc(w.ko);if(ok)S.run.score++}
-// ---- topshiriqlar
-async function vTasks(){const t=await api('/tasks');H("<h3>Topshiriqlar</h3>"+(t.map(x=>`<div class=card><b>${esc(x.title)}</b><div class=s>${esc(x.dname)} · ${x.level}-daraja</div>${['cards','test','listen','speak','chat'].map(m=>`<button class="b g" onclick="start('${m}',${x.dict_id},${x.level},'',0)">${m}</button>`).join('')}<button class="b g" onclick="startL(${x.dict_id},${x.level})">♻️ O'rganilganlar</button></div>`).join('')||'<p>Topshiriq yo\'q</p>'))}
-async function startL(d,l){const w=await api(`/words?dict=${d}&level=${l}&mode=learned`);if(!w.length)return alert("Hali o'rganilgan so'z yo'q");start('cards',d,l,'',0,w)}
-// ---- o'yinlar (xona)
-let sk;function sock(){if(!sk){sk=io({auth:{init:tg?.initData||'',dev}});sk.on('room',roomV);sk.on('err',alert);sk.on('start',qs=>{G.qs=qs;G.i=0;gq()});sk.on('end',r=>H('<h3>🏁 Natija</h3>'+r.players.sort((a,b)=>b.score-a.score).map(p=>`<div class=card>${esc(p.name)}: ${p.score}</div>`).join('')+'<button class=b onclick="go(\'game\')">OK</button>'))}return sk}
-let G={};
-async function vGame(){const d=(await api('/dicts')).filter(x=>x.ok);H(`<h3>🎮 O'yinlar</h3><div class=card><b>Xona yaratish</b><br><select id=gd>${d.map(x=>`<option value=${x.id}>${esc(x.name)}</option>`).join('')}</select><input id=gl type=number placeholder="Daraja" style="width:90px"><button class=b onclick="mk()">Yaratish</button></div>
-<div class=card><b>Xonaga kirish</b><br><input id=gc placeholder="Xona kodi" inputmode=numeric><button class=b onclick="jn()">Kirish</button></div>`)}
+// ---------- topshiriqlar
+async function vTasks(){head('Topshiriqlar','back()');const t=await api('/tasks');H(t.map(x=>`<div class=card style="display:block"><b>${esc(x.title)}</b><div class=s>${esc(x.dname)} · ${x.level}-daraja</div>${[['cards','🃏'],['test','❓'],['listen','🎧'],['speak','🎤'],['chat','💬']].map(m=>`<button class="b g" onclick="taskGo('${m[0]}',${x.dict_id},${x.level},'')">${m[1]}</button>`).join('')}<button class="b g" onclick="taskGo('cards',${x.dict_id},${x.level},'learned')">♻️ O'rganilganlar</button></div>`).join('')||'<p class=s>Topshiriq yo\'q</p>')}
+async function taskGo(m,d,l,mode){const w=await api(`/words?dict=${d}&level=${l}&mode=${mode}`);if(!w.length)return alert("So'z yo'q");run(m,w)}
+// ---------- o'yinlar
+async function gHub(){head("O'yinlar",'back()');H(`<h2 style="margin:6px 0 14px">So'z va grammatikani o'ynab mustahkamlang</h2>
+<div class=card onclick="nav(solo)"><span class=em>🙋</span><div><b>Yolg'iz o'ynash</b><br><small>O'zingiz mashq qiling</small></div><i>›</i></div>
+<div class=card onclick="nav(friends)"><span class=em>👥</span><div><b>Do'stlar bilan</b><br><small>Kod yuboring va birga o'ynang</small></div><i>›</i></div>
+<h3 class=sec style="font-size:18px">Kod bilan qo'shilish</h3><div style="display:flex;gap:8px"><input id=gc placeholder="KOD" inputmode=numeric style="flex:1;text-align:center;letter-spacing:6px;font-size:20px"><button class=b onclick="jn()">Qo'shilish</button></div>
+<div class=card style="justify-content:center;margin-top:18px" onclick="nav(rating)"><b>🏆 Haftalik reyting</b></div>`)}
+async function dsel(){const d=(await api('/dicts')).filter(x=>x.ok);return `<select id=gd>${d.map(x=>`<option value=${x.id}>${esc(x.name)}</option>`).join('')}</select>`}
+async function solo(){head("Yolg'iz o'ynash",'back()');const s=await dsel();H(`<div class=s>YOLG'IZ O'YNASH</div><h2 style="margin:4px 0 12px">O'yinni tanlang</h2>${s}<input id=gl type=number placeholder="Daraja (ixtiyoriy)" style="width:170px">`+
+ [['listen','🎧','Tinglash','Ovozni tinglab, to\'g\'ri so\'zni tanlang'],['speed','⚡','Tezlik','60 soniyada ko\'proq javob bering'],['match','🔀','Juftlik',"So'z va tarjimasini juftlang"]].map(g=>`<div class=card onclick="soloGo('${g[0]}')"><span class=em>${g[1]}</span><div><b>${g[2]}</b><br><small>${g[3]}</small></div><i>›</i></div>`).join(''))}
+async function soloGo(m){const d=$('#gd').value,l=$('#gl').value;const w=await api(`/words?dict=${d}${l?'&level='+l:''}`);if(w.length<4)return alert("Kamida 4 ta so'z kerak");if(m=='match')return matchStart(w);run(m,w)}
+function matchStart(w){const p=shuf(w).slice(0,6);S.m={p,ko:shuf(p),uz:shuf(p),sel:null,done:new Set(),miss:0};matchV()}
+function matchV(){const m=S.m;head('Juftlik','leave()');const bt=(x,s,t)=>`<button class="b g opt ${m.done.has(x.id)?'ok':''} ${s&&m.sel==x.id?'sel':''}" onclick="mpick(${x.id},'${s?'k':'u'}')">${esc(t)}</button>`;
+ H(`<div class=s>Avval koreyscha so'zni, so'ng tarjimasini bosing</div><div class=mg><div>${m.ko.map(x=>bt(x,1,x.ko)).join('')}</div><div>${m.uz.map(x=>bt(x,0,x.uz)).join('')}</div></div>`)}
+function mpick(id,s){const m=S.m;if(m.done.has(id))return;if(s=='k'){m.sel=id;return matchV()}if(m.sel==null)return;
+ if(m.sel==id)m.done.add(id);else m.miss++;m.sel=null;
+ if(m.done.size==m.p.length){const pts=Math.max(1,m.p.length-m.miss);api('/score',{body:{points:pts}}).catch(()=>{});H(`<div class="card big" style="display:block">🎉 +${pts} ball<div class=s>Xatolar: ${m.miss}</div></div><button class=gold onclick="leave()">OK</button>`)}else matchV()}
+async function friends(){head("Do'stlar bilan",'back()');const s=await dsel();H(`<p class=s>Xona yarating, kodni do'stlaringizga bering (kamida 2 o'yinchi).</p>${s}<input id=gl type=number placeholder="Daraja (ixtiyoriy)" style="width:170px"><br><button class=gold style="margin-top:12px" onclick="mk()">Xona yaratish</button>`)}
+async function rating(){head('Haftalik reyting','back()');const r=await api('/rating');H(r.map((x,i)=>`<div class=rk><span>${['🥇','🥈','🥉'][i]||i+1+'.'} ${esc(x.name)}</span><b>${x.pts}</b></div>`).join('')||'<p class=s>Hali natija yo\'q</p>')}
+let sk,G={};
+function sock(){if(!sk){sk=io({auth:{init:tg?.initData||'',dev,token:localStorage.tok}});sk.on('room',roomV);sk.on('err',alert);sk.on('start',qs=>{G.qs=qs;G.i=0;G.playing=1;gq()});sk.on('end',r=>{G.playing=0;head('Natija');H(r.players.sort((a,b)=>b.score-a.score).map((p,i)=>`<div class=rk><span>${['🥇','🥈','🥉'][i]||i+1+'.'} ${esc(p.name)}</span><b>${p.score}</b></div>`).join('')+'<br><button class=gold onclick="back()">OK</button>')})}return sk}
 function mk(){sock().emit('create',{dict:+$('#gd').value,level:+$('#gl').value||0},r=>r.e?alert(r.e):(G.host=1,sk.emit('join',r.code,x=>x.e&&alert(x.e))))}
 function jn(){G.host=0;sock().emit('join',$('#gc').value.trim(),r=>r.e&&alert(r.e))}
-function roomV(r){if(G.playing)return;H(`<h3>Xona kodi: ${r.code}</h3><p class=s>Do'stlaringizga kodni bering (kamida 2 o'yinchi)</p>`+r.players.map(p=>`<div class=card>👤 ${esc(p.name)}</div>`).join('')+(G.host?'<button class=b onclick="sk.emit(\'start\')">▶️ Boshlash</button>':'<p>Boshlovchi kutilmoqda...</p>'))}
-function gq(){G.playing=1;const q=G.qs[G.i];if(!q)return H('<p>Boshqalar tugatishini kutamiz...</p>');
-  H(`<div class=s>${G.i+1}/${G.qs.length}</div><div class="card big">${esc(q.ko)}</div>`+q.opts.map(o=>`<button class="b g opt" onclick="ga(this)">${esc(o)}</button>`).join(''))}
+function roomV(r){if(G.playing)return;head('Xona','back()');H(`<h2>Xona kodi: ${r.code}</h2><p class=s>Do'stlaringizga kodni bering (kamida 2 o'yinchi)</p>`+r.players.map(p=>`<div class=rk>👤 ${esc(p.name)}</div>`).join('')+(G.host?'<button class=gold onclick="sk.emit(\'start\')">▶️ Boshlash</button>':'<p>Boshlovchi kutilmoqda...</p>'))}
+function gq(){const q=G.qs[G.i];head('Musobaqa');if(!q)return H('<p>Boshqalar tugatishini kutamiz...</p>');
+  H(`<div class=s>${G.i+1}/${G.qs.length}</div><div class="card big" style="display:block">${esc(q.ko)}</div>`+q.opts.map(o=>`<button class="b g opt" onclick="ga(this)">${esc(o)}</button>`).join(''))}
 function ga(b){sk.emit('answer',{i:G.i,c:b.textContent});G.i++;gq()}
-// ---- obuna
-const D=ms=>ms>Date.now()?new Date(ms).toLocaleDateString():'—';
-async function vPay(){const [pl,mt,p]=await Promise.all([api('/plans'),api('/methods'),api('/mypay')]);
-H(`<h3>💳 Obuna</h3><div class=card>${me.active?`✅ Faol${me.is_admin?'':' · '+D(me.paid_until)+' gacha'}`:'❌ Obuna yo\'q'}</div>
-<div class=card><b>1. Tarif</b><br>${pl.map(x=>`<label style=display:block><input type=radio name=pl value=${x.id}> ${x.months} oy — ${x.price.toLocaleString()} so'm</label>`).join('')||'<span class=s>Admin hali tarif kiritmagan</span>'}</div>
-<div class=card><b>2. To'lov usuli</b><br>${mt.map(x=>`<label style=display:block><input type=radio name=mt value=${x.id}> <b>${esc(x.name)}</b>: ${esc(x.number)||'—'}<div class=s>${esc(x.holder)}</div></label>`).join('')}</div>
-<div class=card><b>3. Skrinshot</b><br><input type=file id=sh accept=image/*><button class=b onclick="sendPay()">✅ To'lovni qildim, tekshirishga yuborish</button><div class=s>Tekshiruv 24 soat ichida amalga oshiriladi.</div></div>`+p.map(x=>`<div class=card>#${x.id}: ${x.status}</div>`).join(''))}
+// ---------- obuna (pastdan chiqadigan oyna)
+async function sheet(){const [pl,mt]=await Promise.all([api('/plans'),api('/methods')]);document.getElementById('ov')?.remove();const o=document.createElement('div');o.id='ov';
+ o.innerHTML=`<div class=bg onclick="document.getElementById('ov').remove()"></div><div class=sh><h2 style="margin:0 0 4px">Obuna sotib olish</h2><div class=s>Tarif va to'lov usulini tanlang · so'm</div>
+ <div style="margin:12px 0">${pl.map(x=>`<label class=chip><input type=radio name=pl value=${x.id}>${x.months} oy<br><b>${x.price.toLocaleString()}</b></label>`).join('')||'<span class=s>Admin hali tarif kiritmagan</span>'}</div>
+ ${mt.map(x=>`<label class=card style="display:flex"><input type=radio name=mt value=${x.id}><div><b>${esc(x.name)}</b><br>${esc(x.number)||'—'}<div class=s>${esc(x.holder)}</div></div></label>`).join('')}
+ <div class=s>To'lovdan so'ng chek (skrinshot) yuboring:</div><input type=file id=sh accept=image/*><br><br><button class=gold onclick="sendPay()">✅ To'lovni qildim, tekshirishga yuborish</button><p class=s>Tekshiruv 24 soat ichida amalga oshiriladi.</p></div>`;document.body.appendChild(o)}
 async function sendPay(){const f=$('#sh').files[0],pl=document.querySelector('[name=pl]:checked'),mt=document.querySelector('[name=mt]:checked');if(!f||!pl||!mt)return alert('Tarif, usul va rasmni tanlang');
-  const fd=new FormData();fd.append('shot',f);fd.append('plan_id',pl.value);fd.append('method_id',mt.value);await api('/pay',{body:fd});alert('Yuborildi. 24 soat ichida tekshiriladi.');vPay()}
+  const fd=new FormData();fd.append('shot',f);fd.append('plan_id',pl.value);fd.append('method_id',mt.value);await api('/pay',{body:fd});document.getElementById('ov').remove();alert('Yuborildi. 24 soat ichida tekshiriladi.')}
 // ---- admin
-async function vAdmin(){const sec=[];const ad=async(p,b)=>{await api('/admin'+p,{body:b});vAdmin()};window.adm=ad;
+async function vAdmin(){head('Admin','back()');const sec=[];const ad=async(p,b)=>{await api('/admin'+p,{body:b});vAdmin()};window.adm=ad;
   const d=await api('/dicts'),ops=d.map(x=>`<option value=${x.id}>${esc(x.name)}</option>`).join('');
   if(has('trials')){const t=await api('/admin/trials');sec.push(`<div class=card><b>🚀 Bepul sinov so'rovlari (${t.length})</b>${t.map(u=>`<div>${esc(u.name)} <span class=s>${esc(u.email||u.id)}</span><br><button class=b onclick="adm('/trial/${u.id}',{ok:1})">Qabul (1 oy)</button><button class="b g" onclick="adm('/trial/${u.id}',{ok:0})">Rad</button></div>`).join('')}</div>`)}
   if(has('payments')){const p=await api('/admin/pending');sec.push(`<div class=card><b>💰 To'lovlar (${p.length})</b>${p.map(x=>`<div><a href="/shots/${x.file}" target=_blank><img src="/shots/${x.file}" width=120></a> ${esc(x.name)} · ${x.months||'?'} oy · ${(x.price||0).toLocaleString()} · ${esc(x.mname||'')}<br><button class=b onclick="adm('/pay/${x.id}',{ok:1})">Qabul</button><button class="b g" onclick="adm('/pay/${x.id}',{ok:0})">Rad</button></div>`).join('')}</div>`)}
   if(has('plans')){const pl=await api('/plans');sec.push(`<div class=card><b>🏷 Tariflar</b>${pl.map(x=>`<div>${x.months} oy — ${x.price.toLocaleString()} <button class="b g" onclick="adm('/plan',{del:${x.id}})">🗑</button></div>`).join('')}<input id=pm type=number placeholder="Oy" style="width:80px"><input id=pp type=number placeholder="Narx (so'm)" style="width:140px"><button class=b onclick="adm('/plan',{months:$('#pm').value,price:$('#pp').value})">Qo'shish</button></div>`)}
   if(has('methods')){const m=await api('/admin/methods');sec.push(`<div class=card><b>🏦 To'lov usullari</b>${m.map(x=>`<div class=card><b>${esc(x.name)}</b><input id=mn${x.id} value="${esc(x.number)}" placeholder="Karta/telefon raqami"><input id=mh${x.id} value="${esc(x.holder)}" placeholder="Ism familiya"><label><input type=checkbox id=mo${x.id} ${x.on_?'checked':''}> yoqiq</label><button class=b onclick="adm('/method',{id:${x.id},name:'${esc(x.name)}',number:$('#mn${x.id}').value,holder:$('#mh${x.id}').value,on:$('#mo${x.id}').checked})">Saqlash</button></div>`).join('')}</div>`)}
   if(has('dicts'))sec.push(`<div class=card><b>📚 Yangi lug'at</b><br><input id=dn placeholder="Nomi"><input id=dl type=number placeholder="Daraja soni" style="width:110px"><input id=ds type=number placeholder="Bo'limda so'z (30)" style="width:130px"><button class=b onclick="adm('/dict',{name:$('#dn').value,levels:$('#dl').value,sec:$('#ds').value})">Qo'shish</button>${d.map(x=>`<div>${esc(x.name)} (${x.levels}) <button class="b g" onclick="adm('/dict/${x.id}',{free:${x.free?0:1}})">${x.free?'🆓→pullik':'pullik→🆓'}</button><button class="b g" onclick="confirm('O\\'chirilsinmi?')&&adm('/dict/${x.id}',{del:1})">🗑</button></div>`).join('')}</div>`);
-  if(has('import'))sec.push(`<div class=card><b>📖 Kitob/fayldan so'z import</b><div class=s>.txt .csv .pdf — tarjimasi bo'lsa (koreys, tarjima) olinadi, bo'lmasa avtomatik tarjima qilinadi</div><select id=id>${ops}</select><input id=il type=number value=1 style="width:70px"><select id=ip>${Object.entries(POS).map(([k,v])=>`<option value=${k}>${v}</option>`).join('')}</select><input type=file id=if><button class=b onclick="imp()">Yuklash</button></div>`);
+  if(has('import'))sec.push(`<div class=card><b>📖 Kitob/fayldan so'z import</b><div class=s>Har qanday fayl: .txt .csv .xlsx .docx .pdf .html — «koreys, tarjima» qatorlari olinadi, tarjimasiz so'zlar avto-tarjima qilinadi</div><select id=id>${ops}</select><input id=il type=number value=1 style="width:70px"><select id=ip>${Object.entries(POS).map(([k,v])=>`<option value=${k}>${v}</option>`).join('')}</select><input type=file id=if accept='.txt,.csv,.xlsx,.xls,.docx,.pdf,.html,.htm'><button class=b onclick="imp()">Yuklash</button></div>`);
   if(has('tasks'))sec.push(`<div class=card><b>📝 Topshiriq yaratish</b><select id=td>${ops}</select><input id=tl type=number value=1 style="width:70px"><input id=tt placeholder="Nomi"><button class=b onclick="adm('/task',{dict_id:$('#td').value,level:$('#tl').value,title:$('#tt').value})">Qo'shish</button></div>`);
   if(has('users')||has('admins')){const us=await api('/admin/users');sec.push(`<div class=card><b>👥 Foydalanuvchilar (${us.length})</b>`+(has('admins')?`<div><input id=ae placeholder="Admin qo'shish: email"><button class=b onclick="adm('/admin',{email:$('#ae').value,admin:1})">Admin qil</button></div>`:'')+us.map(u=>`<div class=card><b>${esc(u.name)}</b> ${u.is_admin==2?'👑':u.is_admin?'🛡':''}<div class=s>${esc(u.email||'TG '+u.id)} · obuna: ${D(u.paid_until)} · sinov: ${u.trial}</div>`+(has('users')?`<button class="b g" onclick="adm('/user',{id:${u.id},months:1})">+1 oy</button>`:'')+(has('admins')&&u.is_admin!=2?`<button class="b g" onclick="adm('/admin',{id:${u.id},admin:${u.is_admin?0:1}})">${u.is_admin?'Adminlikni olish':'Admin qil'}</button>`:'')+(has('admins')&&u.is_admin==1?`<div>${me.PERMS.map(p=>`<label style="display:inline-block;margin:3px"><input type=checkbox class=pm${u.id} value=${p} ${u.perms.split(',').includes(p)?'checked':''}> ${p}</label>`).join('')}<button class=b onclick="adm('/admin',{id:${u.id},perms:[...document.querySelectorAll('.pm${u.id}:checked')].map(x=>x.value)})">Huquqlarni saqlash</button></div>`:'')+'</div>').join('')+'</div>')}
-  H('<h3>⚙️ Admin</h3>'+sec.join(''))}
+  H(sec.join(''))}
 async function imp(){const f=$('#if').files[0];if(!f)return;const fd=new FormData();fd.append('dict_id',$('#id').value);fd.append('level',$('#il').value);fd.append('pos',$('#ip').value);fd.append('file',f);const r=await api('/admin/import',{body:fd});alert(`${r.added} ta qo'shildi (${r.translated} ta avto-tarjima, ${r.skipped} ta tarjimasiz o'tkazildi)`);vAdmin()}
 init();
 </script></body></html>
