@@ -25,6 +25,24 @@ main{padding:14px 16px 100px;max-width:640px;margin:auto}
 .chip{display:inline-block;margin:4px;border:1.5px solid var(--bd);border-radius:16px;padding:10px 14px;background:var(--c);text-align:center}.chip input{display:none}.chip:has(input:checked){border-color:var(--ad);background:#f7ecd5;color:#14161c}
 #ov{position:fixed;inset:0;z-index:20}#ov .bg{position:absolute;inset:0;background:#0007}#ov .sh{position:absolute;left:0;right:0;bottom:0;background:var(--bg);border-radius:26px 26px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom));max-height:88vh;overflow:auto}
 .mg{display:grid;grid-template-columns:1fr 1fr;gap:10px}.rk{display:flex;justify-content:space-between;padding:14px;background:var(--c);border:1px solid var(--bd);border-radius:16px;margin:8px 0}
+
+body{background:radial-gradient(circle at 12% -5%,#ffe9b8 0,transparent 32%),radial-gradient(circle at 105% 18%,#d9ccff 0,transparent 30%),var(--bg);background-attachment:fixed}
+@media(prefers-color-scheme:dark){body{background:radial-gradient(circle at 12% -5%,#3a2c0e 0,transparent 32%),radial-gradient(circle at 105% 18%,#2a2050 0,transparent 30%),var(--bg);background-attachment:fixed}}
+body:before{content:"한 글 어 학 사 랑";position:fixed;inset:auto 0 12% 0;text-align:center;font-size:84px;font-weight:800;color:var(--fg);opacity:.04;letter-spacing:14px;pointer-events:none;animation:flt 9s ease-in-out infinite}
+@keyframes flt{50%{transform:translateY(-18px)}}@keyframes pop{50%{transform:scale(1.06)}}@keyframes shake{25%{transform:translateX(-7px)}75%{transform:translateX(7px)}}@keyframes fall{to{transform:translateY(105vh) rotate(540deg);opacity:.9}}@keyframes rise{from{opacity:0;transform:translateY(14px)}}
+main>*{animation:rise .35s ease both}.ok{animation:pop .3s}.no{animation:shake .35s}
+.hero{position:relative;overflow:hidden;border-radius:26px;padding:20px;color:#fff;background:linear-gradient(135deg,#7b5cff,#e0508a 55%,#f5a623);box-shadow:0 14px 30px #7b5cff44;margin-bottom:14px}
+.hero h2{margin:2px 0 0;font-size:26px}.hero small{opacity:.9}.hero .kr{position:absolute;right:-6px;top:-14px;font-size:92px;font-weight:800;opacity:.2;animation:flt 6s ease-in-out infinite}
+.xp{height:12px;border-radius:8px;background:#fff4;margin-top:14px;overflow:hidden}.xp i{display:block;height:100%;border-radius:8px;background:linear-gradient(90deg,#fff,#ffe29a);transition:width .8s}
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:12px 0}.tile{border-radius:22px;padding:16px;color:#fff;min-height:112px;display:flex;flex-direction:column;justify-content:flex-end;position:relative;overflow:hidden;box-shadow:0 8px 18px #0002;transition:transform .15s}
+.tile:active{transform:scale(.96)}.tile em{position:absolute;right:10px;top:6px;font-size:44px;font-style:normal;filter:drop-shadow(0 3px 4px #0004)}.tile b{font-size:18px}.tile small{opacity:.9}
+.book{transition:transform .15s}.book:active{transform:scale(.96)}.card{transition:transform .15s,box-shadow .15s}.card:active{transform:scale(.98)}
+.gold,.cta button{background:linear-gradient(135deg,#f5c05a,#e8993a);box-shadow:0 8px 18px #e8993a55}.b{box-shadow:0 3px 8px #0002}
+.fl{perspective:900px;margin:14px 0}.fl>div{position:relative;height:200px;transition:transform .55s;transform-style:preserve-3d}.fl.on>div{transform:rotateY(180deg)}
+.fl .f,.fl .k{position:absolute;inset:0;display:grid;place-items:center;border-radius:26px;backface-visibility:hidden;font-size:38px;font-weight:700;text-align:center;padding:12px;box-shadow:0 12px 26px #0003}
+.fl .f{background:linear-gradient(135deg,#7b5cff,#e0508a);color:#fff}.fl .k{background:linear-gradient(135deg,#2e8a69,#0f8a9d);color:#fff;transform:rotateY(180deg)}
+.cf{position:fixed;top:-30px;z-index:50;font-size:26px;pointer-events:none;animation:fall 2.6s linear forwards}
+.hero2{font-size:15px;color:var(--mu);margin:4px 0 10px}.hero2 b{font-size:30px;color:var(--fg)}
 </style></head><body><div id="hd"></div><main id="m"></main>
 <script>
 const tg=window.Telegram?.WebApp;tg?.expand();
@@ -36,6 +54,7 @@ async function api(p,o={}){const h={'x-init':tg?.initData||'','x-dev':dev||''},t
   if(r.status==401){login();throw 0}if(r.status==402){gate();throw 0}if(r.status==403){alert("Bu funksiya sizga o'chirilgan");throw 0}return r.json()}
 const esc=t=>String(t??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const POS={ot:'Ot',fel:"Fe'l",ravish:'Ravish',sifat:'Sifat'};
+function confetti(){const e=['🎉','⭐','✨','🎊','💛','🇰🇷'];for(let i=0;i<34;i++){const s=document.createElement('span');s.className='cf';s.textContent=e[i%e.length];s.style.left=Math.random()*100+'vw';s.style.animationDelay=Math.random()*.7+'s';s.style.fontSize=18+Math.random()*18+'px';document.body.appendChild(s);setTimeout(()=>s.remove(),3600)}}
 function speak(t){const u=new SpeechSynthesisUtterance(t);u.lang='ko-KR';speechSynthesis.cancel();speechSynthesis.speak(u)}
 const shuf=a=>[...a].sort(()=>Math.random()-.5);
 const D=ms=>ms>Date.now()?new Date(ms).toLocaleDateString():'—';
@@ -53,9 +72,9 @@ async function init(){try{me=await api('/me')}catch{return}S.hist=[[home,[]]];ho
 // ---------- bosh sahifa
 function book(x,i){const g=GR[i%GR.length];return `<div class=book style="background:linear-gradient(145deg,${g[0]},${g[1]})" onclick="${x.ok?`nav(openDict,${x.id})`:'gate()'}"><h3>${esc(x.name)}</h3><small>${x.free?'Bepul':'Lug\'at'}</small><span class=pill>${x.ok?'✓':'🔒'} ${x.levels} daraja</span><i class=gh>${esc([...String(x.name)][0])}</i></div>`}
 async function home(){head("Kores tili lug'ati");const [d,st]=await Promise.all([api('/dicts'),api('/stats')]);me=await api('/me');
-H(`<div class=hi><div class=av>${esc([...String(me.name||'?')][0])}</div><div><small>Annyeong! 안녕하세요</small><h2>Salom, ${esc(me.name)}</h2></div></div>
-<div class=card onclick="nav(gHub)"><span class=em>🎮</span><div><b>O'yinlar</b><br><small>So'z va grammatikani o'ynab mustahkamlang</small></div><i>›</i></div>
-<div class=card onclick="nav(vTasks)"><span class=em>📝</span><div><b>Topshiriqlar</b><br><small>Daraja bo'yicha mashqlar</small></div><i>›</i></div>
+const lv=Math.floor(st.learned/50)+1,pr=Math.round((st.learned%50)/50*100);
+H(`<div class=hero><i class=kr>안녕</i><small>Annyeong! 안녕하세요</small><h2>Salom, ${esc(me.name)}</h2><small>${st.learned} so'z o'rganildi · ${st.rank} ball (hafta)</small><div class=xp><i style="width:${pr}%"></i></div><small>${lv}-daraja · keyingisigacha ${50-st.learned%50} so'z</small></div>
+<div class=tiles><div class=tile style="background:linear-gradient(145deg,#ff8a5c,#e0508a)" onclick="nav(gHub)"><em>🎮</em><b>O'yinlar</b><small>Yolg'iz yoki do'stlar bilan</small></div><div class=tile style="background:linear-gradient(145deg,#2e8a69,#0f8a9d)" onclick="nav(vTasks)"><em>📝</em><b>Topshiriqlar</b><small>Daraja bo'yicha mashq</small></div></div>
 <h3 class=sec>Kitoblar</h3><div class=grid>${d.map(book).join('')||'<p class=s>Hali lug\'at yo\'q</p>'}</div>
 <div class=card onclick="sheet()"><div><small>${me.active?'OBUNA FAOL':"OBUNA YO'Q"}</small><br><b>${me.active?(me.is_admin?'Admin':D(me.paid_until)+' gacha'):"Boshlang'ich daraja — bepul"}</b></div><i>›</i></div>
 <div class=stats><div><b>${st.learned}</b><small>so'z o'rganildi</small></div><div><b>${d.filter(x=>x.ok).length} / ${d.length}</b><small>kitob ochiq</small></div><div><b>${st.rank}</b><small>haftalik ball</small></div></div>`+(me.active?'':'<div class=cta><button onclick="sheet()">Obuna sotib olish</button></div>'))}
@@ -63,21 +82,26 @@ function gate(){head("Pullik bo'lim",bk());const t=me.trial;H(`<div class=card><
 async function askTrial(){const r=await api('/trial',{body:{}});me.trial=r.trial;gate()}
 // ---------- kitob (lug'at)
 async function openDict(id,level,pos,sec){S.hist[S.hist.length-1]=[openDict,[id,level,pos,sec]];const t=await api('/tree/'+id);head(esc(t.d.name),'back()');
-H(`<div class=s>Daraja</div>`+Array.from({length:t.d.levels},(_,i)=>`<button class="b ${level==i+1?'':'g'}" onclick="openDict(${id},${i+1})">${i+1}</button>`).join('')+
-(level?`<div class=s>So'z turi</div>`+['',...Object.keys(POS)].map(p=>`<button class="b ${(pos||'')==p?'':'g'}" onclick="openDict(${id},${level},'${p}')">${p?POS[p]:'Barchasi'}</button>`).join(''):'')+
-(level&&pos!=null?`<div class=s>Bo'lim</div><button class="b ${!sec?'':'g'}" onclick="openDict(${id},${level},'${pos}',0)">Barchasi</button>`+
- [...new Set(t.rows.filter(r=>r.level==level&&(!pos||r.pos==pos)).map(r=>r.section))].sort((a,b)=>a-b).map(s=>`<button class="b ${sec==s?'':'g'}" onclick="openDict(${id},${level},'${pos}',${s})">${s}-bo'lim</button>`).join('')+
- `<hr><div class=s>Qaysi so'zlar</div><select id=wm><option value="">Hammasi</option><option value=new>Yangi</option><option value=learned>O'rganilgan (takrorlash)</option></select><div>${[['cards','🃏 Kartochka'],['test','❓ Test'],['listen','🎧 Eshitish'],['speak','🎤 Gapirish'],['chat','💬 Suhbat'],['list',"📖 Ro'yxat"]].map(m=>`<button class=b onclick="start('${m[0]}',${id},${level},'${pos}',${sec||0})">${m[1]}</button>`).join('')}</div>`:''))}
+ const R=t.rows,sum=f=>R.filter(f).reduce((a,r)=>a+r.n,0),tot=sum(()=>true),dm=n=>n?'':' style="opacity:.4"';
+ const M=[['cards','🃏 Kartochka'],['test','❓ Test'],['listen','🎧 Eshitish'],['speak','🎤 Gapirish'],['chat','💬 Suhbat'],['list',"📖 Ro'yxat"]];
+ const pl=level?[...new Set(R.filter(r=>r.level==level).map(r=>r.pos))]:[];
+ const scope=(!level?tot:sum(r=>r.level==level&&(!pos||r.pos==pos)&&(!sec||r.section==sec)));
+ H(`<div class=hero2><b>${tot}</b> ta so'z · ${t.d.levels} daraja</div>`+
+ (tot?`<div class=s>BUTUN KITOB BO'YICHA</div><div>${M.map(m=>`<button class=b onclick="start('${m[0]}',${id},'','',0)">${m[1]}</button>`).join('')}</div>`:`<div class=card><div>Bu kitobda hali so'z yo'q. Admin paneldan fayl yuklang.</div></div>`)+
+ `<hr><div class=s>DARAJA BO'YICHA</div>`+Array.from({length:t.d.levels},(_,i)=>{const n=sum(r=>r.level==i+1);return `<button class="b ${level==i+1?'':'g'}"${dm(n)} onclick="openDict(${id},${i+1})">${i+1}-daraja (${n})</button>`}).join('')+
+ (level?`<div class=s>SO'Z TURI</div><button class="b ${!pos?'':'g'}" onclick="openDict(${id},${level},'')">Barchasi (${sum(r=>r.level==level)})</button>`+pl.map(p=>`<button class="b ${pos==p?'':'g'}" onclick="openDict(${id},${level},'${esc(p)}')">${esc(POS[p]||p)} (${sum(r=>r.level==level&&r.pos==p)})</button>`).join(''):'')+
+ (level&&pos!=null?`<div class=s>BO'LIM</div><button class="b ${!sec?'':'g'}" onclick="openDict(${id},${level},'${esc(pos)}',0)">Barchasi</button>`+[...new Set(R.filter(r=>r.level==level&&(!pos||r.pos==pos)).map(r=>r.section))].sort((a,b)=>a-b).map(s=>`<button class="b ${sec==s?'':'g'}" onclick="openDict(${id},${level},'${esc(pos)}',${s})">${s}-bo'lim (${sum(r=>r.level==level&&(!pos||r.pos==pos)&&r.section==s)})</button>`).join('')+
+ `<hr><div class=s>TANLANGAN: ${scope} ta so'z · qaysi so'zlar:</div><select id=wm><option value="">Hammasi</option><option value=new>Yangi</option><option value=learned>O'rganilgan (takrorlash)</option></select><div>${M.map(m=>`<button class=b onclick="start('${m[0]}',${id},${level},'${esc(pos)}',${sec||0})">${m[1]}</button>`).join('')}</div>`:''))}
 async function start(mode,dict,level,pos,sec){const p=new URLSearchParams({dict,level,pos,section:sec||'',mode:$('#wm')?.value||''});const w=await api('/words?'+p);run(mode,w)}
-function run(mode,w){if(!w.length)return alert("So'z yo'q");S.run={mode,w:mode=='list'?w:shuf(w),i:0,score:0};if(mode=='speed'){S.run.deadline=Date.now()+60000;S.ti=setInterval(()=>{const t=Math.max(0,Math.ceil((S.run.deadline-Date.now())/1000)),e=$('#tm');if(e)e.textContent='⏱ '+t;if(t<=0){clearInterval(S.ti);S.run.i=S.run.w.length;step()}},500)}step()}
+function run(mode,w){if(!w.length)return alert("Tanlangan bo'limda so'z topilmadi. «Butun kitob bo'yicha» tugmalarini sinab ko'ring yoki boshqa daraja/turni tanlang.");S.run={mode,w:mode=='list'?w:shuf(w),i:0,score:0};if(mode=='speed'){S.run.deadline=Date.now()+60000;S.ti=setInterval(()=>{const t=Math.max(0,Math.ceil((S.run.deadline-Date.now())/1000)),e=$('#tm');if(e)e.textContent='⏱ '+t;if(t<=0){clearInterval(S.ti);S.run.i=S.run.w.length;step()}},500)}step()}
 async function mark(id,on){await api('/learned',{body:{id,on}});const x=S.run.w.find(w=>w.id==id);x.learned=on;step(true)}
 function opts(w){const o=shuf(S.run.w.filter(x=>x.id!=w.id)).slice(0,3).map(x=>x.uz);return shuf([w.uz,...o])}
 function step(keep){const r=S.run;head('Mashq','leave()');if(r.mode=='speed'&&r.i>=r.w.length&&Date.now()<r.deadline){r.w=shuf(r.w);r.i=0}
   const w=r.w[r.i];
   if(r.mode=='list')return H(r.w.map(x=>`<div class=card><div>${esc(x.ko)} — ${esc(x.uz)}</div><button class="b g" onclick="mark(${x.id},${x.learned?0:1})">${x.learned?'✅':'⬜'}</button></div>`).join(''));
-  if(!w){clearInterval(S.ti);if(!r.sent){r.sent=1;api('/score',{body:{points:r.score}}).catch(()=>{})}return H(`<div class="card big" style="display:block">🎉 ${r.score}${r.mode=='speed'?' ball':'/'+r.w.length}</div><button class="gold" onclick="leave()">OK</button>`)}
+  if(!w){clearInterval(S.ti);if(!r.sent){r.sent=1;api('/score',{body:{points:r.score}}).catch(()=>{});confetti()}return H(`<div class="card big" style="display:block">🎉 ${r.score}${r.mode=='speed'?' ball':'/'+r.w.length}</div><button class="gold" onclick="leave()">OK</button>`)}
   const lm=`<button class="b g" onclick="mark(${w.id},${w.learned?0:1})">${w.learned?"✅ O'rganilgan":"⬜ O'rgandim"}</button>`,nx='<button class=b onclick="S.run.i++;step()">Keyingi →</button>',pr=`<div class=s>${r.mode=='speed'?'<span id=tm>⏱ 60</span> · ball '+r.score:(r.i+1)+'/'+r.w.length}</div>`;
-  if(r.mode=='cards')return H(pr+`<div class="card big" style="display:block" onclick="this.innerHTML='${esc(w.uz).replace(/'/g,"\\'")}'">${esc(w.ko)}<div class=s>bosing</div></div>${lm}${nx}`);
+  if(r.mode=='cards')return H(pr+`<div class=fl onclick="this.classList.toggle('on')"><div><span class=f>${esc(w.ko)}</span><span class=k>${esc(w.uz)}</span></div></div><div class=s style="text-align:center">Kartani bosing</div><br>${lm}${nx}`);
   if(['test','listen','speed'].includes(r.mode)){const o=r.o&&r.oi==r.i?r.o:(r.o=opts(w),r.oi=r.i,r.o);if(r.mode=='listen'&&!keep)speak(w.ko);
     return H(pr+`<div class="card big" style="display:block">${r.mode=='listen'?`<button class=b onclick="speak('${w.ko.replace(/'/g,"\\'")}')">🔊</button>`:esc(w.ko)}</div>`+o.map(t=>`<button class="b g opt" onclick="pick(this,${t==w.uz})">${esc(t)}</button>`).join('')+(r.mode=='speed'?'':lm))}
   if(r.mode=='speak')return H(pr+`<div class="card big" style="display:block">${esc(w.uz)}</div><div class=s>Koreyschasini ayting</div><button class=b onclick="listen()">🎤 Gapirish</button><div id=hr class=s></div>${lm}${nx}`);
@@ -90,25 +114,24 @@ function chk(){const w=S.run.w[S.run.i],ok=$('#ans').value.trim()==w.ko;$('#hr')
 async function vTasks(){head('Topshiriqlar','back()');const t=await api('/tasks');H(t.map(x=>`<div class=card style="display:block"><b>${esc(x.title)}</b><div class=s>${esc(x.dname)} · ${x.level}-daraja</div>${[['cards','🃏'],['test','❓'],['listen','🎧'],['speak','🎤'],['chat','💬']].map(m=>`<button class="b g" onclick="taskGo('${m[0]}',${x.dict_id},${x.level},'')">${m[1]}</button>`).join('')}<button class="b g" onclick="taskGo('cards',${x.dict_id},${x.level},'learned')">♻️ O'rganilganlar</button></div>`).join('')||'<p class=s>Topshiriq yo\'q</p>')}
 async function taskGo(m,d,l,mode){const w=await api(`/words?dict=${d}&level=${l}&mode=${mode}`);if(!w.length)return alert("So'z yo'q");run(m,w)}
 // ---------- o'yinlar
-async function gHub(){head("O'yinlar",'back()');H(`<h2 style="margin:6px 0 14px">So'z va grammatikani o'ynab mustahkamlang</h2>
-<div class=card onclick="nav(solo)"><span class=em>🙋</span><div><b>Yolg'iz o'ynash</b><br><small>O'zingiz mashq qiling</small></div><i>›</i></div>
-<div class=card onclick="nav(friends)"><span class=em>👥</span><div><b>Do'stlar bilan</b><br><small>Kod yuboring va birga o'ynang</small></div><i>›</i></div>
-<h3 class=sec style="font-size:18px">Kod bilan qo'shilish</h3><div style="display:flex;gap:8px"><input id=gc placeholder="KOD" inputmode=numeric style="flex:1;text-align:center;letter-spacing:6px;font-size:20px"><button class=b onclick="jn()">Qo'shilish</button></div>
-<div class=card style="justify-content:center;margin-top:18px" onclick="nav(rating)"><b>🏆 Haftalik reyting</b></div>`)}
+async function gHub(){head("O'yinlar",'back()');H(`<div class=hero><i class=kr>게임</i><small>O'ynab o'rganing</small><h2>So'z va grammatika o'yinlari</h2></div>
+<div class=tiles><div class=tile style="background:linear-gradient(145deg,#4a3f93,#7b5cff)" onclick="nav(solo)"><em>🙋</em><b>Yolg'iz o'ynash</b><small>O'zingiz mashq qiling</small></div><div class=tile style="background:linear-gradient(145deg,#d48a1c,#f5c05a)" onclick="nav(friends)"><em>👥</em><b>Do'stlar bilan</b><small>Kod yuboring, birga o'ynang</small></div></div>
+<h3 class=sec style="font-size:18px">Kod bilan qo'shilish</h3><div style="display:flex;gap:8px"><input id=gc placeholder="KOD" inputmode=numeric style="flex:1;text-align:center;letter-spacing:6px;font-size:22px"><button class=b onclick="jn()">Qo'shilish</button></div>
+<div class=tile style="background:linear-gradient(145deg,#0f8a9d,#2f5fb3);min-height:84px;margin-top:16px" onclick="nav(rating)"><em>🏆</em><b>Haftalik reyting</b><small>Eng yaxshi o'yinchilar</small></div>`)}
 async function dsel(){const d=(await api('/dicts')).filter(x=>x.ok);return `<select id=gd>${d.map(x=>`<option value=${x.id}>${esc(x.name)}</option>`).join('')}</select>`}
 async function solo(){head("Yolg'iz o'ynash",'back()');const s=await dsel();H(`<div class=s>YOLG'IZ O'YNASH</div><h2 style="margin:4px 0 12px">O'yinni tanlang</h2>${s}<input id=gl type=number placeholder="Daraja (ixtiyoriy)" style="width:170px">`+
- [['listen','🎧','Tinglash','Ovozni tinglab, to\'g\'ri so\'zni tanlang'],['speed','⚡','Tezlik','60 soniyada ko\'proq javob bering'],['match','🔀','Juftlik',"So'z va tarjimasini juftlang"]].map(g=>`<div class=card onclick="soloGo('${g[0]}')"><span class=em>${g[1]}</span><div><b>${g[2]}</b><br><small>${g[3]}</small></div><i>›</i></div>`).join(''))}
+ `<div class=tiles>`+[['listen','🎧','Tinglash','Ovozni tinglab tanlang','#ff8a5c,#e0508a'],['speed','⚡','Tezlik','60 soniyada ko\'proq javob','#d48a1c,#f5c05a'],['match','🔀','Juftlik',"So'z va tarjimani juftlang",'#2e8a69,#0f8a9d']].map(g=>`<div class=tile style="background:linear-gradient(145deg,${g[4]})" onclick="soloGo('${g[0]}')"><em>${g[1]}</em><b>${g[2]}</b><small>${g[3]}</small></div>`).join('')+`</div>`)}
 async function soloGo(m){const d=$('#gd').value,l=$('#gl').value;const w=await api(`/words?dict=${d}${l?'&level='+l:''}`);if(w.length<4)return alert("Kamida 4 ta so'z kerak");if(m=='match')return matchStart(w);run(m,w)}
 function matchStart(w){const p=shuf(w).slice(0,6);S.m={p,ko:shuf(p),uz:shuf(p),sel:null,done:new Set(),miss:0};matchV()}
 function matchV(){const m=S.m;head('Juftlik','leave()');const bt=(x,s,t)=>`<button class="b g opt ${m.done.has(x.id)?'ok':''} ${s&&m.sel==x.id?'sel':''}" onclick="mpick(${x.id},'${s?'k':'u'}')">${esc(t)}</button>`;
  H(`<div class=s>Avval koreyscha so'zni, so'ng tarjimasini bosing</div><div class=mg><div>${m.ko.map(x=>bt(x,1,x.ko)).join('')}</div><div>${m.uz.map(x=>bt(x,0,x.uz)).join('')}</div></div>`)}
 function mpick(id,s){const m=S.m;if(m.done.has(id))return;if(s=='k'){m.sel=id;return matchV()}if(m.sel==null)return;
  if(m.sel==id)m.done.add(id);else m.miss++;m.sel=null;
- if(m.done.size==m.p.length){const pts=Math.max(1,m.p.length-m.miss);api('/score',{body:{points:pts}}).catch(()=>{});H(`<div class="card big" style="display:block">🎉 +${pts} ball<div class=s>Xatolar: ${m.miss}</div></div><button class=gold onclick="leave()">OK</button>`)}else matchV()}
+ if(m.done.size==m.p.length){const pts=Math.max(1,m.p.length-m.miss);api('/score',{body:{points:pts}}).catch(()=>{});confetti();H(`<div class="card big" style="display:block">🎉 +${pts} ball<div class=s>Xatolar: ${m.miss}</div></div><button class=gold onclick="leave()">OK</button>`)}else matchV()}
 async function friends(){head("Do'stlar bilan",'back()');const s=await dsel();H(`<p class=s>Xona yarating, kodni do'stlaringizga bering (kamida 2 o'yinchi).</p>${s}<input id=gl type=number placeholder="Daraja (ixtiyoriy)" style="width:170px"><br><button class=gold style="margin-top:12px" onclick="mk()">Xona yaratish</button>`)}
 async function rating(){head('Haftalik reyting','back()');const r=await api('/rating');H(r.map((x,i)=>`<div class=rk><span>${['🥇','🥈','🥉'][i]||i+1+'.'} ${esc(x.name)}</span><b>${x.pts}</b></div>`).join('')||'<p class=s>Hali natija yo\'q</p>')}
 let sk,G={};
-function sock(){if(!sk){sk=io({auth:{init:tg?.initData||'',dev,token:localStorage.tok}});sk.on('room',roomV);sk.on('err',alert);sk.on('start',qs=>{G.qs=qs;G.i=0;G.playing=1;gq()});sk.on('end',r=>{G.playing=0;head('Natija');H(r.players.sort((a,b)=>b.score-a.score).map((p,i)=>`<div class=rk><span>${['🥇','🥈','🥉'][i]||i+1+'.'} ${esc(p.name)}</span><b>${p.score}</b></div>`).join('')+'<br><button class=gold onclick="back()">OK</button>')})}return sk}
+function sock(){if(!sk){sk=io({auth:{init:tg?.initData||'',dev,token:localStorage.tok}});sk.on('room',roomV);sk.on('err',alert);sk.on('start',qs=>{G.qs=qs;G.i=0;G.playing=1;gq()});sk.on('end',r=>{G.playing=0;confetti();head('Natija');H(r.players.sort((a,b)=>b.score-a.score).map((p,i)=>`<div class=rk><span>${['🥇','🥈','🥉'][i]||i+1+'.'} ${esc(p.name)}</span><b>${p.score}</b></div>`).join('')+'<br><button class=gold onclick="back()">OK</button>')})}return sk}
 function mk(){sock().emit('create',{dict:+$('#gd').value,level:+$('#gl').value||0},r=>r.e?alert(r.e):(G.host=1,sk.emit('join',r.code,x=>x.e&&alert(x.e))))}
 function jn(){G.host=0;sock().emit('join',$('#gc').value.trim(),r=>r.e&&alert(r.e))}
 function roomV(r){if(G.playing)return;head('Xona','back()');H(`<h2>Xona kodi: ${r.code}</h2><p class=s>Do'stlaringizga kodni bering (kamida 2 o'yinchi)</p>`+r.players.map(p=>`<div class=rk>👤 ${esc(p.name)}</div>`).join('')+(G.host?'<button class=gold onclick="sk.emit(\'start\')">▶️ Boshlash</button>':'<p>Boshlovchi kutilmoqda...</p>'))}
