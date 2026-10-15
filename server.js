@@ -3,7 +3,7 @@ const Database=require('better-sqlite3'),multer=require('multer'),{Telegraf,Mark
 const {OAuth2Client}=require('google-auth-library');
 const {BOT_TOKEN,WEBAPP_URL,ADMIN_IDS='',ADMIN_EMAILS='',GOOGLE_CLIENT_ID,SECRET='change-me',DEV,PORT=3000,TRANSLATE_URL,TRANSLATE_KEY,TRANSLATE_TARGET='uz'}=process.env;
 const DAY=864e5,PERMS=['dicts','import','tasks','payments','trials','users','plans','methods','admins'];
-const DATA=process.env.DATA_DIR||'.';fs.mkdirSync(DATA+'/uploads',{recursive:true});
+const DATA=process.env.DATA_DIR||'.';fs.mkdirSync(DATA+'/uploads',{recursive:true});fs.mkdirSync(DATA+'/audio',{recursive:true});
 const db=new Database(DATA+'/data.db');
 db.exec(`create table if not exists users(id integer primary key,name text,email text unique,is_admin int default 0,perms text default '',paid_until int default 0,trial text default 'none',created int);
 create table if not exists dicts(id integer primary key autoincrement,name text,levels int default 1,sec int default 30,free int default 0);
@@ -15,6 +15,7 @@ create table if not exists plans(id integer primary key autoincrement,months int
 create table if not exists methods(id integer primary key autoincrement,name text,number text,holder text,on_ int default 1);
 create table if not exists scores(user_id int,name text,week int,pts int default 0,primary key(user_id,week));
 create table if not exists pays(id integer primary key autoincrement,user_id int,plan_id int,method_id int,file text,status text default 'pending',ts int);`);
+for(const m0 of ['alter table words add column audio text','alter table access add column until int default 0','alter table plans add column dict_id int default 0'])try{db.exec(m0)}catch{}
 if(!one0('select 1 from methods'))for(const n of['Click','Payme','Karta'])db.prepare('insert into methods(name,number,holder) values(?,?,?)').run(n,'','');
 function one0(s){return db.prepare(s).get()}
 const q=(s,...a)=>db.prepare(s).all(...a),one=(s,...a)=>db.prepare(s).get(...a),run=(s,...a)=>db.prepare(s).run(...a);
@@ -32,11 +33,11 @@ function auth({init,dev,token}){
     if(crypto.createHmac('sha256',key).update(s).digest('hex')!==h)return null;u=JSON.parse(p.get('user'))}catch{return null}}
   run('insert or ignore into users(id,name,created) values(?,?,?)',u.id,u.first_name,Date.now());return fin(u.id)}
 const active=u=>u.is_admin||u.paid_until>Date.now();
-const can=(u,d)=>active(u)||d.free||!!one('select 1 from access where user_id=? and dict_id=?',u.id,d.id);
+const can=(u,d)=>active(u)||d.free||!!one('select 1 from access where user_id=? and dict_id=? and (until=0 or until>?)',u.id,d.id,Date.now());
 const has=(u,p)=>u.is_admin==2||(u.is_admin==1&&u.perms.split(',').includes(p));
 const wk=()=>Math.floor(Date.now()/(7*DAY));
 const addScore=(id,name,p)=>{if(p>0)run('insert into scores(user_id,name,week,pts) values(?,?,?,?) on conflict(user_id,week) do update set pts=pts+excluded.pts',id,name,wk(),p)};
-const app=express();app.use(express.json());app.get('/',(r,s)=>s.sendFile(__dirname+'/index.html'));app.use('/shots',express.static(DATA+'/uploads'));
+const app=express();app.use(express.json());app.get('/',(r,s)=>s.sendFile(__dirname+'/index.html'));app.use('/shots',express.static(DATA+'/uploads'));app.use('/audio',express.static(DATA+'/audio'));
 const up=multer({dest:DATA+'/uploads/',limits:{fileSize:25*1024*1024}}),gc=GOOGLE_CLIENT_ID&&new OAuth2Client(GOOGLE_CLIENT_ID);
 app.get('/config',(r,s)=>s.json({google:GOOGLE_CLIENT_ID||null,dev:!!DEV}));
 app.post('/auth/google',async(r,s)=>{try{const t=await gc.verifyIdToken({idToken:r.body.credential,audience:GOOGLE_CLIENT_ID}),p=t.getPayload();
@@ -51,7 +52,7 @@ app.get('/api/me',(r,s)=>s.json({id:r.u.id,name:r.u.name,email:r.u.email,is_admi
 app.get('/api/stats',(r,s)=>s.json({learned:one('select count(*) n from learned where user_id=?',r.u.id).n,rank:(one('select pts from scores where user_id=? and week=?',r.u.id,wk())||{}).pts||0}));
 app.post('/api/score',(r,s)=>{addScore(r.u.id,r.u.name,Math.min(+r.body.points||0,500));s.json({ok:1})});
 app.get('/api/rating',(r,s)=>s.json(q('select name,pts from scores where week=? order by pts desc limit 20',wk())));
-app.get('/api/plans',(r,s)=>s.json(q('select * from plans order by months')));
+app.get('/api/plans',(r,s)=>s.json(q('select p.*,d.name dname from plans p left join dicts d on d.id=p.dict_id order by p.dict_id,p.months')));
 app.get('/api/methods',(r,s)=>s.json(q('select * from methods where on_=1')));
 app.get('/api/dicts',(r,s)=>s.json(q('select * from dicts').map(d=>({...d,ok:can(r.u,d)}))));
 app.get('/api/tree/:id',(r,s)=>{const d=one('select * from dicts where id=?',r.params.id);
@@ -124,22 +125,27 @@ app.post('/api/admin/book',adm('import'),up.single('file'),async(r,s)=>{
   else levelOf=(i,n)=>Math.min(L,Math.floor(i*L/n)+1);
   const id=run('insert into dicts(name,levels,sec) values(?,?,?)',name,L,+b.sec||30).lastInsertRowid,d=one('select * from dicts where id=?',id);
   s.json({dict_id:id,levels:L,...await addWords(d,items,levelOf)})});
+app.post('/api/admin/word/:id/audio',adm('import'),up.single('audio'),(r,s)=>{const w=one('select * from words where id=?',r.params.id);if(!w||!r.file)return s.status(400).json({e:'bad'});
+  const mt=r.file.mimetype||'',ext=mt.includes('ogg')?'ogg':/mp4|m4a|aac/.test(mt)?'mp4':/mpeg|mp3/.test(mt)?'mp3':mt.includes('wav')?'wav':'webm';
+  const name='w'+w.id+'_'+Date.now()+'.'+ext;fs.renameSync(r.file.path,DATA+'/audio/'+name);
+  if(w.audio)try{fs.unlinkSync(DATA+'/audio/'+w.audio)}catch{}
+  run('update words set audio=? where id=?',name,w.id);s.json({ok:1,audio:name})});
 app.post('/api/admin/task',adm('tasks'),(r,s)=>{run('insert into tasks(dict_id,level,title) values(?,?,?)',r.body.dict_id,r.body.level,r.body.title);s.json({ok:1})});
 app.post('/api/admin/task/:id/del',adm('tasks'),(r,s)=>{run('delete from tasks where id=?',r.params.id);s.json({ok:1})});
-app.post('/api/admin/plan',adm('plans'),(r,s)=>{const b=r.body;b.del?run('delete from plans where id=?',b.del):run('insert into plans(months,price) values(?,?)',+b.months,+b.price);s.json({ok:1})});
+app.post('/api/admin/plan',adm('plans'),(r,s)=>{const b=r.body;b.del?run('delete from plans where id=?',b.del):run('insert into plans(months,price,dict_id) values(?,?,?)',+b.months,+b.price,+b.dict_id||0);s.json({ok:1})});
 app.post('/api/admin/method',adm('methods'),(r,s)=>{const b=r.body;
-  if(b.id)run('update methods set name=?,number=?,holder=?,on_=? where id=?',b.name,b.number,b.holder,b.on?1:0,b.id);else run('insert into methods(name,number,holder) values(?,?,?)',b.name,b.number,b.holder);s.json({ok:1})});
+  if(b.del)run('delete from methods where id=?',b.del);else if(b.id)run('update methods set name=?,number=?,holder=?,on_=? where id=?',b.name,b.number,b.holder,b.on?1:0,b.id);else run('insert into methods(name,number,holder) values(?,?,?)',b.name,b.number,b.holder);s.json({ok:1})});
 app.get('/api/admin/methods',adm('methods'),(r,s)=>s.json(q('select * from methods')));
 app.get('/api/admin/users',adm('users'),(r,s)=>s.json(q('select id,name,email,is_admin,perms,paid_until,trial,created from users order by created desc')));
 app.post('/api/admin/user',adm('users'),(r,s)=>{const {id,months,grant,revoke}=r.body;
   if(months)run('update users set paid_until=max(paid_until,?)+? where id=?',Date.now(),months*30*DAY,id);
-  if(grant)run('insert or ignore into access values(?,?)',id,grant);if(revoke)run('delete from access where user_id=? and dict_id=?',id,revoke);s.json({ok:1})});
+  if(grant)run('insert or ignore into access(user_id,dict_id) values(?,?)',id,grant);if(revoke)run('delete from access where user_id=? and dict_id=?',id,revoke);s.json({ok:1})});
 app.post('/api/admin/admin',adm('admins'),(r,s)=>{const {id,email,admin,perms}=r.body;let u=id?one('select * from users where id=?',id):one('select * from users where email=?',(email||'').toLowerCase());
   if(!u&&email){run('insert into users(name,email,created) values(?,?,?)',email,email.toLowerCase(),Date.now());u=one('select * from users where email=?',email.toLowerCase())}
   if(!u||u.is_admin==2)return s.status(400).json({e:'bad'});
   if(admin!=null)run('update users set is_admin=? where id=?',admin?1:0,u.id);
   if(perms)run('update users set perms=? where id=?',perms.filter(p=>PERMS.includes(p)).join(','),u.id);s.json({ok:1})});
-app.get('/api/admin/pending',adm('payments'),(r,s)=>s.json(q("select p.*,u.name,u.email,pl.months,pl.price,m.name mname from pays p join users u on u.id=p.user_id left join plans pl on pl.id=p.plan_id left join methods m on m.id=p.method_id where status='pending' order by p.id")));
+app.get('/api/admin/pending',adm('payments'),(r,s)=>s.json(q("select p.*,u.name,u.email,pl.months,pl.price,dd.name dname,m.name mname from pays p join users u on u.id=p.user_id left join plans pl on pl.id=p.plan_id left join dicts dd on dd.id=pl.dict_id left join methods m on m.id=p.method_id where status='pending' order by p.id")));
 app.get('/api/admin/trials',adm('trials'),(r,s)=>s.json(q("select id,name,email,created from users where trial='pending'")));
 const tell=(id,t)=>bot&&bot.telegram.sendMessage(id,t).catch(()=>{});
 app.post('/api/admin/trial/:id',adm('trials'),(r,s)=>{const ok=!!r.body.ok,id=r.params.id;
@@ -147,7 +153,10 @@ app.post('/api/admin/trial/:id',adm('trials'),(r,s)=>{const ok=!!r.body.ok,id=r.
   tell(id,ok?"✅ So'rov qabul qilindi: 1 oy bepul foydalanasiz!":"❌ Bepul sinov so'rovi rad etildi.");s.json({ok:1})});
 app.post('/api/admin/pay/:id',adm('payments'),(r,s)=>{const p=one('select * from pays where id=?',r.params.id),pl=one('select * from plans where id=?',p.plan_id),ok=!!r.body.ok;
   run('update pays set status=? where id=?',ok?'accepted':'rejected',p.id);
-  if(ok&&pl)run('update users set paid_until=max(paid_until,?)+? where id=?',Date.now(),pl.months*30*DAY,p.user_id);
+  if(ok&&pl){if(pl.dict_id){const a=one('select until from access where user_id=? and dict_id=?',p.user_id,pl.dict_id);
+    if(!a)run('insert into access(user_id,dict_id,until) values(?,?,?)',p.user_id,pl.dict_id,Date.now()+pl.months*30*DAY);
+    else if(a.until!==0)run('update access set until=? where user_id=? and dict_id=?',Math.max(a.until,Date.now())+pl.months*30*DAY,p.user_id,pl.dict_id)}
+  else run('update users set paid_until=max(paid_until,?)+? where id=?',Date.now(),pl.months*30*DAY,p.user_id)}
   tell(p.user_id,ok?"✅ To'lov qabul qilindi. Obuna faollashtirildi!":"❌ To'lov rad etildi. Qayta yuboring.");s.json({ok:1})});
 // xonalar
 const server=http.createServer(app),io=new Server(server),rooms={};
