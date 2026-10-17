@@ -1,7 +1,7 @@
 const express=require('express'),crypto=require('crypto'),fs=require('fs'),http=require('http');
 const Database=require('better-sqlite3'),multer=require('multer'),{Telegraf,Markup}=require('telegraf'),{Server}=require('socket.io');
 const {OAuth2Client}=require('google-auth-library');
-const {BOT_TOKEN,WEBAPP_URL,ADMIN_IDS='',ADMIN_EMAILS='',GOOGLE_CLIENT_ID,SECRET='change-me',DEV,PORT=3000,TRANSLATE_URL,TRANSLATE_KEY,TRANSLATE_TARGET='uz'}=process.env;
+const {BOT_TOKEN,WEBAPP_URL,ADMIN_IDS='',ADMIN_EMAILS='',GOOGLE_CLIENT_ID,SECRET='change-me',DEV,PORT=3000,TRANSLATE_URL,TRANSLATE_KEY,TRANSLATE_TARGET='uz',ANTHROPIC_API_KEY,FOX_MODEL='claude-haiku-5-5',GOOGLE_TRANSLATE_KEY,BOT_USERNAME='Koreys_lugat_2026_bot'}=process.env;
 const DAY=864e5,PERMS=['dicts','import','tasks','payments','trials','users','plans','methods','admins'];
 const DATA=process.env.DATA_DIR||'.';fs.mkdirSync(DATA+'/uploads',{recursive:true});fs.mkdirSync(DATA+'/audio',{recursive:true});
 const db=new Database(DATA+'/data.db');
@@ -15,7 +15,7 @@ create table if not exists plans(id integer primary key autoincrement,months int
 create table if not exists methods(id integer primary key autoincrement,name text,number text,holder text,on_ int default 1);
 create table if not exists scores(user_id int,name text,week int,pts int default 0,primary key(user_id,week));
 create table if not exists pays(id integer primary key autoincrement,user_id int,plan_id int,method_id int,file text,status text default 'pending',ts int);`);
-for(const m0 of ['alter table words add column audio text','alter table access add column until int default 0','alter table plans add column dict_id int default 0'])try{db.exec(m0)}catch{}
+for(const m0 of ['alter table words add column audio text','alter table access add column until int default 0','alter table plans add column dict_id int default 0',"alter table tasks add column pos text default ''",'alter table tasks add column section int default 0','alter table plans add column monthly int default 0','alter table pays add column months int default 0'])try{db.exec(m0)}catch{}
 if(!one0('select 1 from methods'))for(const n of['Click','Payme','Karta'])db.prepare('insert into methods(name,number,holder) values(?,?,?)').run(n,'','');
 function one0(s){return db.prepare(s).get()}
 const q=(s,...a)=>db.prepare(s).all(...a),one=(s,...a)=>db.prepare(s).get(...a),run=(s,...a)=>db.prepare(s).run(...a);
@@ -39,7 +39,7 @@ const wk=()=>Math.floor(Date.now()/(7*DAY));
 const addScore=(id,name,p)=>{if(p>0)run('insert into scores(user_id,name,week,pts) values(?,?,?,?) on conflict(user_id,week) do update set pts=pts+excluded.pts',id,name,wk(),p)};
 const app=express();app.use(express.json());app.get('/',(r,s)=>s.sendFile(__dirname+'/index.html'));app.use('/shots',express.static(DATA+'/uploads'));app.use('/audio',express.static(DATA+'/audio'));
 const up=multer({dest:DATA+'/uploads/',limits:{fileSize:25*1024*1024}}),gc=GOOGLE_CLIENT_ID&&new OAuth2Client(GOOGLE_CLIENT_ID);
-app.get('/config',(r,s)=>s.json({google:GOOGLE_CLIENT_ID||null,dev:!!DEV}));
+app.get('/config',(r,s)=>s.json({google:GOOGLE_CLIENT_ID||null,dev:!!DEV,bot:BOT_USERNAME,fox:!!ANTHROPIC_API_KEY}));
 app.post('/auth/google',async(r,s)=>{try{const t=await gc.verifyIdToken({idToken:r.body.credential,audience:GOOGLE_CLIENT_ID}),p=t.getPayload();
   if(!p.email_verified)return s.status(401).json({e:'email'});const em=p.email.toLowerCase();
   let u=one('select * from users where email=?',em);
@@ -66,21 +66,59 @@ app.get('/api/words',(r,s)=>{const {dict,level,pos,section,mode}=r.query;
   if(mode==='learned')sql+=' and l.word_id is not null';if(mode==='new')sql+=' and l.word_id is null';
   s.json(q(sql+' order by w.id',...a))});
 app.post('/api/learned',(r,s)=>{r.body.on?run('insert or ignore into learned values(?,?)',r.u.id,r.body.id):run('delete from learned where user_id=? and word_id=?',r.u.id,r.body.id);s.json({ok:1})});
+const GRAM={
+ particle:[{q:"저___ 학생이에요.",h:"Men talabaman.",o:["는","를","가","에서"],a:"는"},{q:"책___ 읽어요.",h:"Kitob o'qiyman.",o:["를","을","이","는"],a:"을"},{q:"친구___ 와요.",h:"Do'st keladi.",o:["이","가","을","은"],a:"가"},{q:"학교___ 가요.",h:"Maktabga boraman.",o:["에","에서","를","도"],a:"에"},{q:"집___ 공부해요.",h:"Uyda o'qiyman.",o:["에","에서","를","가"],a:"에서"},{q:"물___ 마셔요.",h:"Suv ichaman.",o:["를","을","가","는"],a:"을"},{q:"커피___ 좋아해요.",h:"Kofeni yoqtiraman.",o:["을","를","이","은"],a:"를"},{q:"선생님___ 책이에요.",h:"O'qituvchining kitobi.",o:["의","에","를","도"],a:"의"}],
+ verb:[{q:"어제 학교에 ___.",h:"Kecha maktabga bordim.",o:["가요","갔어요","갈 거예요","가고"],a:"갔어요"},{q:"지금 밥을 ___.",h:"Hozir ovqat yeyapman.",o:["먹었어요","먹어요","먹을 거예요","먹고"],a:"먹어요"},{q:"내일 친구를 ___.",h:"Ertaga do'stni uchrataman.",o:["만나요","만났어요","만날 거예요","만나고"],a:"만날 거예요"},{q:"어제 영화를 ___.",h:"Kecha kino ko'rdim.",o:["봐요","봤어요","볼 거예요","보고"],a:"봤어요"},{q:"매일 한국어를 ___.",h:"Har kuni koreys tilini o'rganaman.",o:["공부했어요","공부해요","공부할 거예요","공부하고"],a:"공부해요"},{q:"지난주에 친구가 ___.",h:"O'tgan hafta do'stim keldi.",o:["와요","왔어요","올 거예요","오고"],a:"왔어요"},{q:"다음 주에 여행을 ___.",h:"Kelasi hafta sayohatga boraman.",o:["가요","갔어요","갈 거예요","가고"],a:"갈 거예요"},{q:"지금 비가 ___.",h:"Hozir yomg'ir yog'yapti.",o:["왔어요","와요","올 거예요","오고"],a:"와요"}],
+ noun:[{q:"학생 + ___ = talabalar",h:"Ko'plik qo'shimchasi",o:["들","의","도","에"],a:"들"},{q:"친구___ 선생님",h:"Do'stning o'qituvchisi",o:["의","를","도","에서"],a:"의"},{q:"나___ 좋아해요.",h:"Men ham yoqtiraman.",o:["도","들","의","에서"],a:"도"},{q:"물___ 마셔요.",h:"Faqat suv ichaman.",o:["만","들","의","에서"],a:"만"},{q:"9시___ 5시까지 일해요.",h:"9 dan 5 gacha ishlayman.",o:["부터","의","도","에서"],a:"부터"},{q:"친구___ 같이 가요.",h:"Do'st bilan birga boraman.",o:["하고","의","도","에서"],a:"하고"},{q:"버스___ 가요.",h:"Avtobusda boraman.",o:["로","으로","에서","를"],a:"로"},{q:"한국___ 왔어요.",h:"Koreyadan keldim.",o:["에서","에","를","도"],a:"에서"}]};
+const SENT=[{ko:"저는 매일 한국어를 공부해요",uz:"Men har kuni koreys tilini o'rganaman"},{ko:"오늘 날씨가 정말 좋아요",uz:"Bugun ob-havo juda yaxshi"},{ko:"친구와 같이 학교에 가요",uz:"Do'stim bilan birga maktabga boraman"},{ko:"어제 우리는 영화를 봤어요",uz:"Kecha biz kino ko'rdik"},{ko:"내일 시장에서 과일을 살 거예요",uz:"Ertaga bozorda meva sotib olaman"},{ko:"저는 커피를 아주 좋아해요",uz:"Men kofeni juda yaxshi ko'raman"},{ko:"우리 집은 서울에 있어요",uz:"Uyimiz Seulda"},{ko:"주말에 가족과 여행을 갔어요",uz:"Dam olish kuni oila bilan sayohatga bordim"}];
+app.get('/api/grammar',(r,s)=>{const t=r.query.type,n=Math.min(+r.query.n||8,12);
+  if(t==='sent')return s.json(shuffle(SENT).slice(0,n));const a=GRAM[t];if(!a)return s.status(400).json({e:'bad'});
+  s.json(shuffle(a).slice(0,n).map(g=>({q:g.q,h:g.h,o:shuffle(g.o),a:g.a})))});
+const foxUse={},FOXSYS="Sen Kori — koreys tilini o'rgatuvchi do'stona tulki 🦊. O'zbek tilida (lotin) javob ber, qisqa va tushunarli (3-6 jumla). Koreys so'zlarini hangul bilan yoz va o'qilishini lotinda qavs ichida ko'rsat. Mashq so'ralsa, bitta savol ber va javobni kut. Foydalanuvchi boshqa mavzuda savol bersa ham yordam ber, lekin suhbatni yengil qilib koreys tiliga bog'lab tur.";
+async function askFox(messages,words){
+  if(!ANTHROPIC_API_KEY)return {e:'nokey'};
+  const ms=messages.slice(-12).map(m=>({role:m.role==='assistant'?'assistant':'user',content:String(m.content).slice(0,1500)}));
+  while(ms.length&&ms[0].role==='assistant')ms.shift();if(!ms.length)return {e:'bad'};
+  const sys=FOXSYS+(words&&words.length?"\nHozir foydalanuvchi shu so'zlarni mashq qilmoqda: "+words.slice(0,20).map(w=>w.ko+' = '+w.uz).join('; ')+". Shu so'zlardan foydalanib qisqa savol-javob yoki dialog qil.":'');
+  try{return {reply:await callClaude(ms,sys,500)}}catch{return {e:'api'}}}
+const foxLimit=u=>(active(u)?150:15);
+app.post('/api/fox',async(r,s)=>{const k=r.u.id+':'+Math.floor(Date.now()/DAY);if((foxUse[k]||0)>=foxLimit(r.u))return s.json({e:'limit'});foxUse[k]=(foxUse[k]||0)+1;
+  const ms=(r.body.messages||[]).filter(m=>m&&m.content);s.json(await askFox(ms,Array.isArray(r.body.words)?r.body.words:[]))});
 app.get('/api/tasks',(r,s)=>s.json(q('select t.*,d.name dname from tasks t join dicts d on d.id=t.dict_id')));
 // bepul sinov (1 oy) so'rovi
 app.post('/api/trial',(r,s)=>{if(r.u.trial!=='none')return s.json({trial:r.u.trial});run("update users set trial='pending' where id=?",r.u.id);s.json({trial:'pending'})});
 // to'lov
-app.post('/api/pay',up.single('shot'),(r,s)=>{const b=r.body;if(!r.file||!one('select 1 from plans where id=?',b.plan_id)||!one('select 1 from methods where id=?',b.method_id))return s.status(400).json({e:'bad'});
-  run('insert into pays(user_id,plan_id,method_id,file,ts) values(?,?,?,?,?)',r.u.id,b.plan_id,b.method_id,r.file.filename,Date.now());s.json({ok:1})});
+app.post('/api/pay',up.single('shot'),(r,s)=>{const b=r.body,pl=one('select * from plans where id=?',b.plan_id);if(!r.file||!pl||!one('select 1 from methods where id=?',b.method_id))return s.status(400).json({e:'bad'});
+  const m=pl.monthly?Math.max(1,Math.min(12,+b.months||1)):pl.months;
+  run('insert into pays(user_id,plan_id,method_id,file,ts,months) values(?,?,?,?,?,?)',r.u.id,pl.id,b.method_id,r.file.filename,Date.now(),m);s.json({ok:1})});
 app.get('/api/mypay',(r,s)=>s.json(q('select id,status,ts from pays where user_id=? order by id desc limit 5',r.u.id)));
 // admin
 app.post('/api/admin/dict',adm('dicts'),(r,s)=>{run('insert into dicts(name,levels,sec) values(?,?,?)',r.body.name,+r.body.levels||1,+r.body.sec||30);s.json({ok:1})});
 app.post('/api/admin/dict/:id',adm('dicts'),(r,s)=>{const b=r.body;
   if('free'in b)run('update dicts set free=? where id=?',b.free?1:0,r.params.id);
   if(b.levels)run('update dicts set levels=? where id=?',+b.levels,r.params.id);
+  if(b.name)run('update dicts set name=? where id=?',b.name,r.params.id);
+  if(b.sec){run('update dicts set sec=? where id=?',+b.sec,r.params.id);resection(+r.params.id)}
   if(b.del){run('delete from words where dict_id=?',r.params.id);run('delete from dicts where id=?',r.params.id)}s.json({ok:1})});
-async function tr(t){if(!TRANSLATE_URL)return '';try{const x=await fetch(TRANSLATE_URL,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({q:t,source:'ko',target:TRANSLATE_TARGET,api_key:TRANSLATE_KEY||undefined})});return (await x.json()).translatedText||''}catch{return ''}}
-async function extract(file,defPos){
+async function callClaude(messages,system,max=500){
+  if(!ANTHROPIC_API_KEY)return null;
+  const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'content-type':'application/json','x-api-key':ANTHROPIC_API_KEY,'anthropic-version':'2023-06-01'},body:JSON.stringify({model:FOX_MODEL,max_tokens:max,system,messages})});
+  const j=await r.json();if(!r.ok)throw new Error((j.error&&j.error.message)||'api');
+  return (j.content||[]).map(c=>c.text||'').join('').trim()}
+async function tr(t){
+  const tryit=async f=>{try{const v=await f();return v&&v!==t?v:''}catch{return ''}};
+  let r='';
+  if(TRANSLATE_URL)r=await tryit(async()=>{const x=await fetch(TRANSLATE_URL,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({q:t,source:'ko',target:TRANSLATE_TARGET,api_key:TRANSLATE_KEY||undefined})});return (await x.json()).translatedText});
+  if(!r&&GOOGLE_TRANSLATE_KEY)r=await tryit(async()=>{const x=await fetch('https://translation.googleapis.com/language/translate/v2?key='+GOOGLE_TRANSLATE_KEY,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({q:t,source:'ko',target:TRANSLATE_TARGET,format:'text'})});return (await x.json()).data.translations[0].translatedText});
+  if(!r)r=await tryit(async()=>{const x=await fetch('https://api.mymemory.translated.net/get?q='+encodeURIComponent(t)+'&langpair=ko|'+TRANSLATE_TARGET);const j=await x.json();const v=j.responseData&&j.responseData.translatedText;return v&&!/MYMEMORY WARNING|QUERY LENGTH/i.test(v)?v:''});
+  return r}
+async function claudeTranslate(part){
+  const txt=await callClaude([{role:'user',content:"Quyidagi koreys so'zlarini o'zbek tiliga (lotin yozuvi) tarjima qil va so'z turini aniqla (ot, fel, sifat, ravish yoki boshqa). FAQAT JSON massiv qaytar: [{\"ko\":\"...\",\"uz\":\"...\",\"pos\":\"ot|fel|sifat|ravish|boshqa\"}]\n\n"+part.map(x=>x.ko).join('\n')}],"Sen koreys-o'zbek lug'at tuzuvchisan. Tarjimalar qisqa, aniq va oddiy so'zlar bilan bo'lsin.",3500);
+  const out={};try{JSON.parse(txt.match(/\[[\s\S]*\]/)[0]).forEach(o=>{if(o&&o.ko)out[o.ko]={uz:String(o.uz||'').trim(),pos:normPos(o.pos)}})}catch{}
+  return out}
+const POSMAP=[[/^(ot|otlar|noun|nouns|명사|isim)$/i,'ot'],[/^(fe['’‘`]?l|fe['’‘`]?llar|verb|verbs|동사)$/i,'fel'],[/^(sifat|sifatlar|adjective|adjectives|형용사)$/i,'sifat'],[/^(ravish|ravishlar|adverb|adverbs|부사)$/i,'ravish']];
+const normPos=x=>{x=String(x||'').trim().replace(/[()\[\]{}.:]/g,'');for(const [re,p] of POSMAP)if(re.test(x))return p;return ''};
+async function extract(file,defPos,auto){
   const buf=fs.readFileSync(file.path);fs.unlinkSync(file.path);const nm=file.originalname.toLowerCase();let txt;
   try{
     if(/\.pdf$/.test(nm))txt=(await require('pdf-parse')(buf)).text;
@@ -89,34 +127,47 @@ async function extract(file,defPos){
     else if(/\.(html?|xml)$/.test(nm))txt=buf.toString('utf8').replace(/<(script|style)[\s\S]*?<\/\1>/gi,'').replace(/<br\s*\/?>|<\/(p|div|li|tr|h\d)>/gi,'\n').replace(/<[^>]+>/g,' ');
     else txt=buf.toString('utf8').replace(/^\uFEFF/,'');
   }catch{return null}
-  const items=[],seen=new Set();
-  for(const line of txt.split(/\r?\n/)){const c=line.split(/[,;\t|]|\s[-–—]\s/).map(x=>x.trim());
-    if(c.length>=2&&/[가-힣]/.test(c[0])&&c[1]&&!/[가-힣]/.test(c[1])){if(!seen.has(c[0])){seen.add(c[0]);items.push({ko:c[0],uz:c[1],pos:c[2]||defPos})}}
-    else for(const w of line.match(/[가-힣]{1,12}/g)||[])if(!seen.has(w)){seen.add(w);items.push({ko:w,uz:'',pos:defPos})}}
-  return items;
-}
-async function addWords(d,items,levelOf){
-  const ready=[];let t=0,skip=0;
-  for(const it of items.slice(0,5000)){
-    if(one('select 1 from words where dict_id=? and ko=?',d.id,it.ko))continue;
-    if(!it.uz){it.uz=await tr(it.ko);if(it.uz)t++}
-    if(!it.uz){skip++;continue}
-    ready.push(it)}
-  const ins=db.prepare('insert into words(dict_id,level,pos,section,ko,uz) values(?,?,?,?,?,?)'),cnt={},per={};
+  const items=[],seen=new Set();let cur='';
+  for(let line of txt.split(/\r?\n/)){
+    line=line.replace(/^\s*(\d+[.)]|[•*·])\s+/,'').trim();if(!line)continue;
+    const hd=normPos(line.replace(/^[^A-Za-z가-힣'’‘`]+|[^A-Za-z가-힣'’‘`]+$/g,''));if(hd&&line.length<30){cur=hd;continue}
+    const m=line.match(/^([가-힣][^\-–—:=,;\t|]*?)\s*[\-–—:=]\s*(.+)$/)||line.match(/^([가-힣][^,;\t|]*?)\s*[,;\t|]\s*(.+)$/);
+    if(m&&!/[가-힣]/.test(m[2])){
+      const ko=m[1].trim();let uz=m[2].trim(),p=cur,px=!!cur;
+      const tg=uz.match(/\s*[(\[]\s*([^)\]]+?)\s*[)\]]\s*$/);if(tg&&normPos(tg[1])){p=normPos(tg[1]);px=true;uz=uz.slice(0,tg.index).trim()}
+      const ps=uz.split(/\s*[,;|\t]\s*/);if(ps.length>1&&normPos(ps[ps.length-1])){p=normPos(ps.pop());px=true;uz=ps.join(', ')}
+      if(ko&&uz&&!seen.has(ko)){seen.add(ko);items.push({ko,uz,pos:p||defPos,px})}
+    }else for(const w of line.match(/[가-힣]{1,12}/g)||[])if(!seen.has(w)){seen.add(w);items.push({ko:w,uz:'',pos:cur||defPos,px:!!cur})}
+  }
+  if(auto)for(const it of items)if(!it.px&&/다$/.test(it.ko))it.pos='fel';
+  return items}
+async function addWords(d,items,levelOf,auto){
+  const todo=items.slice(0,5000).filter(it=>!one('select 1 from words where dict_id=? and ko=?',d.id,it.ko));
+  let t=0,skip=0;
+  if(ANTHROPIC_API_KEY){
+    const need=todo.filter(it=>!it.uz||(auto&&!it.px)),parts=[];
+    for(let i=0;i<need.length;i+=40)parts.push(need.slice(i,i+40));
+    for(let i=0;i<parts.length;i+=4){
+      const res=await Promise.all(parts.slice(i,i+4).map(p=>claudeTranslate(p).catch(()=>({}))));
+      for(const o of res)for(const it of need){const x=o[it.ko];if(!x)continue;if(!it.uz&&x.uz){it.uz=x.uz;t++}if(auto&&!it.px&&x.pos){it.pos=x.pos;it.px=true}}
+    }}
+  const ready=[];
+  for(const it of todo){if(!it.uz){it.uz=await tr(it.ko);if(it.uz)t++}if(!it.uz){skip++;continue}ready.push(it)}
+  const ins=db.prepare('insert into words(dict_id,level,pos,section,ko,uz) values(?,?,?,?,?,?)'),cnt={},per={},pp={};
   db.transaction(()=>{ready.forEach((it,i)=>{const lv=levelOf(i,ready.length),k=lv+'|'+it.pos;
     if(cnt[k]==null)cnt[k]=one('select count(*) n from words where dict_id=? and level=? and pos=?',d.id,lv,it.pos).n;
-    ins.run(d.id,lv,it.pos,Math.floor(cnt[k]/d.sec)+1,it.ko,it.uz);cnt[k]++;per[lv]=(per[lv]||0)+1})})();
-  return {added:ready.length,translated:t,skipped:skip,perLevel:per};
+    ins.run(d.id,lv,it.pos,Math.floor(cnt[k]/d.sec)+1,it.ko,it.uz);cnt[k]++;per[lv]=(per[lv]||0)+1;pp[it.pos]=(pp[it.pos]||0)+1})})();
+  return {added:ready.length,translated:t,skipped:skip,perLevel:per,perPos:pp};
 }
 app.post('/api/admin/import',adm('import'),up.single('file'),async(r,s)=>{
   const {dict_id,level=1,pos='ot'}=r.body,d=one('select * from dicts where id=?',dict_id);if(!d||!r.file)return s.status(400).json({e:'bad'});
-  const items=await extract(r.file,pos);if(!items)return s.status(400).json({e:'file'});
-  s.json(await addWords(d,items,()=>+level))});
+  const items=await extract(r.file,pos,r.body.auto==='1');if(!items)return s.status(400).json({e:'file'});
+  s.json(await addWords(d,items,()=>+level,r.body.auto==='1'))});
 // kitob: fayldan lug'at yaratish, so'zlarni darajalarga bo'lish
 app.post('/api/admin/book',adm('import'),up.single('file'),async(r,s)=>{
   const b=r.body,name=(b.name||'').trim(),pos=b.pos||'ot';let L=Math.max(1,Math.min(+b.levels||1,30));
   if(!name||!r.file)return s.status(400).json({e:'bad'});
-  const items=await extract(r.file,pos);if(!items)return s.status(400).json({e:'file'});
+  const items=await extract(r.file,pos,r.body.auto==='1');if(!items)return s.status(400).json({e:'file'});
   let levelOf;
   if(b.split==='level'){const lv=Math.max(1,+b.level||1);L=Math.max(L,lv);levelOf=()=>lv}
   else if(b.split==='custom'){const cs=String(b.counts||'').split(/[,;\s]+/).map(Number).filter(n=>n>0);if(!cs.length)return s.status(400).json({e:'counts'});
@@ -124,15 +175,19 @@ app.post('/api/admin/book',adm('import'),up.single('file'),async(r,s)=>{
     levelOf=i=>{const k=cum.findIndex(c=>i<c);return k<0?cs.length:k+1}}
   else levelOf=(i,n)=>Math.min(L,Math.floor(i*L/n)+1);
   const id=run('insert into dicts(name,levels,sec) values(?,?,?)',name,L,+b.sec||30).lastInsertRowid,d=one('select * from dicts where id=?',id);
-  s.json({dict_id:id,levels:L,...await addWords(d,items,levelOf)})});
+  s.json({dict_id:id,levels:L,...await addWords(d,items,levelOf,b.auto==='1')})});
+function resection(id){const d=one('select * from dicts where id=?',id);if(!d)return;const rows=q('select id,level,pos from words where dict_id=? order by id',id),c={};const up=db.prepare('update words set section=? where id=?');db.transaction(()=>{for(const w of rows){const k=w.level+'|'+w.pos;c[k]=c[k]||0;up.run(Math.floor(c[k]/d.sec)+1,w.id);c[k]++}})()}
+app.post('/api/admin/word/:id',adm('dicts'),(r,s)=>{const b=r.body,w=one('select * from words where id=?',r.params.id);if(!w)return s.status(400).json({e:'bad'});
+  if(b.del){if(w.audio)try{fs.unlinkSync(DATA+'/audio/'+w.audio)}catch{}run('delete from learned where word_id=?',w.id);run('delete from words where id=?',w.id);return s.json({ok:1})}
+  run('update words set ko=?,uz=?,pos=?,level=? where id=?',b.ko||w.ko,b.uz||w.uz,b.pos||w.pos,+b.level||w.level,w.id);if(b.pos||b.level)resection(w.dict_id);s.json({ok:1})});
 app.post('/api/admin/word/:id/audio',adm('import'),up.single('audio'),(r,s)=>{const w=one('select * from words where id=?',r.params.id);if(!w||!r.file)return s.status(400).json({e:'bad'});
   const mt=r.file.mimetype||'',ext=mt.includes('ogg')?'ogg':/mp4|m4a|aac/.test(mt)?'mp4':/mpeg|mp3/.test(mt)?'mp3':mt.includes('wav')?'wav':'webm';
   const name='w'+w.id+'_'+Date.now()+'.'+ext;fs.renameSync(r.file.path,DATA+'/audio/'+name);
   if(w.audio)try{fs.unlinkSync(DATA+'/audio/'+w.audio)}catch{}
   run('update words set audio=? where id=?',name,w.id);s.json({ok:1,audio:name})});
-app.post('/api/admin/task',adm('tasks'),(r,s)=>{run('insert into tasks(dict_id,level,title) values(?,?,?)',r.body.dict_id,r.body.level,r.body.title);s.json({ok:1})});
+app.post('/api/admin/task',adm('tasks'),(r,s)=>{run('insert into tasks(dict_id,level,title,pos,section) values(?,?,?,?,?)',r.body.dict_id,r.body.level,r.body.title,r.body.pos||'',+r.body.section||0);s.json({ok:1})});
 app.post('/api/admin/task/:id/del',adm('tasks'),(r,s)=>{run('delete from tasks where id=?',r.params.id);s.json({ok:1})});
-app.post('/api/admin/plan',adm('plans'),(r,s)=>{const b=r.body;b.del?run('delete from plans where id=?',b.del):run('insert into plans(months,price,dict_id) values(?,?,?)',+b.months,+b.price,+b.dict_id||0);s.json({ok:1})});
+app.post('/api/admin/plan',adm('plans'),(r,s)=>{const b=r.body;b.del?run('delete from plans where id=?',b.del):run('insert into plans(months,price,dict_id,monthly) values(?,?,?,?)',+b.months||1,+b.price,+b.dict_id||0,b.monthly?1:0);s.json({ok:1})});
 app.post('/api/admin/method',adm('methods'),(r,s)=>{const b=r.body;
   if(b.del)run('delete from methods where id=?',b.del);else if(b.id)run('update methods set name=?,number=?,holder=?,on_=? where id=?',b.name,b.number,b.holder,b.on?1:0,b.id);else run('insert into methods(name,number,holder) values(?,?,?)',b.name,b.number,b.holder);s.json({ok:1})});
 app.get('/api/admin/methods',adm('methods'),(r,s)=>s.json(q('select * from methods')));
@@ -145,7 +200,7 @@ app.post('/api/admin/admin',adm('admins'),(r,s)=>{const {id,email,admin,perms}=r
   if(!u||u.is_admin==2)return s.status(400).json({e:'bad'});
   if(admin!=null)run('update users set is_admin=? where id=?',admin?1:0,u.id);
   if(perms)run('update users set perms=? where id=?',perms.filter(p=>PERMS.includes(p)).join(','),u.id);s.json({ok:1})});
-app.get('/api/admin/pending',adm('payments'),(r,s)=>s.json(q("select p.*,u.name,u.email,pl.months,pl.price,dd.name dname,m.name mname from pays p join users u on u.id=p.user_id left join plans pl on pl.id=p.plan_id left join dicts dd on dd.id=pl.dict_id left join methods m on m.id=p.method_id where status='pending' order by p.id")));
+app.get('/api/admin/pending',adm('payments'),(r,s)=>s.json(q("select p.*,u.name,u.email,pl.months pm,pl.price,pl.monthly,dd.name dname,m.name mname from pays p join users u on u.id=p.user_id left join plans pl on pl.id=p.plan_id left join dicts dd on dd.id=pl.dict_id left join methods m on m.id=p.method_id where status='pending' order by p.id")));
 app.get('/api/admin/trials',adm('trials'),(r,s)=>s.json(q("select id,name,email,created from users where trial='pending'")));
 const tell=(id,t)=>bot&&bot.telegram.sendMessage(id,t).catch(()=>{});
 app.post('/api/admin/trial/:id',adm('trials'),(r,s)=>{const ok=!!r.body.ok,id=r.params.id;
@@ -154,34 +209,60 @@ app.post('/api/admin/trial/:id',adm('trials'),(r,s)=>{const ok=!!r.body.ok,id=r.
 app.post('/api/admin/pay/:id',adm('payments'),(r,s)=>{const p=one('select * from pays where id=?',r.params.id),pl=one('select * from plans where id=?',p.plan_id),ok=!!r.body.ok;
   run('update pays set status=? where id=?',ok?'accepted':'rejected',p.id);
   if(ok&&pl){if(pl.dict_id){const a=one('select until from access where user_id=? and dict_id=?',p.user_id,pl.dict_id);
-    if(!a)run('insert into access(user_id,dict_id,until) values(?,?,?)',p.user_id,pl.dict_id,Date.now()+pl.months*30*DAY);
-    else if(a.until!==0)run('update access set until=? where user_id=? and dict_id=?',Math.max(a.until,Date.now())+pl.months*30*DAY,p.user_id,pl.dict_id)}
-  else run('update users set paid_until=max(paid_until,?)+? where id=?',Date.now(),pl.months*30*DAY,p.user_id)}
+    if(!a)run('insert into access(user_id,dict_id,until) values(?,?,?)',p.user_id,pl.dict_id,Date.now()+(p.months||pl.months)*30*DAY);
+    else if(a.until!==0)run('update access set until=? where user_id=? and dict_id=?',Math.max(a.until,Date.now())+(p.months||pl.months)*30*DAY,p.user_id,pl.dict_id)}
+  else run('update users set paid_until=max(paid_until,?)+? where id=?',Date.now(),(p.months||pl.months)*30*DAY,p.user_id)}
   tell(p.user_id,ok?"✅ To'lov qabul qilindi. Obuna faollashtirildi!":"❌ To'lov rad etildi. Qayta yuboring.");s.json({ok:1})});
 // xonalar
 const server=http.createServer(app),io=new Server(server),rooms={};
 const shuffle=a=>a.map(x=>[Math.random(),x]).sort((a,b)=>a[0]-b[0]).map(x=>x[1]);
+function buildQs(mode,w,n){
+  if(GRAM[mode])return shuffle(GRAM[mode]).slice(0,n).map(g=>({kind:'g',p:g.q,h:g.h,opts:shuffle(g.o),ans:g.a}));
+  return shuffle(w).slice(0,n).map(x=>({kind:mode,p:x.ko,audio:x.audio||'',opts:shuffle([x.uz,...shuffle(w.filter(y=>y.id!==x.id)).slice(0,3).map(y=>y.uz)]),ans:x.uz}))}
+const roomView=r=>({code:r.code,host:r.host,meta:r.meta,players:Object.entries(r.players).map(([id,p])=>({id:+id,name:p.name,score:p.score,i:p.i,done:p.done}))});
+function endRoom(r){if(r.over)return;r.over=true;clearTimeout(r.timer);
+  const list=Object.entries(r.players).map(([id,p])=>({id:+id,name:p.name,score:p.score,fin:p.fin||9e15})).sort((a,b)=>b.score-a.score||a.fin-b.fin);
+  list.forEach(p=>addScore(p.id,p.name,Math.round(p.score/2)));
+  io.to(r.code).emit('end',{players:list.map(({id,name,score})=>({id,name,score})),meta:r.meta});delete rooms[r.code]}
 io.on('connection',sock=>{
   const u=auth(sock.handshake.auth);if(!u)return sock.disconnect();
-  const view=r=>({code:r.code,host:r.host,players:Object.values(r.players).map(p=>({name:p.name,score:p.score,done:p.done}))});
-  sock.on('create',({dict,level},cb)=>{const d=one('select * from dicts where id=?',dict);if(!d||!can(u,d))return cb({e:'pay'});
-    const w=q('select * from words where dict_id=?'+(level?' and level=?':''),...(level?[dict,level]:[dict]));
-    if(w.length<4)return cb({e:"Kamida 4 ta so'z kerak"});
-    let code;do code=String(Math.floor(1000+Math.random()*9000));while(rooms[code]);
-    const qs=shuffle(w).slice(0,10).map(x=>({ko:x.ko,ans:x.uz,opts:shuffle([x.uz,...shuffle(w.filter(y=>y.id!==x.id)).slice(0,3).map(y=>y.uz)])}));
-    rooms[code]={code,host:u.id,qs,started:false,players:{}};cb({code})});
-  sock.on('join',(code,cb)=>{const r=rooms[code];if(!r)return cb({e:'Xona topilmadi'});if(r.started)return cb({e:'Boshlangan'});
-    r.players[u.id]={name:u.name,score:0,i:0,done:false};sock.join(code);sock.data.code=code;cb({ok:1});io.to(code).emit('room',view(r))});
-  sock.on('start',()=>{const r=rooms[sock.data.code];if(!r||r.host!==u.id)return;
+  sock.on('create',({dict,level,mode,n,sec},cb)=>{
+    n=Math.max(3,Math.min(+n||10,30));sec=Math.max(5,Math.min(+sec||15,60));mode=mode||'speed';
+    let w=[],book='Grammatika',lv=0;
+    if(!GRAM[mode]){const d=one('select * from dicts where id=?',dict);if(!d||!can(u,d))return cb({e:"Bu kitob sizga ochiq emas"});book=d.name;lv=+level||0;
+      w=q('select * from words where dict_id=?'+(lv?' and level=?':''),...(lv?[dict,lv]:[dict]));if(w.length<4)return cb({e:"Kamida 4 ta so'z kerak"})}
+    const qs=buildQs(mode,w,n);let code;do code=String(Math.floor(100000+Math.random()*900000));while(rooms[code]);
+    rooms[code]={code,host:u.id,qs,sec,meta:{book,level:lv,n:qs.length,sec,mode},started:false,players:{}};cb({code})});
+  sock.on('join',(code,cb)=>{code=String(code||'').trim();const r=rooms[code];if(!r)return cb({e:'Xona topilmadi'});if(r.started)return cb({e:"O'yin boshlangan"});
+    r.players[u.id]={name:u.name,score:0,i:0,done:false};sock.join(code);sock.data.code=code;cb({ok:1});io.to(code).emit('room',roomView(r))});
+  sock.on('start',()=>{const r=rooms[sock.data.code];if(!r||r.host!==u.id||r.started)return;
     if(Object.keys(r.players).length<2)return sock.emit('err',"Kamida 2 o'yinchi kerak");
-    r.started=true;io.to(r.code).emit('start',r.qs.map(x=>({ko:x.ko,opts:x.opts})))});
-  sock.on('answer',({i,c})=>{const r=rooms[sock.data.code],p=r&&r.players[u.id];if(!p||p.done||i!==p.i)return;
-    if(r.qs[i].ans===c)p.score++;p.i++;if(p.i>=r.qs.length)p.done=true;
-    io.to(r.code).emit('room',view(r));
-    if(Object.values(r.players).every(x=>x.done)){for(const [pid,p] of Object.entries(r.players))addScore(+pid,p.name,p.score);io.to(r.code).emit('end',view(r));delete rooms[r.code]}});
-});
-let bot;
+    r.started=true;const now=Date.now();Object.values(r.players).forEach(p=>p.t0=now);
+    r.timer=setTimeout(()=>endRoom(r),(r.qs.length*r.sec+25)*1000);
+    io.to(r.code).emit('start',{qs:r.qs.map(({kind,p,h,opts,audio})=>({kind,p,h,opts,audio})),meta:r.meta})});
+  sock.on('answer',({i,c},cb)=>{const r=rooms[sock.data.code],p=r&&r.players[u.id];if(!r||!p||p.done||i!==p.i)return;
+    const qn=r.qs[i],now=Date.now(),el=(now-p.t0)/1000,ok=c!=null&&c===qn.ans&&el<=r.sec+1.5;
+    if(ok)p.score+=10+Math.max(0,Math.round((r.sec-el)/r.sec*5));
+    p.t0=now;p.i++;if(p.i>=r.qs.length){p.done=true;p.fin=now}
+    if(typeof cb==='function')cb({ok,ans:qn.ans});io.to(r.code).emit('room',roomView(r));
+    if(Object.values(r.players).every(x=>x.done))endRoom(r)});
+  sock.on('disconnect',()=>{const r=rooms[sock.data.code];if(!r||r.over)return;delete r.players[u.id];
+    if(!Object.keys(r.players).length){clearTimeout(r.timer);delete rooms[r.code];return}
+    if(r.host===u.id)r.host=+Object.keys(r.players)[0];
+    if(r.started&&Object.values(r.players).every(x=>x.done))endRoom(r);else io.to(r.code).emit('room',roomView(r))})});
+let bot;const hist={};
 if(BOT_TOKEN){bot=new Telegraf(BOT_TOKEN);
-  bot.start(c=>c.reply("🇰🇷 Koreys tili lug'at botiga xush kelibsiz!",Markup.inlineKeyboard([Markup.button.webApp("📚 Ochish",WEBAPP_URL)])));
-  bot.launch().catch(console.error)}
+  const open=Markup.button.webApp("📚 Ilovani ochish",WEBAPP_URL);
+  bot.start(c=>c.reply("Assalomu alaykum, "+c.from.first_name+"! 🦊\nMen Kori — koreys tili yordamchingizman.\nSizga qanday yordam bera olaman?",Markup.inlineKeyboard([[open],[Markup.button.callback("💬 Savol berish",'ask'),Markup.button.callback("ℹ️ Nimalar qila olaman?",'help')]])));
+  bot.action('ask',c=>{c.answerCbQuery().catch(()=>{});c.reply("Savolingizni yozing, men javob beraman 🦊\n(masalan: «고맙습니다» nima degani?)")});
+  bot.action('help',c=>{c.answerCbQuery().catch(()=>{});c.reply("Men:\n• so'z va grammatikani tushuntiraman\n• misollar keltiraman\n• mashq va suhbat qilaman\n\nIlovada kartochka, o'yinlar va mashqlar ham bor 👇",Markup.inlineKeyboard([open]))});
+  bot.on('text',async c=>{const t=c.message.text;if(t.startsWith('/'))return;const id=c.from.id;
+    run('insert or ignore into users(id,name,created) values(?,?,?)',id,c.from.first_name,Date.now());const u=fin(id);
+    const k=id+':'+Math.floor(Date.now()/DAY);if((foxUse[k]||0)>=foxLimit(u))return c.reply("Bugungi bepul savollar tugadi 🦊 Obuna bo'lsangiz ko'proq yozishingiz mumkin.");
+    foxUse[k]=(foxUse[k]||0)+1;const h=hist[id]=hist[id]||[];h.push({role:'user',content:t});c.sendChatAction('typing').catch(()=>{});
+    const r=await askFox(h,[]);
+    if(r.reply){h.push({role:'assistant',content:r.reply});if(h.length>12)h.splice(0,h.length-12);c.reply(r.reply)}
+    else{h.pop();c.reply(r.e==='nokey'?"Men hozircha javob bera olmayman. Ilovani oching 👇":"Xatolik yuz berdi, birozdan keyin urinib ko'ring.",Markup.inlineKeyboard([open]))}});
+  bot.launch().catch(console.error);
+  bot.telegram.setChatMenuButton({menuButton:{type:'web_app',text:'Ochish',web_app:{url:WEBAPP_URL}}}).catch(()=>{})}
 server.listen(PORT,()=>console.log('http://localhost:'+PORT));
