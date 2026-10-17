@@ -75,8 +75,19 @@ app.get('/api/grammar',(r,s)=>{const t=r.query.type,n=Math.min(+r.query.n||8,12)
   if(t==='sent')return s.json(shuffle(SENT).slice(0,n));const a=GRAM[t];if(!a)return s.status(400).json({e:'bad'});
   s.json(shuffle(a).slice(0,n).map(g=>({q:g.q,h:g.h,o:shuffle(g.o),a:g.a})))});
 const foxUse={},FOXSYS="Sen Kori — koreys tilini o'rgatuvchi do'stona tulki 🦊. O'zbek tilida (lotin) javob ber, qisqa va tushunarli (3-6 jumla). Koreys so'zlarini hangul bilan yoz va o'qilishini lotinda qavs ichida ko'rsat. Mashq so'ralsa, bitta savol ber va javobni kut. Foydalanuvchi boshqa mavzuda savol bersa ham yordam ber, lekin suhbatni yengil qilib koreys tiliga bog'lab tur.";
+function fallbackFox(ms){
+  const last=String(ms[ms.length-1].content).trim(),prev=ms.length>1?String(ms[ms.length-2].content):'';
+  const qm=prev.match(/^🧠 «(.+?)» nima degani\?/);
+  if(qm){const w=one('select * from words where ko=? limit 1',qm[1]);if(w){const first=w.uz.split(/[,;]/)[0].trim().toLowerCase(),ok=last.toLowerCase().includes(first);
+    return {lite:1,reply:(ok?'Ajoyib! 🎉 ':'Deyarli! ')+'«'+w.ko+'» — '+w.uz+".\n\nYana mashq qilamizmi? «Meni sina» deb yozing."}}}
+  if(/sina/i.test(last)){const w=one('select * from words order by random() limit 1');if(w)return {lite:1,reply:'🧠 «'+w.ko+'» nima degani?'}}
+  let rows=[];const hang=last.match(/[가-힣]+/g);
+  if(hang)for(const h of hang.slice(0,3))rows.push(...q('select ko,uz from words where ko like ? limit 3','%'+h+'%'));
+  if(!rows.length){const t=last.replace(/[^\p{L}' ]/gu,'').trim().toLowerCase();if(t.length>=2)rows=q('select ko,uz from words where lower(uz) like ? limit 5','%'+t+'%')}
+  if(rows.length)return {lite:1,reply:rows.slice(0,5).map(w=>'📖 '+w.ko+' — '+w.uz).join('\n')};
+  return {lite:1,reply:"Men hozircha lug'atdagi so'zlarni topib bera olaman 🦊 Koreyscha yoki o'zbekcha so'z yozing (masalan: 학교 yoki maktab) yoki «Meni sina» deb yozing."}}
 async function askFox(messages,words){
-  if(!ANTHROPIC_API_KEY)return {e:'nokey'};
+  if(!ANTHROPIC_API_KEY)return messages.length?fallbackFox(messages):{e:'bad'};
   const ms=messages.slice(-12).map(m=>({role:m.role==='assistant'?'assistant':'user',content:String(m.content).slice(0,1500)}));
   while(ms.length&&ms[0].role==='assistant')ms.shift();if(!ms.length)return {e:'bad'};
   const sys=FOXSYS+(words&&words.length?"\nHozir foydalanuvchi shu so'zlarni mashq qilmoqda: "+words.slice(0,20).map(w=>w.ko+' = '+w.uz).join('; ')+". Shu so'zlardan foydalanib qisqa savol-javob yoki dialog qil.":'');
@@ -128,16 +139,20 @@ async function extract(file,defPos,auto){
     else txt=buf.toString('utf8').replace(/^\uFEFF/,'');
   }catch{return null}
   const items=[],seen=new Set();let cur='';
-  for(let line of txt.split(/\r?\n/)){
-    line=line.replace(/^\s*(\d+[.)]|[•*·])\s+/,'').trim();if(!line)continue;
+  const hasK=x=>/[가-힣]/.test(x),lat=x=>/[A-Za-z]/.test(x)&&!hasK(x);
+  const add=(ko,uz)=>{ko=ko.trim();uz=uz.trim();let p=cur,px=!!cur;
+    const tg=uz.match(/\s*[(\[]\s*([^)\]]+?)\s*[)\]]\s*$/);if(tg&&normPos(tg[1])){p=normPos(tg[1]);px=true;uz=uz.slice(0,tg.index).trim()}
+    const ps=uz.split(/\s*[,;|\t]\s*/);if(ps.length>1&&normPos(ps[ps.length-1])){p=normPos(ps.pop());px=true;uz=ps.join(', ')}
+    if(ko&&uz&&!seen.has(ko)){seen.add(ko);items.push({ko,uz,pos:p||defPos,px})}};
+  const lines=txt.split(/\r?\n/).map(l=>l.replace(/^\s*(\d+[.)]?|[•*·])\s+/,'').trim()).filter(Boolean);
+  for(let i=0;i<lines.length;i++){const line=lines[i];
     const hd=normPos(line.replace(/^[^A-Za-z가-힣'’‘`]+|[^A-Za-z가-힣'’‘`]+$/g,''));if(hd&&line.length<30){cur=hd;continue}
-    const m=line.match(/^([가-힣][^\-–—:=,;\t|]*?)\s*[\-–—:=]\s*(.+)$/)||line.match(/^([가-힣][^,;\t|]*?)\s*[,;\t|]\s*(.+)$/);
-    if(m&&!/[가-힣]/.test(m[2])){
-      const ko=m[1].trim();let uz=m[2].trim(),p=cur,px=!!cur;
-      const tg=uz.match(/\s*[(\[]\s*([^)\]]+?)\s*[)\]]\s*$/);if(tg&&normPos(tg[1])){p=normPos(tg[1]);px=true;uz=uz.slice(0,tg.index).trim()}
-      const ps=uz.split(/\s*[,;|\t]\s*/);if(ps.length>1&&normPos(ps[ps.length-1])){p=normPos(ps.pop());px=true;uz=ps.join(', ')}
-      if(ko&&uz&&!seen.has(ko)){seen.add(ko);items.push({ko,uz,pos:p||defPos,px})}
-    }else for(const w of line.match(/[가-힣]{1,12}/g)||[])if(!seen.has(w)){seen.add(w);items.push({ko:w,uz:'',pos:cur||defPos,px:!!cur})}
+    let m=line.match(/^([가-힣][^\-–—:=,;\t|]*?)\s*[\-–—:=]\s*(.+)$/)||line.match(/^([가-힣][^,;\t|]*?)\s*[,;\t|]\s*(.+)$/);
+    if(m&&!hasK(m[2])){add(m[1],m[2]);continue}
+    const rv=line.match(/^([A-Za-z'’‘ʻʼ][^가-힣]*?)\s*[\-–—:=\t,;|]\s*([가-힣].*)$/);if(rv&&!hasK(rv[1])){add(rv[2],rv[1]);continue}
+    const sp=line.match(/^([가-힣][가-힣~\s]*?)\s+([A-Za-z'’‘ʻʼ].*)$/);if(sp&&!hasK(sp[2])){add(sp[1],sp[2]);continue}
+    if(hasK(line)&&!/[A-Za-z]/.test(line)&&lines[i+1]&&lat(lines[i+1])&&!normPos(lines[i+1])){add(line,lines[i+1]);i++;continue}
+    for(const w of line.match(/[가-힣]{1,12}/g)||[])if(!seen.has(w)){seen.add(w);items.push({ko:w,uz:'',pos:cur||defPos,px:!!cur})}
   }
   if(auto)for(const it of items)if(!it.px&&/다$/.test(it.ko))it.pos='fel';
   return items}
@@ -157,7 +172,7 @@ async function addWords(d,items,levelOf,auto){
   db.transaction(()=>{ready.forEach((it,i)=>{const lv=levelOf(i,ready.length),k=lv+'|'+it.pos;
     if(cnt[k]==null)cnt[k]=one('select count(*) n from words where dict_id=? and level=? and pos=?',d.id,lv,it.pos).n;
     ins.run(d.id,lv,it.pos,Math.floor(cnt[k]/d.sec)+1,it.ko,it.uz);cnt[k]++;per[lv]=(per[lv]||0)+1;pp[it.pos]=(pp[it.pos]||0)+1})})();
-  return {added:ready.length,translated:t,skipped:skip,perLevel:per,perPos:pp};
+  return {found:items.length,added:ready.length,translated:t,skipped:skip,perLevel:per,perPos:pp};
 }
 app.post('/api/admin/import',adm('import'),up.single('file'),async(r,s)=>{
   const {dict_id,level=1,pos='ot'}=r.body,d=one('select * from dicts where id=?',dict_id);if(!d||!r.file)return s.status(400).json({e:'bad'});
