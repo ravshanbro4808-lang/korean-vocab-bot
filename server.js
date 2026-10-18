@@ -74,7 +74,7 @@ const SENT=[{ko:"저는 매일 한국어를 공부해요",uz:"Men har kuni korey
 app.get('/api/grammar',(r,s)=>{const t=r.query.type,n=Math.min(+r.query.n||8,12);
   if(t==='sent')return s.json(shuffle(SENT).slice(0,n));const a=GRAM[t];if(!a)return s.status(400).json({e:'bad'});
   s.json(shuffle(a).slice(0,n).map(g=>({q:g.q,h:g.h,o:shuffle(g.o),a:g.a})))});
-const foxUse={},FOXSYS="Sen Kori — koreys tilini o'rgatuvchi do'stona tulki 🦊. O'zbek tilida (lotin) javob ber, qisqa va tushunarli (3-6 jumla). Koreys so'zlarini hangul bilan yoz va o'qilishini lotinda qavs ichida ko'rsat. Mashq so'ralsa, bitta savol ber va javobni kut. Foydalanuvchi boshqa mavzuda savol bersa ham yordam ber, lekin suhbatni yengil qilib koreys tiliga bog'lab tur.";
+const foxUse={},FOXSYS="Sen Kori — do'stona va bilimdon tulki yordamchisan 🦊. O'zbek tilida (lotin yozuvida) javob ber. Foydalanuvchi har qanday savol bersa (koreys tili, ta'lim, dasturlash, kundalik hayot va h.k.) to'liq, aniq va foydali javob ber: oddiy savolga qisqa, murakkabiga batafsilroq. Koreys so'zlarini hangul bilan yoz va o'qilishini lotinda qavs ichida ko'rsat. Mashq so'ralsa, bitta savol ber va javobni kut. Tibbiy, huquqiy yoki xavfli mavzularda ehtiyotkor bo'l.";
 function fallbackFox(ms){
   const last=String(ms[ms.length-1].content).trim(),prev=ms.length>1?String(ms[ms.length-2].content):'';
   const qm=prev.match(/^🧠 «(.+?)» nima degani\?/);
@@ -91,8 +91,8 @@ async function askFox(messages,words){
   const ms=messages.slice(-12).map(m=>({role:m.role==='assistant'?'assistant':'user',content:String(m.content).slice(0,1500)}));
   while(ms.length&&ms[0].role==='assistant')ms.shift();if(!ms.length)return {e:'bad'};
   const sys=FOXSYS+(words&&words.length?"\nHozir foydalanuvchi shu so'zlarni mashq qilmoqda: "+words.slice(0,20).map(w=>w.ko+' = '+w.uz).join('; ')+". Shu so'zlardan foydalanib qisqa savol-javob yoki dialog qil.":'');
-  try{return {reply:await callClaude(ms,sys,500)}}catch{return {e:'api'}}}
-const foxLimit=u=>(active(u)?150:15);
+  try{return {reply:await callClaude(ms,sys,800)}}catch(e){return {e:'api',msg:String(e.message||e)}}}
+const foxLimit=u=>(u.is_admin?1e9:active(u)?150:15);
 app.post('/api/fox',async(r,s)=>{const k=r.u.id+':'+Math.floor(Date.now()/DAY);if((foxUse[k]||0)>=foxLimit(r.u))return s.json({e:'limit'});foxUse[k]=(foxUse[k]||0)+1;
   const ms=(r.body.messages||[]).filter(m=>m&&m.content);s.json(await askFox(ms,Array.isArray(r.body.words)?r.body.words:[]))});
 app.get('/api/tasks',(r,s)=>s.json(q('select t.*,d.name dname from tasks t join dicts d on d.id=t.dict_id')));
@@ -111,20 +111,22 @@ app.post('/api/admin/dict/:id',adm('dicts'),(r,s)=>{const b=r.body;
   if(b.name)run('update dicts set name=? where id=?',b.name,r.params.id);
   if(b.sec){run('update dicts set sec=? where id=?',+b.sec,r.params.id);resection(+r.params.id)}
   if(b.del){run('delete from words where dict_id=?',r.params.id);run('delete from dicts where id=?',r.params.id)}s.json({ok:1})});
-async function callClaude(messages,system,max=500){
+let FOXM=FOX_MODEL;
+async function callClaude(messages,system,max=500,model=FOXM){
   if(!ANTHROPIC_API_KEY)return null;
-  const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'content-type':'application/json','x-api-key':ANTHROPIC_API_KEY,'anthropic-version':'2023-06-01'},body:JSON.stringify({model:FOX_MODEL,max_tokens:max,system,messages})});
-  const j=await r.json();if(!r.ok)throw new Error((j.error&&j.error.message)||'api');
+  const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',signal:AbortSignal.timeout(90000),headers:{'content-type':'application/json','x-api-key':ANTHROPIC_API_KEY,'anthropic-version':'2023-06-01'},body:JSON.stringify({model,max_tokens:max,system,messages})});
+  const j=await r.json();
+  if(!r.ok){if(r.status===404&&model!=='claude-sonnet-4-6'){const t=await callClaude(messages,system,max,'claude-sonnet-4-6');FOXM='claude-sonnet-4-6';return t}throw new Error((j.error&&j.error.message)||'api '+r.status)}
   return (j.content||[]).map(c=>c.text||'').join('').trim()}
 async function tr(t){
-  const tryit=async f=>{try{const v=await f();return v&&v!==t?v:''}catch{return ''}};
+  const tryit=async f=>{try{const v=await f();return v&&v!==t?v:''}catch{return ''}},sg=()=>AbortSignal.timeout(7000);
   let r='';
-  if(TRANSLATE_URL)r=await tryit(async()=>{const x=await fetch(TRANSLATE_URL,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({q:t,source:'ko',target:TRANSLATE_TARGET,api_key:TRANSLATE_KEY||undefined})});return (await x.json()).translatedText});
-  if(!r&&GOOGLE_TRANSLATE_KEY)r=await tryit(async()=>{const x=await fetch('https://translation.googleapis.com/language/translate/v2?key='+GOOGLE_TRANSLATE_KEY,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({q:t,source:'ko',target:TRANSLATE_TARGET,format:'text'})});return (await x.json()).data.translations[0].translatedText});
-  if(!r)r=await tryit(async()=>{const x=await fetch('https://api.mymemory.translated.net/get?q='+encodeURIComponent(t)+'&langpair=ko|'+TRANSLATE_TARGET);const j=await x.json();const v=j.responseData&&j.responseData.translatedText;return v&&!/MYMEMORY WARNING|QUERY LENGTH/i.test(v)?v:''});
+  if(TRANSLATE_URL)r=await tryit(async()=>{const x=await fetch(TRANSLATE_URL,{method:'POST',signal:sg(),headers:{'content-type':'application/json'},body:JSON.stringify({q:t,source:'ko',target:TRANSLATE_TARGET,api_key:TRANSLATE_KEY||undefined})});return (await x.json()).translatedText});
+  if(!r&&GOOGLE_TRANSLATE_KEY)r=await tryit(async()=>{const x=await fetch('https://translation.googleapis.com/language/translate/v2?key='+GOOGLE_TRANSLATE_KEY,{method:'POST',signal:sg(),headers:{'content-type':'application/json'},body:JSON.stringify({q:t,source:'ko',target:TRANSLATE_TARGET,format:'text'})});return (await x.json()).data.translations[0].translatedText});
+  if(!r)r=await tryit(async()=>{const x=await fetch('https://api.mymemory.translated.net/get?q='+encodeURIComponent(t)+'&langpair=ko|'+TRANSLATE_TARGET,{signal:sg()});const j=await x.json();const v=j.responseData&&j.responseData.translatedText;return v&&!/MYMEMORY WARNING|QUERY LENGTH/i.test(v)?v:''});
   return r}
 async function claudeTranslate(part){
-  const txt=await callClaude([{role:'user',content:"Quyidagi koreys so'zlarini o'zbek tiliga (lotin yozuvi) tarjima qil va so'z turini aniqla (ot, fel, sifat, ravish yoki boshqa). FAQAT JSON massiv qaytar: [{\"ko\":\"...\",\"uz\":\"...\",\"pos\":\"ot|fel|sifat|ravish|boshqa\"}]\n\n"+part.map(x=>x.ko).join('\n')}],"Sen koreys-o'zbek lug'at tuzuvchisan. Tarjimalar qisqa, aniq va oddiy so'zlar bilan bo'lsin.",3500);
+  const txt=await callClaude([{role:'user',content:"Quyidagi koreys so'zlarini o'zbek tiliga (lotin yozuvi) tarjima qil va so'z turini aniqla (ot, fel, sifat, ravish yoki boshqa). FAQAT JSON massiv qaytar: [{\"ko\":\"...\",\"uz\":\"...\",\"pos\":\"ot|fel|sifat|ravish|boshqa\"}]\n\n"+part.map(x=>x.ko).join('\n')}],"Sen koreys-o'zbek lug'at tuzuvchisan. Tarjimalar qisqa, aniq va oddiy so'zlar bilan bo'lsin.",4000);
   const out={};try{JSON.parse(txt.match(/\[[\s\S]*\]/)[0]).forEach(o=>{if(o&&o.ko)out[o.ko]={uz:String(o.uz||'').trim(),pos:normPos(o.pos)}})}catch{}
   return out}
 const POSMAP=[[/^(ot|otlar|noun|nouns|명사|isim)$/i,'ot'],[/^(fe['’‘`]?l|fe['’‘`]?llar|verb|verbs|동사)$/i,'fel'],[/^(sifat|sifatlar|adjective|adjectives|형용사)$/i,'sifat'],[/^(ravish|ravishlar|adverb|adverbs|부사)$/i,'ravish']];
@@ -150,47 +152,59 @@ async function extract(file,defPos,auto){
     let m=line.match(/^([가-힣][^\-–—:=,;\t|]*?)\s*[\-–—:=]\s*(.+)$/)||line.match(/^([가-힣][^,;\t|]*?)\s*[,;\t|]\s*(.+)$/);
     if(m&&!hasK(m[2])){add(m[1],m[2]);continue}
     const rv=line.match(/^([A-Za-z'’‘ʻʼ][^가-힣]*?)\s*[\-–—:=\t,;|]\s*([가-힣].*)$/);if(rv&&!hasK(rv[1])){add(rv[2],rv[1]);continue}
+    const pr=line.match(/^([가-힣][가-힣\s~]*?)\s*[(（]\s*([^가-힣()（）]+?)\s*[)）]\s*$/);if(pr&&!normPos(pr[2])){add(pr[1],pr[2]);continue}
     const sp=line.match(/^([가-힣][가-힣~\s]*?)\s+([A-Za-z'’‘ʻʼ].*)$/);if(sp&&!hasK(sp[2])){add(sp[1],sp[2]);continue}
     if(hasK(line)&&!/[A-Za-z]/.test(line)&&lines[i+1]&&lat(lines[i+1])&&!normPos(lines[i+1])){add(line,lines[i+1]);i++;continue}
     for(const w of line.match(/[가-힣]{1,12}/g)||[])if(!seen.has(w)){seen.add(w);items.push({ko:w,uz:'',pos:cur||defPos,px:!!cur})}
   }
   if(auto)for(const it of items)if(!it.px&&/다$/.test(it.ko))it.pos='fel';
   return items}
-async function addWords(d,items,levelOf,auto){
+async function addWords(job,d,items,levelOf,auto){
+  job.stage="Tekshirilmoqda...";
   const todo=items.slice(0,5000).filter(it=>!one('select 1 from words where dict_id=? and ko=?',d.id,it.ko));
-  let t=0,skip=0;
-  if(ANTHROPIC_API_KEY){
-    const need=todo.filter(it=>!it.uz||(auto&&!it.px)),parts=[];
-    for(let i=0;i<need.length;i+=40)parts.push(need.slice(i,i+40));
-    for(let i=0;i<parts.length;i+=4){
-      const res=await Promise.all(parts.slice(i,i+4).map(p=>claudeTranslate(p).catch(()=>({}))));
-      for(const o of res)for(const it of need){const x=o[it.ko];if(!x)continue;if(!it.uz&&x.uz){it.uz=x.uz;t++}if(auto&&!it.px&&x.pos){it.pos=x.pos;it.px=true}}
-    }}
-  const ready=[];
-  for(const it of todo){if(!it.uz){it.uz=await tr(it.ko);if(it.uz)t++}if(!it.uz){skip++;continue}ready.push(it)}
-  const ins=db.prepare('insert into words(dict_id,level,pos,section,ko,uz) values(?,?,?,?,?,?)'),cnt={},per={},pp={};
-  db.transaction(()=>{ready.forEach((it,i)=>{const lv=levelOf(i,ready.length),k=lv+'|'+it.pos;
+  todo.forEach((it,i)=>it.idx=i);job.found=items.length;job.total=todo.length;job.done=0;
+  const ins=db.prepare('insert into words(dict_id,level,pos,section,ko,uz) values(?,?,?,?,?,?)'),cnt={};
+  const put=list=>{db.transaction(()=>{for(const it of list){const lv=levelOf(it.idx,todo.length),k=lv+'|'+it.pos;
     if(cnt[k]==null)cnt[k]=one('select count(*) n from words where dict_id=? and level=? and pos=?',d.id,lv,it.pos).n;
-    ins.run(d.id,lv,it.pos,Math.floor(cnt[k]/d.sec)+1,it.ko,it.uz);cnt[k]++;per[lv]=(per[lv]||0)+1;pp[it.pos]=(pp[it.pos]||0)+1})})();
-  return {found:items.length,added:ready.length,translated:t,skipped:skip,perLevel:per,perPos:pp};
-}
-app.post('/api/admin/import',adm('import'),up.single('file'),async(r,s)=>{
+    ins.run(d.id,lv,it.pos,Math.floor(cnt[k]/d.sec)+1,it.ko,it.uz);cnt[k]++;
+    job.perLevel[lv]=(job.perLevel[lv]||0)+1;job.perPos[it.pos]=(job.perPos[it.pos]||0)+1;job.added++}})()};
+  const aiOn=!!ANTHROPIC_API_KEY,needAI=it=>!it.uz||(auto&&!it.px);
+  const first=todo.filter(it=>it.uz&&!(aiOn&&needAI(it)));put(first);job.done=first.length;
+  const fs0=new Set(first);let rest=todo.filter(it=>!fs0.has(it));
+  if(aiOn&&rest.length){job.stage="Tarjima va tur aniqlash (Claude)...";
+    const bs=[];for(let i=0;i<rest.length;i+=50)bs.push(rest.slice(i,i+50));let bi=0;
+    const worker=async()=>{while(bi<bs.length){const b=bs[bi++];let o={};try{o=await claudeTranslate(b)}catch{}
+      const ok=[];for(const it of b){const x=o[it.ko];if(x){if(!it.uz&&x.uz){it.uz=x.uz;job.translated++}if(auto&&!it.px&&x.pos){it.pos=x.pos;it.px=true}}if(it.uz)ok.push(it);else it.left=1}
+      put(ok);job.done+=b.length}};
+    await Promise.all(Array.from({length:Math.min(6,bs.length)},worker));rest=rest.filter(it=>it.left)}
+  if(rest.length){job.stage="Tarjima (tarjima xizmati)...";const lim=rest.slice(0,600);let ri=0;
+    const w2=async()=>{while(ri<lim.length){const it=lim[ri++];it.uz=await tr(it.ko);if(it.uz){job.translated++;put([it])}else job.skipped++;job.done++}};
+    await Promise.all(Array.from({length:5},w2));job.skipped+=rest.length-lim.length}
+  job.done=job.total;job.stage="Tayyor";return job}
+const jobs={};
+setInterval(()=>{const t=Date.now();for(const k in jobs)if(t-jobs[k].ts>36e5)delete jobs[k]},6e5).unref();
+const newJob=()=>{const id=crypto.randomBytes(6).toString('hex');return jobs[id]={id,stage:"Fayl o'qilmoqda...",found:0,total:0,done:0,added:0,translated:0,skipped:0,perLevel:{},perPos:{},fin:false,err:null,ts:Date.now()}};
+app.get('/api/admin/job/:id',adm('import'),(r,s)=>{const j=jobs[r.params.id];if(!j)return s.status(404).json({e:'yoq'});s.json(j)});
+app.post('/api/admin/import',adm('import'),up.single('file'),(r,s)=>{
   const {dict_id,level=1,pos='ot'}=r.body,d=one('select * from dicts where id=?',dict_id);if(!d||!r.file)return s.status(400).json({e:'bad'});
-  const items=await extract(r.file,pos,r.body.auto==='1');if(!items)return s.status(400).json({e:'file'});
-  s.json(await addWords(d,items,()=>+level,r.body.auto==='1'))});
-// kitob: fayldan lug'at yaratish, so'zlarni darajalarga bo'lish
-app.post('/api/admin/book',adm('import'),up.single('file'),async(r,s)=>{
+  const job=newJob(),auto=r.body.auto==='1';s.json({job:job.id});
+  (async()=>{try{const items=await extract(r.file,pos,auto);if(!items){job.err="Faylni o'qib bo'lmadi";return}await addWords(job,d,items,()=>+level,auto)}catch(e){job.err=String(e.message||e)}finally{job.fin=true}})()});
+app.post('/api/admin/book',adm('import'),up.single('file'),(r,s)=>{
   const b=r.body,name=(b.name||'').trim(),pos=b.pos||'ot';let L=Math.max(1,Math.min(+b.levels||1,30));
   if(!name||!r.file)return s.status(400).json({e:'bad'});
-  const items=await extract(r.file,pos,r.body.auto==='1');if(!items)return s.status(400).json({e:'file'});
-  let levelOf;
-  if(b.split==='level'){const lv=Math.max(1,+b.level||1);L=Math.max(L,lv);levelOf=()=>lv}
-  else if(b.split==='custom'){const cs=String(b.counts||'').split(/[,;\s]+/).map(Number).filter(n=>n>0);if(!cs.length)return s.status(400).json({e:'counts'});
-    L=Math.max(L,cs.length);const cum=[];cs.reduce((a,n,i)=>(cum[i]=a+n),0);
-    levelOf=i=>{const k=cum.findIndex(c=>i<c);return k<0?cs.length:k+1}}
-  else levelOf=(i,n)=>Math.min(L,Math.floor(i*L/n)+1);
-  const id=run('insert into dicts(name,levels,sec) values(?,?,?)',name,L,+b.sec||30).lastInsertRowid,d=one('select * from dicts where id=?',id);
-  s.json({dict_id:id,levels:L,...await addWords(d,items,levelOf,b.auto==='1')})});
+  const cs=String(b.counts||'').split(/[,;\s]+/).map(Number).filter(n=>n>0);if(b.split==='custom'&&!cs.length)return s.status(400).json({e:'counts'});
+  const job=newJob(),auto=b.auto==='1';s.json({job:job.id});
+  (async()=>{try{const items=await extract(r.file,pos,auto);if(!items){job.err="Faylni o'qib bo'lmadi";return}
+    let levelOf;
+    if(b.split==='level'){const lv=Math.max(1,+b.level||1);L=Math.max(L,lv);levelOf=()=>lv}
+    else if(b.split==='custom'){L=Math.max(L,cs.length);const cum=[];cs.reduce((a,n,i)=>(cum[i]=a+n),0);levelOf=i=>{const k=cum.findIndex(c=>i<c);return k<0?cs.length:k+1}}
+    else levelOf=(i,n)=>Math.min(L,Math.floor(i*L/n)+1);
+    const id=run('insert into dicts(name,levels,sec) values(?,?,?)',name,L,+b.sec||30).lastInsertRowid,d=one('select * from dicts where id=?',id);job.dict_id=id;
+    await addWords(job,d,items,levelOf,auto)}catch(e){job.err=String(e.message||e)}finally{job.fin=true}})()});
+app.get('/api/admin/status',adm('admins'),(r,s)=>s.json({key:!!ANTHROPIC_API_KEY,keyLen:(ANTHROPIC_API_KEY||'').length,model:FOXM,bot:!!BOT_TOKEN,webapp:WEBAPP_URL||'',data:DATA}));
+app.post('/api/admin/claude-test',adm('admins'),async(r,s)=>{if(!ANTHROPIC_API_KEY)return s.json({ok:false,error:"ANTHROPIC_API_KEY serverda ko'rinmayapti. Railway → Variables'ga qo'shing va Deploy bosing. Ikkita loyiha bo'lsa, domen bog'langan loyihaga qo'shing."});
+  try{const t=await callClaude([{role:'user',content:"Bir so'z bilan javob ber: tayyormisan?"}],"Qisqa javob ber.",50);s.json({ok:true,reply:t,model:FOXM})}catch(e){s.json({ok:false,error:String(e.message||e)})}});
+
 function resection(id){const d=one('select * from dicts where id=?',id);if(!d)return;const rows=q('select id,level,pos from words where dict_id=? order by id',id),c={};const up=db.prepare('update words set section=? where id=?');db.transaction(()=>{for(const w of rows){const k=w.level+'|'+w.pos;c[k]=c[k]||0;up.run(Math.floor(c[k]/d.sec)+1,w.id);c[k]++}})()}
 app.post('/api/admin/word/:id',adm('dicts'),(r,s)=>{const b=r.body,w=one('select * from words where id=?',r.params.id);if(!w)return s.status(400).json({e:'bad'});
   if(b.del){if(w.audio)try{fs.unlinkSync(DATA+'/audio/'+w.audio)}catch{}run('delete from learned where word_id=?',w.id);run('delete from words where id=?',w.id);return s.json({ok:1})}
