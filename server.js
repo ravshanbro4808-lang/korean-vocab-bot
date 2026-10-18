@@ -1,7 +1,7 @@
 const express=require('express'),crypto=require('crypto'),fs=require('fs'),http=require('http');
 const Database=require('better-sqlite3'),multer=require('multer'),{Telegraf,Markup}=require('telegraf'),{Server}=require('socket.io');
 const {OAuth2Client}=require('google-auth-library');
-const {BOT_TOKEN,WEBAPP_URL,ADMIN_IDS='',ADMIN_EMAILS='',GOOGLE_CLIENT_ID,SECRET='change-me',DEV,PORT=3000,TRANSLATE_URL,TRANSLATE_KEY,TRANSLATE_TARGET='uz',ANTHROPIC_API_KEY,GEMINI_API_KEY,GEMINI_MODEL='gemini-2.5-flash',FOX_MODEL='claude-haiku-5-5',GOOGLE_TRANSLATE_KEY,BOT_USERNAME='Koreys_lugat_2026_bot'}=process.env;
+const {BOT_TOKEN,WEBAPP_URL,ADMIN_IDS='',ADMIN_EMAILS='',GOOGLE_CLIENT_ID,SECRET='change-me',DEV,PORT=3000,TRANSLATE_URL,TRANSLATE_KEY,TRANSLATE_TARGET='uz',ANTHROPIC_API_KEY,GEMINI_API_KEY,GEMINI_MODEL='gemini-3.8-flash',FOX_MODEL='claude-haiku-5-5',GOOGLE_TRANSLATE_KEY,BOT_USERNAME='Koreys_lugat_2026_bot'}=process.env;
 const USE_GEMINI=!!GEMINI_API_KEY,AI_KEY=GEMINI_API_KEY||ANTHROPIC_API_KEY;
 const DAY=864e5,PERMS=['dicts','import','tasks','payments','trials','users','plans','methods','admins'];
 const DATA=process.env.DATA_DIR||'.';fs.mkdirSync(DATA+'/uploads',{recursive:true});fs.mkdirSync(DATA+'/audio',{recursive:true});
@@ -115,10 +115,11 @@ app.post('/api/admin/dict/:id',adm('dicts'),(r,s)=>{const b=r.body;
 let FOXM=USE_GEMINI?GEMINI_MODEL:FOX_MODEL;
 async function callGemini(messages,system,max,model){
   const body={systemInstruction:{parts:[{text:system||''}]},contents:messages.map(m=>({role:m.role==='assistant'?'model':'user',parts:[{text:String(m.content)}]})),generationConfig:{maxOutputTokens:max}};
-  if(/flash/i.test(model))body.generationConfig.thinkingConfig={thinkingBudget:0};
+  if(/gemini-3/i.test(model)){body.generationConfig.thinkingConfig={thinkingLevel:'low'};body.generationConfig.maxOutputTokens=max+1500}
+  else if(/gemini-2\.5-flash/i.test(model))body.generationConfig.thinkingConfig={thinkingBudget:0};
   const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+encodeURIComponent(model)+':generateContent',{method:'POST',signal:AbortSignal.timeout(90000),headers:{'content-type':'application/json','x-goog-api-key':GEMINI_API_KEY},body:JSON.stringify(body)});
   const j=await r.json().catch(()=>({}));
-  if(!r.ok){if(r.status===404&&model!=='gemini-2.5-flash'){const t=await callGemini(messages,system,max,'gemini-2.5-flash');FOXM='gemini-2.5-flash';return t}throw new Error((j.error&&j.error.message)||'api '+r.status)}
+  if(!r.ok){if(r.status===404&&model!=='gemini-3.8-flash'){const t=await callGemini(messages,system,max,'gemini-3.8-flash');FOXM='gemini-3.8-flash';return t}throw new Error((j.error&&j.error.message)||'api '+r.status)}
   const c=j.candidates&&j.candidates[0];
   if(!c||!c.content){throw new Error((j.promptFeedback&&j.promptFeedback.blockReason)?'Gemini javobni blokladi: '+j.promptFeedback.blockReason:'Gemini bo\'sh javob qaytardi')}
   return (c.content.parts||[]).map(x=>x.text||'').join('').trim()}
