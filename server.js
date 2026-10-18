@@ -1,7 +1,8 @@
 const express=require('express'),crypto=require('crypto'),fs=require('fs'),http=require('http');
 const Database=require('better-sqlite3'),multer=require('multer'),{Telegraf,Markup}=require('telegraf'),{Server}=require('socket.io');
 const {OAuth2Client}=require('google-auth-library');
-const {BOT_TOKEN,WEBAPP_URL,ADMIN_IDS='',ADMIN_EMAILS='',GOOGLE_CLIENT_ID,SECRET='change-me',DEV,PORT=3000,TRANSLATE_URL,TRANSLATE_KEY,TRANSLATE_TARGET='uz',ANTHROPIC_API_KEY,FOX_MODEL='claude-haiku-5-5',GOOGLE_TRANSLATE_KEY,BOT_USERNAME='Koreys_lugat_2026_bot'}=process.env;
+const {BOT_TOKEN,WEBAPP_URL,ADMIN_IDS='',ADMIN_EMAILS='',GOOGLE_CLIENT_ID,SECRET='change-me',DEV,PORT=3000,TRANSLATE_URL,TRANSLATE_KEY,TRANSLATE_TARGET='uz',ANTHROPIC_API_KEY,GEMINI_API_KEY,GEMINI_MODEL='gemini-2.5-flash',FOX_MODEL='claude-haiku-5-5',GOOGLE_TRANSLATE_KEY,BOT_USERNAME='Koreys_lugat_2026_bot'}=process.env;
+const USE_GEMINI=!!GEMINI_API_KEY,AI_KEY=GEMINI_API_KEY||ANTHROPIC_API_KEY;
 const DAY=864e5,PERMS=['dicts','import','tasks','payments','trials','users','plans','methods','admins'];
 const DATA=process.env.DATA_DIR||'.';fs.mkdirSync(DATA+'/uploads',{recursive:true});fs.mkdirSync(DATA+'/audio',{recursive:true});
 const db=new Database(DATA+'/data.db');
@@ -39,7 +40,7 @@ const wk=()=>Math.floor(Date.now()/(7*DAY));
 const addScore=(id,name,p)=>{if(p>0)run('insert into scores(user_id,name,week,pts) values(?,?,?,?) on conflict(user_id,week) do update set pts=pts+excluded.pts',id,name,wk(),p)};
 const app=express();app.use(express.json());app.get('/',(r,s)=>s.sendFile(__dirname+'/index.html'));app.use('/shots',express.static(DATA+'/uploads'));app.use('/audio',express.static(DATA+'/audio'));
 const up=multer({dest:DATA+'/uploads/',limits:{fileSize:25*1024*1024}}),gc=GOOGLE_CLIENT_ID&&new OAuth2Client(GOOGLE_CLIENT_ID);
-app.get('/config',(r,s)=>s.json({google:GOOGLE_CLIENT_ID||null,dev:!!DEV,bot:BOT_USERNAME,fox:!!ANTHROPIC_API_KEY}));
+app.get('/config',(r,s)=>s.json({google:GOOGLE_CLIENT_ID||null,dev:!!DEV,bot:BOT_USERNAME,fox:!!AI_KEY}));
 app.post('/auth/google',async(r,s)=>{try{const t=await gc.verifyIdToken({idToken:r.body.credential,audience:GOOGLE_CLIENT_ID}),p=t.getPayload();
   if(!p.email_verified)return s.status(401).json({e:'email'});const em=p.email.toLowerCase();
   let u=one('select * from users where email=?',em);
@@ -87,7 +88,7 @@ function fallbackFox(ms){
   if(rows.length)return {lite:1,reply:rows.slice(0,5).map(w=>'📖 '+w.ko+' — '+w.uz).join('\n')};
   return {lite:1,reply:"Men hozircha lug'atdagi so'zlarni topib bera olaman 🦊 Koreyscha yoki o'zbekcha so'z yozing (masalan: 학교 yoki maktab) yoki «Meni sina» deb yozing."}}
 async function askFox(messages,words){
-  if(!ANTHROPIC_API_KEY)return messages.length?fallbackFox(messages):{e:'bad'};
+  if(!AI_KEY)return messages.length?fallbackFox(messages):{e:'bad'};
   const ms=messages.slice(-12).map(m=>({role:m.role==='assistant'?'assistant':'user',content:String(m.content).slice(0,1500)}));
   while(ms.length&&ms[0].role==='assistant')ms.shift();if(!ms.length)return {e:'bad'};
   const sys=FOXSYS+(words&&words.length?"\nHozir foydalanuvchi shu so'zlarni mashq qilmoqda: "+words.slice(0,20).map(w=>w.ko+' = '+w.uz).join('; ')+". Shu so'zlardan foydalanib qisqa savol-javob yoki dialog qil.":'');
@@ -111,13 +112,24 @@ app.post('/api/admin/dict/:id',adm('dicts'),(r,s)=>{const b=r.body;
   if(b.name)run('update dicts set name=? where id=?',b.name,r.params.id);
   if(b.sec){run('update dicts set sec=? where id=?',+b.sec,r.params.id);resection(+r.params.id)}
   if(b.del){run('delete from words where dict_id=?',r.params.id);run('delete from dicts where id=?',r.params.id)}s.json({ok:1})});
-let FOXM=FOX_MODEL;
-async function callClaude(messages,system,max=500,model=FOXM){
-  if(!ANTHROPIC_API_KEY)return null;
+let FOXM=USE_GEMINI?GEMINI_MODEL:FOX_MODEL;
+async function callGemini(messages,system,max,model){
+  const body={systemInstruction:{parts:[{text:system||''}]},contents:messages.map(m=>({role:m.role==='assistant'?'model':'user',parts:[{text:String(m.content)}]})),generationConfig:{maxOutputTokens:max}};
+  if(/flash/i.test(model))body.generationConfig.thinkingConfig={thinkingBudget:0};
+  const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+encodeURIComponent(model)+':generateContent',{method:'POST',signal:AbortSignal.timeout(90000),headers:{'content-type':'application/json','x-goog-api-key':GEMINI_API_KEY},body:JSON.stringify(body)});
+  const j=await r.json().catch(()=>({}));
+  if(!r.ok){if(r.status===404&&model!=='gemini-2.5-flash'){const t=await callGemini(messages,system,max,'gemini-2.5-flash');FOXM='gemini-2.5-flash';return t}throw new Error((j.error&&j.error.message)||'api '+r.status)}
+  const c=j.candidates&&j.candidates[0];
+  if(!c||!c.content){throw new Error((j.promptFeedback&&j.promptFeedback.blockReason)?'Gemini javobni blokladi: '+j.promptFeedback.blockReason:'Gemini bo\'sh javob qaytardi')}
+  return (c.content.parts||[]).map(x=>x.text||'').join('').trim()}
+async function callAnthropic(messages,system,max,model){
   const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',signal:AbortSignal.timeout(90000),headers:{'content-type':'application/json','x-api-key':ANTHROPIC_API_KEY,'anthropic-version':'2023-06-01'},body:JSON.stringify({model,max_tokens:max,system,messages})});
   const j=await r.json();
-  if(!r.ok){if(r.status===404&&model!=='claude-sonnet-4-6'){const t=await callClaude(messages,system,max,'claude-sonnet-4-6');FOXM='claude-sonnet-4-6';return t}throw new Error((j.error&&j.error.message)||'api '+r.status)}
+  if(!r.ok){if(r.status===404&&model!=='claude-sonnet-4-6'){const t=await callAnthropic(messages,system,max,'claude-sonnet-4-6');FOXM='claude-sonnet-4-6';return t}throw new Error((j.error&&j.error.message)||'api '+r.status)}
   return (j.content||[]).map(c=>c.text||'').join('').trim()}
+async function callClaude(messages,system,max=500,model=FOXM){
+  if(!AI_KEY)return null;
+  return USE_GEMINI?callGemini(messages,system,max,model):callAnthropic(messages,system,max,model)}
 async function tr(t){
   const tryit=async f=>{try{const v=await f();return v&&v!==t?v:''}catch{return ''}},sg=()=>AbortSignal.timeout(7000);
   let r='';
@@ -168,10 +180,10 @@ async function addWords(job,d,items,levelOf,auto){
     if(cnt[k]==null)cnt[k]=one('select count(*) n from words where dict_id=? and level=? and pos=?',d.id,lv,it.pos).n;
     ins.run(d.id,lv,it.pos,Math.floor(cnt[k]/d.sec)+1,it.ko,it.uz);cnt[k]++;
     job.perLevel[lv]=(job.perLevel[lv]||0)+1;job.perPos[it.pos]=(job.perPos[it.pos]||0)+1;job.added++}})()};
-  const aiOn=!!ANTHROPIC_API_KEY,needAI=it=>!it.uz||(auto&&!it.px);
+  const aiOn=!!AI_KEY,needAI=it=>!it.uz||(auto&&!it.px);
   const first=todo.filter(it=>it.uz&&!(aiOn&&needAI(it)));put(first);job.done=first.length;
   const fs0=new Set(first);let rest=todo.filter(it=>!fs0.has(it));
-  if(aiOn&&rest.length){job.stage="Tarjima va tur aniqlash (Claude)...";
+  if(aiOn&&rest.length){job.stage="Tarjima va tur aniqlash (AI)...";
     const bs=[];for(let i=0;i<rest.length;i+=50)bs.push(rest.slice(i,i+50));let bi=0;
     const worker=async()=>{while(bi<bs.length){const b=bs[bi++];let o={};try{o=await claudeTranslate(b)}catch{}
       const ok=[];for(const it of b){const x=o[it.ko];if(x){if(!it.uz&&x.uz){it.uz=x.uz;job.translated++}if(auto&&!it.px&&x.pos){it.pos=x.pos;it.px=true}}if(it.uz)ok.push(it);else it.left=1}
@@ -201,8 +213,8 @@ app.post('/api/admin/book',adm('import'),up.single('file'),(r,s)=>{
     else levelOf=(i,n)=>Math.min(L,Math.floor(i*L/n)+1);
     const id=run('insert into dicts(name,levels,sec) values(?,?,?)',name,L,+b.sec||30).lastInsertRowid,d=one('select * from dicts where id=?',id);job.dict_id=id;
     await addWords(job,d,items,levelOf,auto)}catch(e){job.err=String(e.message||e)}finally{job.fin=true}})()});
-app.get('/api/admin/status',adm('admins'),(r,s)=>s.json({key:!!ANTHROPIC_API_KEY,keyLen:(ANTHROPIC_API_KEY||'').length,model:FOXM,bot:!!BOT_TOKEN,webapp:WEBAPP_URL||'',data:DATA}));
-app.post('/api/admin/claude-test',adm('admins'),async(r,s)=>{if(!ANTHROPIC_API_KEY)return s.json({ok:false,error:"ANTHROPIC_API_KEY serverda ko'rinmayapti. Railway → Variables'ga qo'shing va Deploy bosing. Ikkita loyiha bo'lsa, domen bog'langan loyihaga qo'shing."});
+app.get('/api/admin/status',adm('admins'),(r,s)=>s.json({key:!!AI_KEY,keyLen:(AI_KEY||'').length,provider:USE_GEMINI?'Gemini':'Claude',model:FOXM,bot:!!BOT_TOKEN,webapp:WEBAPP_URL||'',data:DATA}));
+app.post('/api/admin/claude-test',adm('admins'),async(r,s)=>{if(!AI_KEY)return s.json({ok:false,error:"GEMINI_API_KEY serverda ko'rinmayapti. Railway → Variables'ga qo'shing va Deploy bosing. Ikkita loyiha bo'lsa, domen bog'langan loyihaga qo'shing."});
   try{const t=await callClaude([{role:'user',content:"Bir so'z bilan javob ber: tayyormisan?"}],"Qisqa javob ber.",50);s.json({ok:true,reply:t,model:FOXM})}catch(e){s.json({ok:false,error:String(e.message||e)})}});
 
 function resection(id){const d=one('select * from dicts where id=?',id);if(!d)return;const rows=q('select id,level,pos from words where dict_id=? order by id',id),c={};const up=db.prepare('update words set section=? where id=?');db.transaction(()=>{for(const w of rows){const k=w.level+'|'+w.pos;c[k]=c[k]||0;up.run(Math.floor(c[k]/d.sec)+1,w.id);c[k]++}})()}
