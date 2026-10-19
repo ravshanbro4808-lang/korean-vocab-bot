@@ -312,7 +312,15 @@ async function foxSend(t){let sp=0;const f=S.fox;if(f.typing)return;const v=(t??
   f.lite=!!r.lite;if(r.left!=null)f.left=r.left;f.msgs.push({role:'assistant',content:r.reply||(r.e=='nokey'?"Men hali uyg'onmaganman 😴 Admin GEMINI_API_KEY ni sozlashi kerak.":r.e=='limit'?"Bugungi savollar limiti tugadi. Obuna bo'lsangiz ko'proq yozishingiz mumkin 🦊":(me.is_admin&&r.msg?'Xatolik: '+r.msg:"Xatolik bo'ldi, qayta urinib ko'ring."))});
   if(r.reply&&f.auto){sp=1;foxSpeak(f.msgs.length-1,f.talk?talkListen:null)}}catch{f.msgs.push({role:'assistant',content:"Aloqa uzildi, qayta urinib ko'ring."})}
  f.typing=0;foxV();if(f.talk&&!sp)setTimeout(talkListen,500)}
-function foxSpeak(i,cb){const f=S.fox,tk=f.spk=(f.spk||0)+1;let d=0,tm;f.speaking=1;stSet('🦊 gapiryapti...','speak');
+function foxSpeak(i,cb){const f=S.fox,tk=f.spk=(f.spk||0)+1;f.speaking=1;stSet('🦊 gapiryapti...','speak');
+ const t=String(f.msgs[i].content||'').replace(/[*_#`]/g,'').trim(),local=()=>{if(f.spk===tk)foxSpeakLocal(i,cb,tk)};
+ if(f.noTts||!t)return local();
+ (async()=>{try{const r=await api('/fox-tts',{body:{text:t}});if(f.spk!==tk)return;if(!r.a)throw 0;
+  try{f.audio&&f.audio.pause()}catch{}const a=f.audio=new Audio('data:audio/wav;base64,'+r.a);let d=0;
+  const go=()=>{if(d)return;d=1;if(f.spk!==tk)return;f.speaking=0;if(f.talk)stSet('🎙 ovozli suhbat','listen');if(cb)cb()};
+  a.onended=go;a.onerror=()=>{if(!d){d=1;local()}};await a.play();f.ttsFail=0}
+ catch{if(f.spk!==tk)return;f.ttsFail=(f.ttsFail||0)+1;if(f.ttsFail>=2)f.noTts=1;local()}})()}
+function foxSpeakLocal(i,cb,tk){const f=S.fox;let d=0,tm;
  const go=()=>{if(d)return;d=1;clearTimeout(tm);if(f.spk!==tk)return;f.speaking=0;if(f.talk)stSet('🎙 ovozli suhbat','listen');if(cb)cb()};
  try{const t=f.msgs[i].content.replace(/[*_#`]/g,''),ps=t.split(/([가-힣][가-힣\s]*)/).filter(x=>x.trim());speechSynthesis.cancel();
   if(!ps.length)return go();
@@ -444,4 +452,6 @@ init();
 window.hap=(t='light')=>{try{Telegram.WebApp.HapticFeedback.impactOccurred(t)}catch{try{navigator.vibrate&&navigator.vibrate(8)}catch{}}};
 function foxRx(i,e,b){const m=S.fox.msgs[i];m.rx=m.rx==e?'':e;b.parentNode.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b&&!!m.rx));hap(m.rx?'medium':'light')}
 document.addEventListener('pointerdown',e=>{if(e.target.closest('button,.card,.book,.tile,.gl,.opt2,.dk,.lv'))hap()},{passive:true});
+
+try{const _sc=speechSynthesis.cancel.bind(speechSynthesis);speechSynthesis.cancel=()=>{try{S.fox&&S.fox.audio&&S.fox.audio.pause()}catch{}_sc()}}catch{}
 </script></body></html>
