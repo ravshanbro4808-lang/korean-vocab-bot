@@ -42,7 +42,36 @@ input,select{padding:11px 14px;border-radius:14px;border:1px solid var(--bd);bac
 .chat{display:flex;flex-direction:column;gap:10px;margin:8px 0;max-height:50vh;overflow:auto;padding:4px}.bub{display:flex;gap:8px;align-items:flex-end;max-width:90%}.bub.me{align-self:flex-end;flex-direction:row-reverse}.bub i{font-size:30px;font-style:normal}.bub span{padding:10px 14px;border-radius:20px;font-weight:600;line-height:1.35}.bub.bot span{background:var(--c);border:1px solid var(--bd);border-bottom-left-radius:6px}.bub.me span{background:linear-gradient(135deg,#6b7bff,#4a55e8);color:#fff;border-bottom-right-radius:6px}.sp{border:0;background:none;font-size:16px;padding:0 0 0 6px}
 .dots{display:inline-flex;gap:4px}.dots s{width:8px;height:8px;border-radius:50%;background:var(--mu);animation:wv2 1s infinite}.dots s:nth-child(2){animation-delay:.15s}.dots s:nth-child(3){animation-delay:.3s}@keyframes wv2{50%{transform:translateY(-6px)}}
 .inp{display:flex;gap:8px;align-items:center;position:sticky;bottom:8px;background:var(--bg);padding:8px;border-radius:999px;box-shadow:0 4px 16px #0002}.inp input{flex:1;border-radius:999px;margin:0}.mic2,.send{width:44px;height:44px;border-radius:50%;border:0;font-size:19px;color:#fff;flex:none}.mic2{background:linear-gradient(145deg,#46c8ff,#4a55e8)}.send{background:linear-gradient(145deg,#ffd36b,#f5a623)}
-.chips{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0}.chp{border:1px solid var(--bd);background:var(--c);border-radius:999px;padding:7px 12px;font-size:13px;font-weight:600}.fxh{display:flex;align-items:center;gap:10px}.fxh i{font-size:38px;font-style:normal}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0}.chp{border:1px solid var(--bd);background:var(--c);border-radius:999px;padding:7px 12px;font-size:13px;font-weight:600}.fxh{display:flex;align-items:center;gap:10px}
+.vcall{display:flex;align-items:center;gap:12px;width:100%;margin:10px 0 4px;border:0;border-radius:20px;padding:12px 16px;text-align:left;color:#fff;background:linear-gradient(135deg,#7b5cff,#e0508a 60%,#ff9a5c);box-shadow:0 10px 24px #e0508a55;transition:transform .12s,box-shadow .12s}
+.vcall:active{transform:scale(.97);box-shadow:0 4px 12px #e0508a55}
+.vcall i{width:44px;height:44px;border-radius:50%;background:#ffffff2e;display:grid;place-items:center;font-size:22px;font-style:normal;flex:none;box-shadow:inset 0 0 0 1px #ffffff40}
+.vcall b{display:block;font-size:16px}.vcall small{display:block;opacity:.85;font-size:12.5px;font-weight:500;margin-top:1px}
+.mic2,.send{box-shadow:0 4px 12px #0003;transition:transform .1s}.mic2:active,.send:active{transform:scale(.92)}
+.chp{transition:transform .1s,background .15s}.chp:active{transform:scale(.95);background:var(--bd)}
+#vc{position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:calc(22px + env(safe-area-inset-top)) 22px calc(26px + env(safe-area-inset-bottom));background:radial-gradient(130% 85% at 50% 0%,#6a55f0 0%,#2f2386 46%,#120d33 100%);color:#fff;--lv:0;--a:#46e3b7;animation:vin .28s ease;overflow:hidden;user-select:none;-webkit-user-select:none}
+#vc[data-s=think]{--a:#ffd36b}#vc[data-s=speak]{--a:#ff8a5c}#vc[data-s=mute]{--a:#8a94a6}
+#vc:before{content:"";position:absolute;width:520px;height:520px;left:50%;top:38%;margin:-260px 0 0 -260px;border-radius:50%;background:radial-gradient(circle,var(--a) 0%,transparent 62%);opacity:calc(.10 + var(--lv)*.28);transition:opacity .1s,background .4s;pointer-events:none}
+.vct{text-align:center;position:relative}.vct b{display:block;font-size:22px;letter-spacing:.2px}.vct span{display:inline-block;margin-top:8px;padding:6px 14px;border-radius:999px;background:#ffffff1c;font-size:13.5px;font-weight:600;box-shadow:inset 0 0 0 1px #ffffff26}
+.vco{position:relative;width:220px;height:220px;display:grid;place-items:center;flex:none}
+.vco i{position:relative;z-index:2;width:156px;height:156px;border-radius:50%;background:linear-gradient(145deg,#ffb36b,#e0508a);display:grid;place-items:center;font-size:80px;font-style:normal;box-shadow:0 0 0 7px #ffffff1f,0 0 calc(30px + var(--lv)*70px) var(--a),0 20px 50px #0006;transform:scale(calc(1 + var(--lv)*.16));transition:transform .08s,box-shadow .2s}
+.vco b{position:absolute;inset:32px;border-radius:50%;border:2px solid var(--a);opacity:0}
+.vco u{position:absolute;inset:14px;border-radius:50%;border:4px solid transparent;border-top-color:var(--a);opacity:0;z-index:1}
+#vc[data-s=listen] .vco b{animation:vring 2.4s ease-out infinite}#vc[data-s=speak] .vco b{animation:vring 1.3s ease-out infinite}
+.vco b:nth-of-type(2){animation-delay:.8s!important}.vco b:nth-of-type(3){animation-delay:1.6s!important}
+#vc[data-s=think] .vco u{opacity:1;animation:vspin 1s linear infinite}
+#vc[data-s=think] .vco i{animation:vbob 1.4s ease-in-out infinite}#vc[data-s=speak] .vco i{animation:vbob .7s ease-in-out infinite}
+.vcc{width:100%;max-width:440px;text-align:center;min-height:130px;max-height:34vh;overflow:auto;position:relative}
+.vcu{opacity:.62;font-size:15px;margin-bottom:10px;font-style:italic}.vcf{font-size:20px;font-weight:700;line-height:1.38;text-shadow:0 2px 12px #0005}
+.vcb{display:flex;gap:26px;align-items:flex-end;justify-content:center;position:relative}
+.vw{display:flex;flex-direction:column;align-items:center;gap:8px}.vw small{font-size:12px;opacity:.75;font-weight:600}
+.vb{width:62px;height:62px;border-radius:50%;border:0;background:#ffffff1f;color:#fff;font-size:25px;box-shadow:inset 0 0 0 1px #ffffff33;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);transition:transform .1s,background .15s}
+.vb:active{transform:scale(.92)}.vb.off{background:#fff;color:#2f2386}
+.vb.end{width:74px;height:74px;font-size:30px;background:linear-gradient(145deg,#ff7b7b,#e0405a);box-shadow:0 12px 30px #e0405a88}
+@keyframes vin{from{opacity:0;transform:scale(1.04)}to{opacity:1;transform:none}}
+@keyframes vring{0%{transform:scale(.8);opacity:.7}100%{transform:scale(1.55);opacity:0}}
+@keyframes vspin{to{transform:rotate(360deg)}}@keyframes vbob{50%{transform:scale(1.07)}}
+@media(prefers-reduced-motion:reduce){#vc *{animation:none!important}}.fxh i{font-size:38px;font-style:normal}
 .pb{height:9px;border-radius:8px;background:var(--bd);overflow:hidden;margin:6px 0 10px}.pb i{display:block;height:100%;background:linear-gradient(90deg,#7b5cff,#e0508a);border-radius:8px}.sp2{display:flex;justify-content:space-between;font-weight:800;font-size:18px;margin:6px 4px 10px}
 .hero2{font-size:15px;color:var(--mu);margin:4px 0 10px}.hero2 b{font-size:28px;color:var(--fg)}.rk{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:12px 14px;background:var(--c);border:1px solid var(--bd);border-radius:16px;margin:8px 0}
 .memg{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.mc{height:84px;perspective:600px}.mc>div{position:relative;height:100%;transition:transform .35s;transform-style:preserve-3d}.mc.on>div{transform:rotateY(180deg)}.mc span{position:absolute;inset:0;display:grid;place-items:center;border-radius:18px;backface-visibility:hidden;-webkit-backface-visibility:hidden;font-weight:800;text-align:center;padding:4px;font-size:17px}.mf{background:linear-gradient(135deg,#7b5cff,#e0508a);color:#fff;font-size:26px!important}.mb{background:var(--c);border:2px solid var(--bd);transform:rotateY(180deg)}.mc.ok .mb{background:#d7f7e6;border-color:#17b26a;color:#0b6b3b}
@@ -58,6 +87,16 @@ input,select{padding:11px 14px;border-radius:14px;border:1px solid var(--bd);bac
 .meta{background:var(--c);border:1px solid var(--bd);border-radius:14px;padding:8px 12px;font-size:13px;font-weight:700;margin-bottom:8px}.cert{width:100%;border-radius:16px;box-shadow:0 8px 20px #0003}.code{font-size:44px;font-weight:800;letter-spacing:8px;text-align:center;margin:8px 0}
 .admwrap>.card{flex-direction:column;align-items:stretch}.admwrap>.card>b:first-child{font-size:20px}.addrow{display:flex;gap:6px}.addrow input{flex:1}.addrow .big2{width:auto;padding:11px 14px;margin:3px 0}
 .shake{animation:shake .35s}@keyframes shake{25%{transform:translateX(-7px)}75%{transform:translateX(7px)}}
+
+button{transition:transform .12s cubic-bezier(.3,1.6,.5,1),box-shadow .15s,filter .15s}button:active{transform:scale(.95);filter:brightness(.95)}
+.card,.book,.tile,.gl{transition:transform .12s}.card:active,.book:active,.tile:active,.gl:active{transform:scale(.975)}
+.fxh{background:linear-gradient(135deg,#7b5cff1f,#e0508a1f);border:1px solid var(--bd);border-radius:22px;padding:10px 12px}.fxh>div{flex:1;min-width:0}
+.lim{background:linear-gradient(135deg,#ffe29a,#f5a623);color:#3a2600;font-weight:800;font-size:12.5px;padding:5px 10px;border-radius:999px;white-space:nowrap;box-shadow:0 3px 8px #f5a62340}
+.chat{max-height:56vh}.bub{animation:bpop .28s cubic-bezier(.3,1.4,.5,1)}@keyframes bpop{from{opacity:0;transform:translateY(10px) scale(.96)}}
+.bub.bot span{box-shadow:0 2px 8px #0000000f}.bub.me span{box-shadow:0 4px 12px #4a55e840}
+.rx{display:flex;gap:4px;margin-top:6px}.rx button{border:1px solid var(--bd);background:var(--bg);border-radius:999px;padding:1px 8px;font-size:14px;opacity:.55;box-shadow:none}
+.rx button.on{opacity:1;background:#fff1d6;border-color:#f5a623;animation:rxp .35s}@keyframes rxp{40%{transform:scale(1.6)}}
+.vcall{box-shadow:0 8px 20px #e0508a40}.send{transition:transform .12s}.send:active{transform:scale(.9) rotate(-12deg)}
 </style></head><body><div id="hd"></div><main id="m"></main>
 <script>
 const tg=window.Telegram?.WebApp;tg?.ready();tg?.expand();tg?.BackButton?.hide();
@@ -260,19 +299,72 @@ function roomEnd(d){head('Natija');const w=d.players[0],mine=w&&w.id==me.id;if(m
 async function rating(){head('Haftalik reyting','back()');const r=await api('/rating');H(r.map((x,i)=>`<div class=rk><span>${['🥇','🥈','🥉'][i]||i+1+'.'} ${esc(x.name)}</span><b>${x.pts}</b></div>`).join('')||'<p class=s>Hali natija yo\'q</p>')}
 // ---------- Tulki (sun'iy intellekt)
 function foxChat(words,q){head('Tulki Kori','back()');
- if(!S.fox||words){S.fox={msgs:[{role:'assistant',content:words?"Salom! Men Kori 🦊. Keling, shu so'zlarni mashq qilamiz!":"Salom! Men Kori 🦊 — koreys tili yordamchingizman. Menga xohlagan savol bering: so'z, grammatika, talaffuz yoki oddiy suhbat!"}],words:words||[],lang:'uz-UZ',auto:1}}
+ if(!S.fox||words){try{S.fox&&S.fox.st&&S.fox.st.getTracks().forEach(t=>t.stop())}catch{}S.fox={msgs:[{role:'assistant',content:words?"Salom! Men Kori 🦊. Keling, shu so'zlarni mashq qilamiz!":"Salom! Men Kori 🦊 — koreys tili yordamchingizman. Menga xohlagan savol bering: so'z, grammatika, talaffuz yoki oddiy suhbat!"}],words:words||[],lang:'uz-UZ',auto:1}}
  foxV();if(q&&words)setTimeout(()=>foxSend(q),100)}
-function foxV(){const f=S.fox;H(`<div class=fxh><i>🦊</i><div><b>Kori</b><div class=s>${f.typing?'yozmoqda...':f.lite&&me.is_admin?"⚠️ cheklangan rejim: GEMINI_API_KEY qo'shing":f.lite?"lug'at rejimi":'onlayn'}</div></div><button class="cb ${f.auto?'on':''}" onclick="S.fox.auto=!S.fox.auto;foxV()">${f.auto?'🔊':'🔇'}</button></div>
-<div class=chat id=fch>${f.msgs.map((m,i)=>`<div class="bub ${m.role=='assistant'?'bot':'me'}">${m.role=='assistant'?'<i>🦊</i>':''}<span>${esc(m.content).replace(/\n/g,'<br>')}${m.role=='assistant'?`<button class=sp onclick="foxSpeak(${i})">🔊</button>`:''}</span></div>`).join('')}${f.typing?'<div class="bub bot"><i>🦊</i><span class=dots><s></s><s></s><s></s></span></div>':''}</div>
+function foxV(){const f=S.fox;H(`<div class=fxh><i>🦊</i><div><b>Kori</b><div class=s>${f.typing?'yozmoqda...':f.talk?'<span id=fst>'+esc(f.status||'🎙 ovozli suhbat')+'</span>':f.lite&&me.is_admin?"⚠️ cheklangan rejim: GEMINI_API_KEY qo'shing":f.lite?"lug'at rejimi":'onlayn'}</div></div>${me.is_admin?'<span class=lim>∞ cheksiz</span>':(f.left!=null?`<span class=lim>💬 ${f.left} qoldi</span>`:'')}<button class="cb ${f.auto?'on':''}" onclick="S.fox.auto=!S.fox.auto;foxV()">${f.auto?'🔊':'🔇'}</button></div>
+<button class=vcall onclick="foxTalk()"><i>🎙</i><span><b>Tulki bilan gaplashish</b><small>Qo'l tegizmasdan, ovoz bilan suhbat${!me.is_admin&&f.vleft!=null?' · '+f.vleft+' ta qoldi':''}</small></span></button>
+<div class=chat id=fch>${f.msgs.map((m,i)=>`<div class="bub ${m.role=='assistant'?'bot':'me'}">${m.role=='assistant'?'<i>🦊</i>':''}<span>${esc(m.content).replace(/\n/g,'<br>')}${m.role=='assistant'?`<button class=sp onclick="foxSpeak(${i})">🔊</button><div class=rx>${['👍','❤️','😂','🔥'].map(e=>`<button class="${m.rx==e?'on':''}" onclick="foxRx(${i},'${e}',this)">${e}</button>`).join('')}</div>`:''}</span></div>`).join('')}${f.typing?'<div class="bub bot"><i>🦊</i><span class=dots><s></s><s></s><s></s></span></div>':''}</div>
 <div class=chips>${['Misol keltir','Talaffuzini tushuntir','Meni sina','Grammatika'].map(c=>`<button class=chp onclick="foxSend('${c}')">${c}</button>`).join('')}</div>
 <div class=inp><input id=fin placeholder="Savol yozing..." autocomplete=off onkeydown="if(event.key==='Enter')foxSend()"><button class=mic2 onclick="foxLang()">${f.lang=='ko-KR'?'🇰🇷':'🇺🇿'}</button><button class=mic2 onclick="foxMic()">🎤</button><button class=send onclick="foxSend()">➤</button></div>`);
- setTimeout(()=>{const c=$('#fch');c&&(c.scrollTop=c.scrollHeight);window.scrollTo(0,document.body.scrollHeight)},40)}
-async function foxSend(t){const f=S.fox;if(f.typing)return;const v=(t??$('#fin').value).trim();if(!v)return;f.msgs.push({role:'user',content:v});f.typing=1;foxV();
+ setTimeout(()=>{const c=$('#fch');c&&(c.scrollTop=c.scrollHeight);window.scrollTo(0,document.body.scrollHeight)},40);vcSync()}
+async function foxSend(t){let sp=0;const f=S.fox;if(f.typing)return;const v=(t??$('#fin').value).trim();if(!v)return;f.msgs.push({role:'user',content:v});f.typing=1;foxV();
  try{const r=await api('/fox',{body:{messages:f.msgs,words:f.words.slice(0,20).map(w=>({ko:w.ko,uz:w.uz}))}});
-  f.lite=!!r.lite;f.msgs.push({role:'assistant',content:r.reply||(r.e=='nokey'?"Men hali uyg'onmaganman 😴 Admin GEMINI_API_KEY ni sozlashi kerak.":r.e=='limit'?"Bugungi savollar limiti tugadi. Obuna bo'lsangiz ko'proq yozishingiz mumkin 🦊":(me.is_admin&&r.msg?'Xatolik: '+r.msg:"Xatolik bo'ldi, qayta urinib ko'ring."))});
-  if(r.reply&&f.auto)foxSpeak(f.msgs.length-1)}catch{f.msgs.push({role:'assistant',content:"Aloqa uzildi, qayta urinib ko'ring."})}
- f.typing=0;foxV()}
-function foxSpeak(i){try{const t=S.fox.msgs[i].content;speechSynthesis.cancel();t.split(/([가-힣][가-힣\s]*)/).filter(x=>x.trim()).forEach(p=>{const u=new SpeechSynthesisUtterance(p.replace(/[*_#`]/g,''));u.lang=/[가-힣]/.test(p)?'ko-KR':'uz-UZ';u.rate=.95;speechSynthesis.speak(u)})}catch{}}
+  f.lite=!!r.lite;if(r.left!=null)f.left=r.left;f.msgs.push({role:'assistant',content:r.reply||(r.e=='nokey'?"Men hali uyg'onmaganman 😴 Admin GEMINI_API_KEY ni sozlashi kerak.":r.e=='limit'?"Bugungi savollar limiti tugadi. Obuna bo'lsangiz ko'proq yozishingiz mumkin 🦊":(me.is_admin&&r.msg?'Xatolik: '+r.msg:"Xatolik bo'ldi, qayta urinib ko'ring."))});
+  if(r.reply&&f.auto){sp=1;foxSpeak(f.msgs.length-1,f.talk?talkListen:null)}}catch{f.msgs.push({role:'assistant',content:"Aloqa uzildi, qayta urinib ko'ring."})}
+ f.typing=0;foxV();if(f.talk&&!sp)setTimeout(talkListen,500)}
+function foxSpeak(i,cb){const f=S.fox,tk=f.spk=(f.spk||0)+1;let d=0,tm;f.speaking=1;stSet('🦊 gapiryapti...','speak');
+ const go=()=>{if(d)return;d=1;clearTimeout(tm);if(f.spk!==tk)return;f.speaking=0;if(f.talk)stSet('🎙 ovozli suhbat','listen');if(cb)cb()};
+ try{const t=f.msgs[i].content.replace(/[*_#`]/g,''),ps=t.split(/([가-힣][가-힣\s]*)/).filter(x=>x.trim());speechSynthesis.cancel();
+  if(!ps.length)return go();
+  ps.forEach((p,k)=>{const u=new SpeechSynthesisUtterance(p);u.lang=/[가-힣]/.test(p)?'ko-KR':'uz-UZ';u.rate=.95;if(k==ps.length-1){u.onend=go;u.onerror=go}speechSynthesis.speak(u)});
+  tm=setTimeout(go,Math.min(45000,t.length*130+4000))}catch{go()}}
+const VT={listen:"🎙 Tinglayapman, gapiring",think:"💭 O'ylayapman...",speak:"🔊 Kori gapiryapti · to'xtatish uchun bosing",mute:"🔇 Mikrofon o'chiq"};
+function stSet(t,st){const f=S.fox;if(!f)return;f.status=t;const e=$('#fst');if(e)e.textContent=t;
+ const v=$('#vc');if(v){if(st){v.dataset.s=f.muted?'mute':st;v.style.setProperty('--lv',0)}const s=$('#vcs');if(s)s.textContent=VT[v.dataset.s]||t}}
+function vcOpen(){if($('#vc'))return;const d=document.createElement('div');d.id='vc';d.dataset.s='listen';
+ d.innerHTML='<div class=vct><b>Kori 🦊</b><span id=vcs>Ulanmoqda...</span></div><div class=vco onclick="vcTap()"><b></b><b></b><b></b><u></u><i>🦊</i></div><div class=vcc><div class=vcu id=vcu></div><div class=vcf id=vcf></div></div><div class=vcb><div class=vw><button class=vb id=vmu onclick="vcMute()">🎙</button><small>Mikrofon</small></div><div class=vw><button class="vb end" onclick="stopTalk()">📞</button><small>Tugatish</small></div><div class=vw><button class=vb onclick="stopTalk()">⌨️</button><small>Yozish</small></div></div>';
+ document.body.appendChild(d);stSet('','listen');vcSync()}
+function vcSync(){const f=S.fox,u=$('#vcu'),a=$('#vcf');if(!f||!u||!a)return;let lu='',la='';for(let i=f.msgs.length-1;i>=0&&(!lu||!la);i--){const m=f.msgs[i];if(m.role=='user'){if(!lu)lu=m.content}else if(!la)la=m.content}
+ u.textContent=lu?'«'+lu+'»':'';a.textContent=la}
+function vcMute(){const f=S.fox;if(!f)return;f.muted=!f.muted;const b=$('#vmu');if(b){b.classList.toggle('off',!!f.muted);b.textContent=f.muted?'🔇':'🎙'}
+ if(f.muted){if(f.cur)f.cur();stSet('','mute')}else{stSet('','listen');talkListen()}}
+function vcTap(){const f=S.fox;if(f&&f.speaking){f.spk=(f.spk||0)+1;f.speaking=0;try{speechSynthesis.cancel()}catch{}stSet('','listen');talkListen()}}
+function wav16(ch,sr){let n=0;ch.forEach(c=>n+=c.length);const a=new Float32Array(n);let o=0;ch.forEach(c=>{a.set(c,o);o+=c.length});
+ const r=sr/16000,m=Math.floor(n/r),d=new DataView(new ArrayBuffer(44+m*2)),w=(p,t)=>{for(let i=0;i<t.length;i++)d.setUint8(p+i,t.charCodeAt(i))};
+ w(0,'RIFF');d.setUint32(4,36+m*2,true);w(8,'WAVEfmt ');d.setUint32(16,16,true);d.setUint16(20,1,true);d.setUint16(22,1,true);d.setUint32(24,16000,true);d.setUint32(28,32000,true);d.setUint16(32,2,true);d.setUint16(34,16,true);w(36,'data');d.setUint32(40,m*2,true);
+ for(let i=0;i<m;i++){const s0=Math.floor(i*r),s1=Math.max(s0+1,Math.min(n,Math.floor((i+1)*r)));let t=0;for(let k=s0;k<s1;k++)t+=a[k];t/=s1-s0;t=Math.max(-1,Math.min(1,t));d.setInt16(44+i*2,t<0?t*0x8000:t*0x7fff,true)}
+ return new Blob([d],{type:'audio/wav'})}
+function foxTalk(){const f=S.fox;if(f.talk)return stopTalk();
+ if(!(S.cfg&&S.cfg.voice)&&!(window.SpeechRecognition||window.webkitSpeechRecognition))return alert("Bu qurilmada ovozli suhbat ishlamaydi. Yozib yuboring.");
+ f.talk=1;f.auto=1;f.muted=0;vcOpen();foxV();talkListen()}
+function stopTalk(){const v=$('#vc');if(v)v.remove();const f=S.fox;if(!f)return;f.talk=0;f.muted=0;f.status='';f.speaking=0;f.spk=(f.spk||0)+1;if(f.cur)f.cur();try{speechSynthesis.cancel()}catch{}if(f.st){f.st.getTracks().forEach(t=>t.stop());f.st=null}if($('#fch'))foxV()}
+async function talkListen(){const f=S.fox;if(!f||!f.talk||f.muted)return;if(!$('#fch'))return stopTalk();if(f.typing||f.speaking||f.rec)return;
+ if(!(S.cfg&&S.cfg.voice)){const R=window.SpeechRecognition||window.webkitSpeechRecognition;if(!R){stopTalk();return alert("Bu qurilmada ovoz tanish ishlamaydi.")}
+  const x=new R();let got=0;x.lang=f.lang;f.rec=1;stSet('🎙 Tinglayapman...','listen');
+  x.onresult=e=>{got=1;f.rec=0;foxSend(e.results[0][0].transcript)};
+  x.onerror=e=>{f.rec=0;if(e.error!='no-speech'&&e.error!='aborted'){stopTalk();alert("Ovoz tanishda xato: "+e.error)}};
+  x.onend=()=>{f.rec=0;if(!got&&f.talk&&!f.typing&&!f.speaking)setTimeout(talkListen,500)};
+  try{x.start()}catch{f.rec=0}return}
+ try{f.st=f.st||await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true}})}catch{stopTalk();return alert("Mikrofonga ruxsat berilmadi. Telefon sozlamalarida Telegram uchun mikrofonni yoqing.")}
+ const AC=window.AudioContext||window.webkitAudioContext,ac=f.ac=f.ac||new AC();try{await ac.resume()}catch{}
+ if(!f.talk||f.rec)return;
+ const src=ac.createMediaStreamSource(f.st),pr=ac.createScriptProcessor(4096,1,1),g=ac.createGain(),ch=[];g.gain.value=0;
+ let vc=0,talked=0,done=0,t0=Date.now(),last=t0;f.rec=1;stSet('🎙 Tinglayapman...','listen');
+ const fin=send=>{if(done)return;done=1;f.rec=0;f.cur=null;pr.onaudioprocess=null;try{pr.disconnect();src.disconnect();g.disconnect()}catch{}
+  if(send)talkSend(wav16(ch,ac.sampleRate));else if(f.talk)setTimeout(talkListen,300)};
+ pr.onaudioprocess=e=>{if(done)return;const x=new Float32Array(e.inputBuffer.getChannelData(0));ch.push(x);let s=0;for(let i=0;i<x.length;i++)s+=x[i]*x[i];const n=Date.now();
+  const rm=Math.sqrt(s/x.length),v0=$('#vc');if(v0)v0.style.setProperty('--lv',Math.min(1,rm*10));if(rm>.02){vc++;talked=1;last=n}
+  if(!f.talk||!$('#fch'))fin(0);else if(talked&&(n-last>1300||n-t0>30000))fin(vc>=4);else if(!talked&&n-t0>12000)fin(0)};
+ f.cur=()=>fin(0);src.connect(pr);pr.connect(g);g.connect(ac.destination)}
+async function talkSend(b){const f=S.fox;let sp=0;f.typing=1;stSet("🦊 o'ylayapti...",'think');foxV();
+ try{const fd=new FormData();fd.append('audio',b,'v.wav');fd.append('messages',JSON.stringify(f.msgs.slice(-10)));fd.append('words',JSON.stringify(f.words.slice(0,20).map(w=>({ko:w.ko,uz:w.uz}))));
+  const r=await api('/fox-voice',{body:fd});if(r.left!=null)f.vleft=r.left;
+  if(r.heard)f.msgs.push({role:'user',content:r.heard});
+  if(r.reply){f.msgs.push({role:'assistant',content:r.reply});sp=1;f.typing=0;foxV();foxSpeak(f.msgs.length-1,talkListen);return}
+  if(r.e=='limit'){f.msgs.push({role:'assistant',content:"Bugungi savollar limiti tugadi. Obuna bo'lsangiz ko'proq gaplashishingiz mumkin 🦊"});f.talk=0}
+  else if(r.e=='api'){f.msgs.push({role:'assistant',content:me.is_admin&&r.msg?'Xatolik: '+r.msg:"Xatolik bo'ldi, qayta urinib ko'ring."})}
+ }catch{f.msgs.push({role:'assistant',content:"Aloqa uzildi, qayta urinib ko'ring."})}
+ f.typing=0;if(!f.talk)stopTalk();else foxV();if(f.talk&&!sp)setTimeout(talkListen,700)}
 function foxLang(){S.fox.lang=S.fox.lang=='ko-KR'?'uz-UZ':'ko-KR';foxV()}
 function foxMic(){const R=window.SpeechRecognition||window.webkitSpeechRecognition;if(!R)return alert("Bu qurilmada ovoz tanish ishlamaydi. Yozib yuboring.");const x=new R();x.lang=S.fox.lang;x.onresult=e=>foxSend(e.results[0][0].transcript);x.start()}
 // ---------- obuna oynasi
@@ -300,10 +392,10 @@ async function vAdmin(){const sec=[],d=await api('/dicts'),ops=d.map(x=>`<option
  if(has('import'))sec.push(voiceCard(d));
  if(has('import'))sec.push(`<div class=card><b>📚 Kitob yaratish (fayldan)</b><div class=s>Bitta fayl yuklang — so'zlar kitobga joylanadi, tur (ot/fel/sifat/ravish) va darajalarga bo'linadi.</div><input id=bn placeholder="Kitob nomi"><div class=edr><input id=bl type=number placeholder="Daraja soni"><input id=bsc type=number placeholder="Bo'limda so'z (30)"></div>
  <select id=bs><option value=equal>Darajalarga teng bo'lish</option><option value=custom>Har daraja uchun so'z sonini o'zim yozaman</option><option value=level>Hammasi bitta darajaga</option></select><input id=bc placeholder="So'z soni: 200,300,300"><input id=bv type=number placeholder="Qaysi daraja (faqat «bitta daraja» uchun)"><select id=bp>${posOpts('ot')}</select>
- <label><input type=checkbox id=ba style="width:auto"> So'z turini avto-aniqlash (faylda tur yozilmagan bo'lsa)</label><input type=file id=bf accept=".txt,.csv,.xlsx,.xls,.docx,.pdf,.html,.htm"><button class=big2 onclick="createBook()">📚 Kitob yaratish</button></div>`);
+ <label><input type=checkbox id=ba style="width:auto"> So'z turini avto-aniqlash (faylda tur yozilmagan bo'lsa)</label><input type=file id=bf accept=".txt,.csv,.tsv,.json,.xlsx,.xls,.ods,.docx,.rtf,.pptx,.odt,.odp,.epub,.pdf,.html,.htm,.xml,.png,.jpg,.jpeg,.webp"><button class=big2 onclick="createBook()">📚 Kitob yaratish</button></div>`);
  if(has('dicts'))sec.push(`<div class=card><b>📖 Kitoblarni boshqarish</b><div class=s>Nomi · daraja soni · bo'limdagi so'z soni</div>${d.map(x=>`<div class=card style="display:block;margin:6px 0"><input id=dn${x.id} value="${esc(x.name)}"><div class=edr><input id=dl${x.id} type=number value=${x.levels}><input id=ds${x.id} type=number value=${x.sec||30}><button class=cb onclick="adm('/dict/${x.id}',{name:$('#dn${x.id}').value,levels:$('#dl${x.id}').value,sec:$('#ds${x.id}').value})">💾</button><button class="cb ${x.free?'on':''}" onclick="adm('/dict/${x.id}',{free:${x.free?0:1}})">${x.free?'🆓':'💰'}</button><button class="cb red" onclick="delDict(${x.id})">🗑</button></div></div>`).join('')}
  <b>➕ Bo'sh kitob</b><input id=dn0 placeholder="Nomi"><div class=edr><input id=dl0 type=number placeholder="Daraja soni"><input id=ds0 type=number placeholder="Bo'limda so'z (30)"></div><button class=big2 onclick="adm('/dict',{name:$('#dn0').value,levels:$('#dl0').value,sec:$('#ds0').value})">Qo'shish</button></div>`);
- if(has('import'))sec.push(`<div class=card><b>📥 Faylni kitobga qo'shish</b><div class=s>Har qanday fayl: .txt .csv .xlsx .docx .pdf .html — «koreys - tarjima» qatorlari olinadi, tarjimasizlari avtomatik tarjima qilinadi.</div><select id=id>${ops}</select><div class=edr><input id=il type=number value=1><select id=ip>${posOpts('ot')}</select></div><label><input type=checkbox id=ia style="width:auto"> So'z turini avto-aniqlash</label><input type=file id=if accept=".txt,.csv,.xlsx,.xls,.docx,.pdf,.html,.htm"><button class=big2 onclick="imp()">📥 Yuklash</button></div>`);
+ if(has('import'))sec.push(`<div class=card><b>📥 Faylni kitobga qo'shish</b><div class=s>Har qanday fayl: .txt .csv .xlsx .docx .pdf .html — «koreys - tarjima» qatorlari olinadi, tarjimasizlari avtomatik tarjima qilinadi.</div><select id=id>${ops}</select><div class=edr><input id=il type=number value=1><select id=ip>${posOpts('ot')}</select></div><label><input type=checkbox id=ia style="width:auto"> So'z turini avto-aniqlash</label><input type=file id=if accept=".txt,.csv,.tsv,.json,.xlsx,.xls,.ods,.docx,.rtf,.pptx,.odt,.odp,.epub,.pdf,.html,.htm,.xml,.png,.jpg,.jpeg,.webp"><button class=big2 onclick="imp()">📥 Yuklash</button></div>`);
  if(has('tasks'))sec.push(`<div class=card><b>📝 Topshiriq yaratish</b><select id=td>${ops}</select><div class=edr><input id=tl type=number value=1 placeholder="Daraja"><select id=tp><option value="">Barcha turlar</option>${posOpts('')}</select><input id=tsc type=number placeholder="Bo'lim"></div><input id=tt placeholder="Topshiriq nomi"><button class=big2 onclick="adm('/task',{dict_id:$('#td').value,level:$('#tl').value,pos:$('#tp').value,section:$('#tsc').value,title:$('#tt').value})">➕ Qo'shish</button></div>`);
  if(has('users')||has('admins')){const us=await api('/admin/users');sec.push(`<div class=card><b>👥 Foydalanuvchilar (${us.length})</b>`+(has('admins')?`<div class=addrow><input id=ae placeholder="Email bo'yicha admin qo'shish"><button class=big2 onclick="adm('/admin',{email:$('#ae').value,admin:1})">➕</button></div>`:'')+us.map(u=>`<div class=card style="display:block;margin:6px 0"><b>${esc(u.name)}</b> ${u.is_admin==2?'👑':u.is_admin?'🛡':''}<div class=s>${esc(u.email||'TG '+u.id)} · obuna: ${D(u.paid_until)} · sinov: ${u.trial}</div>`+(has('users')?`<button class="b g" onclick="adm('/user',{id:${u.id},months:1})">+1 oy</button><button class="b g" onclick="adm('/user',{id:${u.id},months:3})">+3 oy</button>`:'')+(has('admins')&&u.is_admin!=2?`<details class=grp><summary>🛡 Admin funksiyalari</summary><div style="padding:8px 14px">${me.PERMS.map(p=>`<label style="display:block;padding:4px 0"><input type=checkbox class=pm${u.id} value=${p} ${u.perms.split(',').includes(p)?'checked':''} style="width:auto"> ${p}</label>`).join('')}<button class=big2 onclick="adm('/admin',{id:${u.id},admin:1,perms:[...document.querySelectorAll('.pm${u.id}:checked')].map(x=>x.value)})">${u.is_admin?'💾 Saqlash':'🛡 Admin qilish'}</button>${u.is_admin?`<button class="b g" onclick="adm('/admin',{id:${u.id},admin:0})">Adminlikni olish</button>`:''}</div></details>`:'')+'</div>').join('')+'</div>')}
  if(has('admins')){const st=await api('/admin/status');sec.push(`<div class=card><b>🔧 Holat va sinov</b><div class=rk><span>AI kaliti</span><b>${st.key?'✅ ulangan ('+st.keyLen+' belgi)':'❌ yo\'q'}</b></div><div class=rk><span>AI / model</span><b>${esc((st.provider||'')+' · '+st.model)}</b></div><div class=rk><span>Bot tokeni</span><b>${st.bot?'✅':'❌'}</b></div><div class=rk><span>WEBAPP_URL</span><b>${st.webapp?'✅':'❌'}</b></div><div class=rk><span>Doimiy disk</span><b>${esc(st.data)}</b></div><button class=big2 onclick="claudeTest()">🧪 AI'ni sinash</button><p class=s>Kalit ❌ bo'lsa: Railway → Variables → GEMINI_API_KEY qo'shing va Deploy bosing. Ikkita loyiha bo'lsa, domen bog'langan loyihaga qo'shing.</p></div>`)}
@@ -334,7 +426,7 @@ async function recWord(id,btn){if(S.rec){S.rec.stop();return}
   try{const r=await api('/admin/word/'+id+'/audio',{body:fd});VW[id].audio=r.audio}catch{}
   const e=$('#vr'+id);if(e)e.outerHTML=voiceRow(VW[id])};
  mr.start();setTimeout(()=>S.rec&&S.rec.stop(),15000)}
-const impMsg=r=>r.found==0?"Faylda koreyscha so'z topilmadi. Fayl matn bo'lishi kerak (rasm yoki skan qilingan PDF o'qilmaydi).":`${r.added} ta so'z qo'shildi (${r.translated} ta avto-tarjima)`+(r.skipped?`\n⚠️ ${r.skipped} ta so'z tarjimasiz o'tkazildi. GEMINI_API_KEY qo'shsangiz avtomatik tarjima qilinadi.`:'')+'\n'+Object.entries(r.perLevel||{}).map(([l,n])=>`${l}-daraja: ${n} ta`).join(', ')+'\n'+ptxt(r);
+const impMsg=r=>r.found==0?"Faylda koreyscha so'z topilmadi. Fayl o'qilmadi yoki ichida koreyscha so'z yo'q. (.doc bo'lsa .docx yoki PDF qilib saqlang. Rasm va skan PDF faqat Gemini kaliti bilan o'qiladi.)":`${r.added} ta so'z qo'shildi (${r.translated} ta avto-tarjima)`+(r.skipped?`\n⚠️ ${r.skipped} ta so'z tarjimasiz o'tkazildi. GEMINI_API_KEY qo'shsangiz avtomatik tarjima qilinadi.`:'')+'\n'+Object.entries(r.perLevel||{}).map(([l,n])=>`${l}-daraja: ${n} ta`).join(', ')+'\n'+ptxt(r);
 const ptxt=r=>Object.entries(r.perPos||{}).map(([p,n])=>`${POS[p]||p}: ${n}`).join(', ');
 function watchJob(id){document.getElementById('ov')?.remove();const o=document.createElement('div');o.id='ov';
  o.innerHTML=`<div class=bg></div><div class=sh><h2 style="margin:0 0 6px">⏳ So'zlar qo'shilmoqda</h2><div class=s id=jst>Boshlanmoqda...</div><div class=pb><i id=jbar style="width:5%"></i></div><div id=jtx class=s></div><button class=nxt onclick="document.getElementById('ov').remove()">Yopish (fonda davom etadi)</button></div>`;document.body.appendChild(o);
@@ -348,4 +440,8 @@ async function createBook(){const f=$('#bf').files[0];if(!f||!$('#bn').value.tri
 async function imp(){const f=$('#if').files[0];if(!f)return;const fd=new FormData();fd.append('dict_id',$('#id').value);fd.append('level',$('#il').value);fd.append('pos',$('#ip').value);fd.append('auto',$('#ia').checked?1:0);fd.append('file',f);const r=await api('/admin/import',{body:fd});watchJob(r.job)}
 async function claudeTest(){const r=await api('/admin/claude-test',{body:{}});alert(r.ok?`✅ Ishlayapti! Javob: ${r.reply}\nModel: ${r.model}`:'❌ Xato: '+r.error)}
 init();
+
+window.hap=(t='light')=>{try{Telegram.WebApp.HapticFeedback.impactOccurred(t)}catch{try{navigator.vibrate&&navigator.vibrate(8)}catch{}}};
+function foxRx(i,e,b){const m=S.fox.msgs[i];m.rx=m.rx==e?'':e;b.parentNode.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b&&!!m.rx));hap(m.rx?'medium':'light')}
+document.addEventListener('pointerdown',e=>{if(e.target.closest('button,.card,.book,.tile,.gl,.opt2,.dk,.lv'))hap()},{passive:true});
 </script></body></html>

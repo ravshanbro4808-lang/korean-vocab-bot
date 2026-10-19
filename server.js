@@ -2,7 +2,7 @@ const express=require('express'),crypto=require('crypto'),fs=require('fs'),http=
 const Database=require('better-sqlite3'),multer=require('multer'),{Telegraf,Markup}=require('telegraf'),{Server}=require('socket.io');
 const {OAuth2Client}=require('google-auth-library');
 const {BOT_TOKEN,WEBAPP_URL,ADMIN_IDS='',ADMIN_EMAILS='',GOOGLE_CLIENT_ID,SECRET='change-me',DEV,PORT=3000,TRANSLATE_URL,TRANSLATE_KEY,TRANSLATE_TARGET='uz',ANTHROPIC_API_KEY,GEMINI_API_KEY,GEMINI_MODEL='gemini-3.8-flash',FOX_MODEL='claude-haiku-5-5',GOOGLE_TRANSLATE_KEY,BOT_USERNAME='Koreys_lugat_2026_bot'}=process.env;
-const USE_GEMINI=!!GEMINI_API_KEY,AI_KEY=GEMINI_API_KEY||ANTHROPIC_API_KEY;
+const THINK=process.env.GEMINI_THINKING||'minimal',USE_GEMINI=!!GEMINI_API_KEY,AI_KEY=GEMINI_API_KEY||ANTHROPIC_API_KEY;
 const DAY=864e5,PERMS=['dicts','import','tasks','payments','trials','users','plans','methods','admins'];
 const DATA=process.env.DATA_DIR||'.';fs.mkdirSync(DATA+'/uploads',{recursive:true});fs.mkdirSync(DATA+'/audio',{recursive:true});
 const db=new Database(DATA+'/data.db');
@@ -89,24 +89,27 @@ function fallbackFox(ms){
   return {lite:1,reply:"Men hozircha lug'atdagi so'zlarni topib bera olaman 🦊 Koreyscha yoki o'zbekcha so'z yozing (masalan: 학교 yoki maktab) yoki «Meni sina» deb yozing."}}
 async function askFox(messages,words){
   if(!AI_KEY)return messages.length?fallbackFox(messages):{e:'bad'};
-  const ms=messages.slice(-12).map(m=>({role:m.role==='assistant'?'assistant':'user',content:String(m.content).slice(0,1500)}));
+  const ms=messages.slice(-8).map(m=>({role:m.role==='assistant'?'assistant':'user',content:String(m.content).slice(0,1500)}));
   while(ms.length&&ms[0].role==='assistant')ms.shift();if(!ms.length)return {e:'bad'};
   const sys=FOXSYS+(words&&words.length?"\nHozir foydalanuvchi shu so'zlarni mashq qilmoqda: "+words.slice(0,20).map(w=>w.ko+' = '+w.uz).join('; ')+". Shu so'zlardan foydalanib qisqa savol-javob yoki dialog qil.":'');
   try{return {reply:await callClaude(ms,sys,800)}}catch(e){return {e:'api',msg:String(e.message||e)}}}
-const foxLimit=u=>(u.is_admin?1e9:active(u)?150:15);
-app.post('/api/fox',async(r,s)=>{const k=r.u.id+':'+Math.floor(Date.now()/DAY);if((foxUse[k]||0)>=foxLimit(r.u))return s.json({e:'limit'});foxUse[k]=(foxUse[k]||0)+1;
-  const ms=(r.body.messages||[]).filter(m=>m&&m.content);s.json(await askFox(ms,Array.isArray(r.body.words)?r.body.words:[]))});
+const LIM={chat:[15,150],voice:[5,150]};// [bepul, obunachi] kuniga
+const foxLimit=(u,t='chat')=>u.is_admin?1e9:LIM[t][active(u)?1:0];
+const foxKey=(u,t)=>u.id+':'+t+':'+Math.floor(Date.now()/DAY);
+const foxLeft=(u,t)=>u.is_admin?null:Math.max(0,foxLimit(u,t)-(foxUse[foxKey(u,t)]||0));
+app.post('/api/fox',async(r,s)=>{const k=foxKey(r.u,'chat');if((foxUse[k]||0)>=foxLimit(r.u,'chat'))return s.json({e:'limit',left:0});foxUse[k]=(foxUse[k]||0)+1;
+  const ms=(r.body.messages||[]).filter(m=>m&&m.content);const o=await askFox(ms,Array.isArray(r.body.words)?r.body.words:[]);if(o.e==='api')foxUse[k]--;o.left=foxLeft(r.u,'chat');s.json(o)});
 const VOICESYS="\nFoydalanuvchi ovozli xabar yubordi (o'zbek yoki koreys tilida). Avval u nima deganini aniq yozib ol, keyin unga javob ber. FAQAT JSON qaytar: {\"heard\":\"foydalanuvchi aytgan gap (o'z tilida)\",\"reply\":\"javobing\"}. Javob ovoz bilan o'qiladi: 1-3 qisqa gap yoz, *, #, emoji ishlatma, koreys so'zining lotincha o'qilishini qavs ichida yozma. Agar hech narsa eshitilmasa yoki faqat shovqin bo'lsa, heard ni bo'sh qoldir.";
 app.post('/api/fox-voice',up.single('audio'),async(r,s)=>{
   let buf=null;try{if(r.file){buf=fs.readFileSync(r.file.path);fs.unlinkSync(r.file.path)}}catch{}
   if(!buf||!USE_GEMINI)return s.json({e:'bad'});
-  const k=r.u.id+':'+Math.floor(Date.now()/DAY);if((foxUse[k]||0)>=foxLimit(r.u))return s.json({e:'limit'});foxUse[k]=(foxUse[k]||0)+1;
+  const k=foxKey(r.u,'voice');if((foxUse[k]||0)>=foxLimit(r.u,'voice'))return s.json({e:'limit',left:0});foxUse[k]=(foxUse[k]||0)+1;
   let ms=[],ws=[];try{ms=JSON.parse(r.body.messages||'[]');ws=JSON.parse(r.body.words||'[]')}catch{}
   const sys=FOXSYS+(ws.length?"\nHozir foydalanuvchi shu so'zlarni mashq qilmoqda: "+ws.slice(0,20).map(w=>w.ko+' = '+w.uz).join('; ')+".":'')+VOICESYS;
   try{const t=await geminiVoice(ms,sys,buf);let o={};try{o=JSON.parse(t)}catch{try{o=JSON.parse(t.match(/\{[\s\S]*\}/)[0])}catch{}}
     const heard=String(o.heard||'').trim(),reply=String(o.reply||'').trim();
     if(!heard||!reply){foxUse[k]--;return s.json({e:'nohear'})}
-    s.json({heard,reply})}catch(e){s.json({e:'api',msg:String(e.message||e)})}});
+    s.json({heard,reply,left:foxLeft(r.u,'voice')})}catch(e){foxUse[k]--;s.json({e:'api',msg:String(e.message||e)})}});
 app.get('/api/tasks',(r,s)=>s.json(q('select t.*,d.name dname from tasks t join dicts d on d.id=t.dict_id')));
 // bepul sinov (1 oy) so'rovi
 app.post('/api/trial',(r,s)=>{if(r.u.trial!=='none')return s.json({trial:r.u.trial});run("update users set trial='pending' where id=?",r.u.id);s.json({trial:'pending'})});
@@ -126,7 +129,7 @@ app.post('/api/admin/dict/:id',adm('dicts'),(r,s)=>{const b=r.body;
 let FOXM=USE_GEMINI?GEMINI_MODEL:FOX_MODEL;
 async function callGemini(messages,system,max,model){
   const body={systemInstruction:{parts:[{text:system||''}]},contents:messages.map(m=>({role:m.role==='assistant'?'model':'user',parts:[{text:String(m.content)}]})),generationConfig:{maxOutputTokens:max}};
-  if(/gemini-3/i.test(model)){body.generationConfig.thinkingConfig={thinkingLevel:'low'};body.generationConfig.maxOutputTokens=max+1500}
+  if(/gemini-3/i.test(model)){const fast=max<=1000;body.generationConfig.thinkingConfig={thinkingLevel:fast?THINK:'low'};body.generationConfig.maxOutputTokens=max+(fast?400:1500)}
   else if(/gemini-2\.5-flash/i.test(model))body.generationConfig.thinkingConfig={thinkingBudget:0};
   const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+encodeURIComponent(model)+':generateContent',{method:'POST',signal:AbortSignal.timeout(90000),headers:{'content-type':'application/json','x-goog-api-key':GEMINI_API_KEY},body:JSON.stringify(body)});
   const j=await r.json().catch(()=>({}));
@@ -144,7 +147,7 @@ async function callClaude(messages,system,max=500,model=FOXM){
   return USE_GEMINI?callGemini(messages,system,max,model):callAnthropic(messages,system,max,model)}
 const WPROMPT="Bu fayldan koreys tilidagi barcha so'z va iboralarni lug'at yozuvi sifatida ajratib ol. Tarjima faylning o'zida bo'lsa (so'z yonida, keyingi qatorda, jadval ustunida, qavs ichida; o'zbekcha, ruscha yoki inglizcha, qayerda yozilgan bo'lmasin) shuni o'zbek tiliga (lotin yozuvi) o'tkazib ol; fayl ichida tarjima bo'lmasa, o'zing o'zbek tiliga tarjima qil. Fe'llarni lug'at shaklida (-다) yoz. To'liq gaplarni emas, alohida so'zlarni ol, takrorlama. FAQAT JSON massiv qaytar: [{\"ko\":\"...\",\"uz\":\"...\",\"pos\":\"ot|fel|sifat|ravish|boshqa\"}]";
 function parseWords(t){const out=[];try{JSON.parse(String(t).match(/\[[\s\S]*\]/)[0]).forEach(o=>{if(o&&o.ko&&/[가-힣]/.test(o.ko)&&o.uz)out.push({ko:String(o.ko).trim(),uz:String(o.uz).trim(),pos:normPos(o.pos)})})}catch{}return out}
-function gcfg(model,max){const c={maxOutputTokens:max};if(/gemini-3/i.test(model)){c.thinkingConfig={thinkingLevel:'low'};c.maxOutputTokens=max+1500}else if(/gemini-2\.5-flash/i.test(model))c.thinkingConfig={thinkingBudget:0};return c}
+function gcfg(model,max,fast){const c={maxOutputTokens:max};if(/gemini-3/i.test(model)){c.thinkingConfig={thinkingLevel:fast?THINK:'low'};c.maxOutputTokens=max+(fast?400:1500)}else if(/gemini-2\.5-flash/i.test(model))c.thinkingConfig={thinkingBudget:0};return c}
 async function geminiRaw(contents,system,cfg){
   const body={contents,generationConfig:cfg};if(system)body.systemInstruction={parts:[{text:system}]};
   const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+encodeURIComponent(FOXM)+':generateContent',{method:'POST',signal:AbortSignal.timeout(120000),headers:{'content-type':'application/json','x-goog-api-key':GEMINI_API_KEY},body:JSON.stringify(body)});
@@ -159,7 +162,7 @@ async function geminiVoice(hist,system,audio){
   while(cs.length&&cs[0].role==='model')cs.shift();
   const au={inlineData:{mimeType:'audio/wav',data:audio.toString('base64')}};
   if(cs.length&&cs[cs.length-1].role==='user')cs[cs.length-1].parts.push(au);else cs.push({role:'user',parts:[au]});
-  const cfg=gcfg(FOXM,700);cfg.responseMimeType='application/json';
+  const cfg=gcfg(FOXM,700,1);cfg.responseMimeType='application/json';
   return geminiRaw(cs,system,cfg)}
 async function aiWords(items,txt,vis,defPos,auto,job){
   const kL=txt.split(/\n/).filter(l=>/[가-힣]/.test(l)).length,good=items.filter(i=>i.uz).length;
@@ -169,7 +172,7 @@ async function aiWords(items,txt,vis,defPos,auto,job){
     if(vis){if(!USE_GEMINI)return null;if(job)job.stage="AI fayldan so'zlarni qidiryapti...";got=parseWords(await geminiFile(vis.buf,vis.mime,WPROMPT,16000))}
     else{const cs=[];for(let i=0;i<Math.min(txt.length,150000);i+=5000)cs.push(txt.slice(i,i+5000));let ci=0,dn=0;
       const w=async()=>{while(ci<cs.length){const c=cs[ci++];if(/[가-힣]/.test(c)){try{got.push(...parseWords(await callClaude([{role:'user',content:WPROMPT+"\n\n"+c}],"Sen koreys-o'zbek lug'at tuzuvchisan.",6000)))}catch{}}dn++;if(job)job.stage="AI fayldan so'zlarni qidiryapti ("+dn+"/"+cs.length+")..."}};
-      await Promise.all(Array.from({length:Math.min(4,cs.length)},w))}
+      await Promise.all(Array.from({length:Math.min(6,cs.length)},w))}
   }catch{}
   if(!got.length)return vis?null:items;
   const seen=new Set(),out=[];
@@ -349,7 +352,7 @@ if(BOT_TOKEN){bot=new Telegraf(BOT_TOKEN);
   bot.action('help',c=>{c.answerCbQuery().catch(()=>{});c.reply("Men:\n• so'z va grammatikani tushuntiraman\n• misollar keltiraman\n• mashq va suhbat qilaman\n\nIlovada kartochka, o'yinlar va mashqlar ham bor 👇",Markup.inlineKeyboard([open]))});
   bot.on('text',async c=>{const t=c.message.text;if(t.startsWith('/'))return;const id=c.from.id;
     run('insert or ignore into users(id,name,created) values(?,?,?)',id,c.from.first_name,Date.now());const u=fin(id);
-    const k=id+':'+Math.floor(Date.now()/DAY);if((foxUse[k]||0)>=foxLimit(u))return c.reply("Bugungi bepul savollar tugadi 🦊 Obuna bo'lsangiz ko'proq yozishingiz mumkin.");
+    const k=id+':chat:'+Math.floor(Date.now()/DAY);if((foxUse[k]||0)>=foxLimit(u,'chat'))return c.reply("Bugungi bepul savollar tugadi 🦊 Obuna bo'lsangiz ko'proq yozishingiz mumkin.");
     foxUse[k]=(foxUse[k]||0)+1;const h=hist[id]=hist[id]||[];h.push({role:'user',content:t});c.sendChatAction('typing').catch(()=>{});
     const r=await askFox(h,[]);
     if(r.reply){h.push({role:'assistant',content:r.reply});if(h.length>12)h.splice(0,h.length-12);c.reply(r.reply)}
