@@ -1,8 +1,7 @@
 const express=require('express'),crypto=require('crypto'),fs=require('fs'),http=require('http');
 const Database=require('better-sqlite3'),multer=require('multer'),{Telegraf,Markup}=require('telegraf'),{Server}=require('socket.io');
 const {OAuth2Client}=require('google-auth-library');
-const {BOT_TOKEN,WEBAPP_URL,ADMIN_IDS='',ADMIN_EMAILS='',GOOGLE_CLIENT_ID,SECRET='change-me',DEV,PORT=3000,TRANSLATE_URL,TRANSLATE_KEY,TRANSLATE_TARGET='uz',ANTHROPIC_API_KEY,GEMINI_API_KEY,GEMINI_MODEL='gemini-3.8-flash',FOX_MODEL='claude-haiku-5-5',GOOGLE_TRANSLATE_KEY,BOT_USERNAME='Koreys_lugat_2026_bot'}=process.env;
-const USE_GEMINI=!!GEMINI_API_KEY,AI_KEY=GEMINI_API_KEY||ANTHROPIC_API_KEY;
+const {BOT_TOKEN,WEBAPP_URL,ADMIN_IDS='',ADMIN_EMAILS='',GOOGLE_CLIENT_ID,SECRET='change-me',DEV,PORT=3000,TRANSLATE_URL,TRANSLATE_KEY,TRANSLATE_TARGET='uz',ANTHROPIC_API_KEY,FOX_MODEL='claude-haiku-5-5',GOOGLE_TRANSLATE_KEY,BOT_USERNAME='Koreys_lugat_2026_bot'}=process.env;
 const DAY=864e5,PERMS=['dicts','import','tasks','payments','trials','users','plans','methods','admins'];
 const DATA=process.env.DATA_DIR||'.';fs.mkdirSync(DATA+'/uploads',{recursive:true});fs.mkdirSync(DATA+'/audio',{recursive:true});
 const db=new Database(DATA+'/data.db');
@@ -40,7 +39,7 @@ const wk=()=>Math.floor(Date.now()/(7*DAY));
 const addScore=(id,name,p)=>{if(p>0)run('insert into scores(user_id,name,week,pts) values(?,?,?,?) on conflict(user_id,week) do update set pts=pts+excluded.pts',id,name,wk(),p)};
 const app=express();app.use(express.json());app.get('/',(r,s)=>s.sendFile(__dirname+'/index.html'));app.use('/shots',express.static(DATA+'/uploads'));app.use('/audio',express.static(DATA+'/audio'));
 const up=multer({dest:DATA+'/uploads/',limits:{fileSize:25*1024*1024}}),gc=GOOGLE_CLIENT_ID&&new OAuth2Client(GOOGLE_CLIENT_ID);
-app.get('/config',(r,s)=>s.json({google:GOOGLE_CLIENT_ID||null,dev:!!DEV,bot:BOT_USERNAME,fox:!!AI_KEY,voice:USE_GEMINI}));
+app.get('/config',(r,s)=>s.json({google:GOOGLE_CLIENT_ID||null,dev:!!DEV,bot:BOT_USERNAME,fox:!!ANTHROPIC_API_KEY}));
 app.post('/auth/google',async(r,s)=>{try{const t=await gc.verifyIdToken({idToken:r.body.credential,audience:GOOGLE_CLIENT_ID}),p=t.getPayload();
   if(!p.email_verified)return s.status(401).json({e:'email'});const em=p.email.toLowerCase();
   let u=one('select * from users where email=?',em);
@@ -87,26 +86,18 @@ function fallbackFox(ms){
   if(!rows.length){const t=last.replace(/[^\p{L}' ]/gu,'').trim().toLowerCase();if(t.length>=2)rows=q('select ko,uz from words where lower(uz) like ? limit 5','%'+t+'%')}
   if(rows.length)return {lite:1,reply:rows.slice(0,5).map(w=>'📖 '+w.ko+' — '+w.uz).join('\n')};
   return {lite:1,reply:"Men hozircha lug'atdagi so'zlarni topib bera olaman 🦊 Koreyscha yoki o'zbekcha so'z yozing (masalan: 학교 yoki maktab) yoki «Meni sina» deb yozing."}}
-async function askFox(messages,words){
-  if(!AI_KEY)return messages.length?fallbackFox(messages):{e:'bad'};
+async function askFox(messages,words,voice){
+  if(!ANTHROPIC_API_KEY)return messages.length?fallbackFox(messages):{e:'bad'};
   const ms=messages.slice(-12).map(m=>({role:m.role==='assistant'?'assistant':'user',content:String(m.content).slice(0,1500)}));
   while(ms.length&&ms[0].role==='assistant')ms.shift();if(!ms.length)return {e:'bad'};
-  const sys=FOXSYS+(words&&words.length?"\nHozir foydalanuvchi shu so'zlarni mashq qilmoqda: "+words.slice(0,20).map(w=>w.ko+' = '+w.uz).join('; ')+". Shu so'zlardan foydalanib qisqa savol-javob yoki dialog qil.":'');
-  try{return {reply:await callClaude(ms,sys,800)}}catch(e){return {e:'api',msg:String(e.message||e)}}}
+  const sys=FOXSYS+(words&&words.length?"\nHozir foydalanuvchi shu so'zlarni mashq qilmoqda: "+words.slice(0,20).map(w=>w.ko+' = '+w.uz).join('; ')+". Shu so'zlardan foydalanib qisqa savol-javob yoki dialog qil.":'')+(voice?"\nBu OVOZLI suhbat: javobing 1-3 qisqa og'zaki jumla bo'lsin; emoji, belgilar, ro'yxat va sarlavhalarsiz.":'');
+  try{return {reply:await callClaude(ms,sys,voice?300:800)}}catch(e){return {e:'api',msg:String(e.message||e)}}}
 const foxLimit=u=>(u.is_admin?1e9:active(u)?150:15);
 app.post('/api/fox',async(r,s)=>{const k=r.u.id+':'+Math.floor(Date.now()/DAY);if((foxUse[k]||0)>=foxLimit(r.u))return s.json({e:'limit'});foxUse[k]=(foxUse[k]||0)+1;
-  const ms=(r.body.messages||[]).filter(m=>m&&m.content);s.json(await askFox(ms,Array.isArray(r.body.words)?r.body.words:[]))});
-const VOICESYS="\nFoydalanuvchi ovozli xabar yubordi (o'zbek yoki koreys tilida). Avval u nima deganini aniq yozib ol, keyin unga javob ber. FAQAT JSON qaytar: {\"heard\":\"foydalanuvchi aytgan gap (o'z tilida)\",\"reply\":\"javobing\"}. Javob ovoz bilan o'qiladi: 1-3 qisqa gap yoz, *, #, emoji ishlatma, koreys so'zining lotincha o'qilishini qavs ichida yozma. Agar hech narsa eshitilmasa yoki faqat shovqin bo'lsa, heard ni bo'sh qoldir.";
-app.post('/api/fox-voice',up.single('audio'),async(r,s)=>{
-  let buf=null;try{if(r.file){buf=fs.readFileSync(r.file.path);fs.unlinkSync(r.file.path)}}catch{}
-  if(!buf||!USE_GEMINI)return s.json({e:'bad'});
-  const k=r.u.id+':'+Math.floor(Date.now()/DAY);if((foxUse[k]||0)>=foxLimit(r.u))return s.json({e:'limit'});foxUse[k]=(foxUse[k]||0)+1;
-  let ms=[],ws=[];try{ms=JSON.parse(r.body.messages||'[]');ws=JSON.parse(r.body.words||'[]')}catch{}
-  const sys=FOXSYS+(ws.length?"\nHozir foydalanuvchi shu so'zlarni mashq qilmoqda: "+ws.slice(0,20).map(w=>w.ko+' = '+w.uz).join('; ')+".":'')+VOICESYS;
-  try{const t=await geminiVoice(ms,sys,buf);let o={};try{o=JSON.parse(t)}catch{try{o=JSON.parse(t.match(/\{[\s\S]*\}/)[0])}catch{}}
-    const heard=String(o.heard||'').trim(),reply=String(o.reply||'').trim();
-    if(!heard||!reply){foxUse[k]--;return s.json({e:'nohear'})}
-    s.json({heard,reply})}catch(e){s.json({e:'api',msg:String(e.message||e)})}});
+  const ms=(r.body.messages||[]).filter(m=>m&&m.content);s.json(await askFox(ms,Array.isArray(r.body.words)?r.body.words:[],!!r.body.voice))});
+const handoffs={};setInterval(()=>{const t=Date.now();for(const k in handoffs)if(t-handoffs[k].t>3e5)delete handoffs[k]},6e4).unref();
+app.post('/api/handoff',(r,s)=>{const c=crypto.randomBytes(9).toString('hex');handoffs[c]={id:r.u.id,t:Date.now()};s.json({code:c})});
+app.get('/auth/handoff',(r,s)=>{const h=handoffs[r.query.code];delete handoffs[r.query.code];if(!h||Date.now()-h.t>3e5)return s.status(401).json({e:'expired'});s.json({token:sign(h.id)})});
 app.get('/api/tasks',(r,s)=>s.json(q('select t.*,d.name dname from tasks t join dicts d on d.id=t.dict_id')));
 // bepul sinov (1 oy) so'rovi
 app.post('/api/trial',(r,s)=>{if(r.u.trial!=='none')return s.json({trial:r.u.trial});run("update users set trial='pending' where id=?",r.u.id);s.json({trial:'pending'})});
@@ -123,59 +114,13 @@ app.post('/api/admin/dict/:id',adm('dicts'),(r,s)=>{const b=r.body;
   if(b.name)run('update dicts set name=? where id=?',b.name,r.params.id);
   if(b.sec){run('update dicts set sec=? where id=?',+b.sec,r.params.id);resection(+r.params.id)}
   if(b.del){run('delete from words where dict_id=?',r.params.id);run('delete from dicts where id=?',r.params.id)}s.json({ok:1})});
-let FOXM=USE_GEMINI?GEMINI_MODEL:FOX_MODEL;
-async function callGemini(messages,system,max,model){
-  const body={systemInstruction:{parts:[{text:system||''}]},contents:messages.map(m=>({role:m.role==='assistant'?'model':'user',parts:[{text:String(m.content)}]})),generationConfig:{maxOutputTokens:max}};
-  if(/gemini-3/i.test(model)){body.generationConfig.thinkingConfig={thinkingLevel:'low'};body.generationConfig.maxOutputTokens=max+1500}
-  else if(/gemini-2\.5-flash/i.test(model))body.generationConfig.thinkingConfig={thinkingBudget:0};
-  const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+encodeURIComponent(model)+':generateContent',{method:'POST',signal:AbortSignal.timeout(90000),headers:{'content-type':'application/json','x-goog-api-key':GEMINI_API_KEY},body:JSON.stringify(body)});
-  const j=await r.json().catch(()=>({}));
-  if(!r.ok){if(r.status===404&&model!=='gemini-3.8-flash'){const t=await callGemini(messages,system,max,'gemini-3.8-flash');FOXM='gemini-3.8-flash';return t}throw new Error((j.error&&j.error.message)||'api '+r.status)}
-  const c=j.candidates&&j.candidates[0];
-  if(!c||!c.content){throw new Error((j.promptFeedback&&j.promptFeedback.blockReason)?'Gemini javobni blokladi: '+j.promptFeedback.blockReason:'Gemini bo\'sh javob qaytardi')}
-  return (c.content.parts||[]).map(x=>x.text||'').join('').trim()}
-async function callAnthropic(messages,system,max,model){
+let FOXM=FOX_MODEL;
+async function callClaude(messages,system,max=500,model=FOXM){
+  if(!ANTHROPIC_API_KEY)return null;
   const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',signal:AbortSignal.timeout(90000),headers:{'content-type':'application/json','x-api-key':ANTHROPIC_API_KEY,'anthropic-version':'2023-06-01'},body:JSON.stringify({model,max_tokens:max,system,messages})});
   const j=await r.json();
-  if(!r.ok){if(r.status===404&&model!=='claude-sonnet-4-6'){const t=await callAnthropic(messages,system,max,'claude-sonnet-4-6');FOXM='claude-sonnet-4-6';return t}throw new Error((j.error&&j.error.message)||'api '+r.status)}
+  if(!r.ok){if(r.status===404&&model!=='claude-sonnet-4-6'){const t=await callClaude(messages,system,max,'claude-sonnet-4-6');FOXM='claude-sonnet-4-6';return t}throw new Error((j.error&&j.error.message)||'api '+r.status)}
   return (j.content||[]).map(c=>c.text||'').join('').trim()}
-async function callClaude(messages,system,max=500,model=FOXM){
-  if(!AI_KEY)return null;
-  return USE_GEMINI?callGemini(messages,system,max,model):callAnthropic(messages,system,max,model)}
-const WPROMPT="Bu fayldan koreys tilidagi barcha so'z va iboralarni lug'at yozuvi sifatida ajratib ol. Tarjima faylning o'zida bo'lsa (so'z yonida, keyingi qatorda, jadval ustunida, qavs ichida; o'zbekcha, ruscha yoki inglizcha, qayerda yozilgan bo'lmasin) shuni o'zbek tiliga (lotin yozuvi) o'tkazib ol; fayl ichida tarjima bo'lmasa, o'zing o'zbek tiliga tarjima qil. Fe'llarni lug'at shaklida (-다) yoz. To'liq gaplarni emas, alohida so'zlarni ol, takrorlama. FAQAT JSON massiv qaytar: [{\"ko\":\"...\",\"uz\":\"...\",\"pos\":\"ot|fel|sifat|ravish|boshqa\"}]";
-function parseWords(t){const out=[];try{JSON.parse(String(t).match(/\[[\s\S]*\]/)[0]).forEach(o=>{if(o&&o.ko&&/[가-힣]/.test(o.ko)&&o.uz)out.push({ko:String(o.ko).trim(),uz:String(o.uz).trim(),pos:normPos(o.pos)})})}catch{}return out}
-function gcfg(model,max){const c={maxOutputTokens:max};if(/gemini-3/i.test(model)){c.thinkingConfig={thinkingLevel:'low'};c.maxOutputTokens=max+1500}else if(/gemini-2\.5-flash/i.test(model))c.thinkingConfig={thinkingBudget:0};return c}
-async function geminiRaw(contents,system,cfg){
-  const body={contents,generationConfig:cfg};if(system)body.systemInstruction={parts:[{text:system}]};
-  const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+encodeURIComponent(FOXM)+':generateContent',{method:'POST',signal:AbortSignal.timeout(120000),headers:{'content-type':'application/json','x-goog-api-key':GEMINI_API_KEY},body:JSON.stringify(body)});
-  const j=await r.json().catch(()=>({}));
-  if(!r.ok)throw new Error((j.error&&j.error.message)||'api '+r.status);
-  const c=j.candidates&&j.candidates[0];const t=c&&c.content?(c.content.parts||[]).map(x=>x.text||'').join('').trim():'';
-  if(!t)throw new Error("Gemini bo'sh javob qaytardi");return t}
-const geminiFile=(buf,mime,prompt,max)=>geminiRaw([{role:'user',parts:[{inlineData:{mimeType:mime,data:buf.toString('base64')}},{text:prompt}]}],'',gcfg(FOXM,max));
-async function geminiVoice(hist,system,audio){
-  const cs=[];for(const m of (hist||[]).slice(-10)){const role=m.role==='assistant'?'model':'user',text=String(m.content||'').slice(0,1500);if(!text)continue;
-    if(cs.length&&cs[cs.length-1].role===role)cs[cs.length-1].parts[0].text+='\n'+text;else cs.push({role,parts:[{text}]})}
-  while(cs.length&&cs[0].role==='model')cs.shift();
-  const au={inlineData:{mimeType:'audio/wav',data:audio.toString('base64')}};
-  if(cs.length&&cs[cs.length-1].role==='user')cs[cs.length-1].parts.push(au);else cs.push({role:'user',parts:[au]});
-  const cfg=gcfg(FOXM,700);cfg.responseMimeType='application/json';
-  return geminiRaw(cs,system,cfg)}
-async function aiWords(items,txt,vis,defPos,auto,job){
-  const kL=txt.split(/\n/).filter(l=>/[가-힣]/.test(l)).length,good=items.filter(i=>i.uz).length;
-  if(!AI_KEY||(!vis&&(kL===0||good>=kL*.6)))return vis?null:items;
-  let got=[];
-  try{
-    if(vis){if(!USE_GEMINI)return null;if(job)job.stage="AI fayldan so'zlarni qidiryapti...";got=parseWords(await geminiFile(vis.buf,vis.mime,WPROMPT,16000))}
-    else{const cs=[];for(let i=0;i<Math.min(txt.length,150000);i+=5000)cs.push(txt.slice(i,i+5000));let ci=0,dn=0;
-      const w=async()=>{while(ci<cs.length){const c=cs[ci++];if(/[가-힣]/.test(c)){try{got.push(...parseWords(await callClaude([{role:'user',content:WPROMPT+"\n\n"+c}],"Sen koreys-o'zbek lug'at tuzuvchisan.",6000)))}catch{}}dn++;if(job)job.stage="AI fayldan so'zlarni qidiryapti ("+dn+"/"+cs.length+")..."}};
-      await Promise.all(Array.from({length:Math.min(4,cs.length)},w))}
-  }catch{}
-  if(!got.length)return vis?null:items;
-  const seen=new Set(),out=[];
-  for(const g of got)if(!seen.has(g.ko)){seen.add(g.ko);out.push({ko:g.ko,uz:g.uz,pos:(auto&&g.pos)||defPos,px:!!(auto&&g.pos)})}
-  for(const it of items)if(it.uz&&!seen.has(it.ko)){seen.add(it.ko);out.push(it)}
-  return out}
 async function tr(t){
   const tryit=async f=>{try{const v=await f();return v&&v!==t?v:''}catch{return ''}},sg=()=>AbortSignal.timeout(7000);
   let r='';
@@ -189,19 +134,7 @@ async function claudeTranslate(part){
   return out}
 const POSMAP=[[/^(ot|otlar|noun|nouns|명사|isim)$/i,'ot'],[/^(fe['’‘`]?l|fe['’‘`]?llar|verb|verbs|동사)$/i,'fel'],[/^(sifat|sifatlar|adjective|adjectives|형용사)$/i,'sifat'],[/^(ravish|ravishlar|adverb|adverbs|부사)$/i,'ravish']];
 const normPos=x=>{x=String(x||'').trim().replace(/[()\[\]{}.:]/g,'');for(const [re,p] of POSMAP)if(re.test(x))return p;return ''};
-async function extract(file,defPos,auto,job){
-  const buf=fs.readFileSync(file.path);fs.unlinkSync(file.path);const nm=file.originalname.toLowerCase();let txt='',visual=null;
-  try{
-    if(/\.pdf$/.test(nm)){try{txt=(await require('pdf-parse')(buf)).text||''}catch{txt=''}if((txt.replace(/\s/g,'').length<40||!/[가-힣]/.test(txt))&&buf.length<15e6)visual='application/pdf'}
-    else if(/\.(xlsx|xls|ods)$/.test(nm)){const X=require('xlsx'),wb=X.read(buf);txt=wb.SheetNames.map(n=>X.utils.sheet_to_csv(wb.Sheets[n])).join('\n')}
-    else if(/\.docx$/.test(nm))txt=(await require('mammoth').extractRawText({buffer:buf})).value;
-    else if(/\.(html?|xml)$/.test(nm))txt=buf.toString('utf8').replace(/<(script|style)[\s\S]*?<\/\1>/gi,'').replace(/<br\s*\/?>|<\/(p|div|li|tr|h\d)>/gi,'\n').replace(/<[^>]+>/g,' ');
-    else if(/\.(pptx|odt|odp|epub)$/.test(nm)){const z=await require('jszip').loadAsync(buf);let o='';for(const n of Object.keys(z.files).sort()){if(!z.files[n].dir&&/^ppt\/slides\/slide\d+\.xml$|^content\.xml$|\.x?html?$/.test(n))o+=(await z.files[n].async('string')).replace(/<\/(a:p|text:p|text:h|p|div|h\d|li|tr)>|<br\s*\/?>/gi,'\n').replace(/<\/(td|th|a:tc|table:table-cell)>/gi,'\t').replace(/<[^>]+>/g,'').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;|&apos;/g,"'")+'\n'}txt=o}
-    else if(/\.rtf$/.test(nm)){const dc=new TextDecoder('euc-kr');txt=buf.toString('latin1').replace(/(?:\\'[0-9a-f]{2})+/gi,m=>dc.decode(Buffer.from(m.replace(/\\'/g,''),'hex'))).replace(/\\u(-?\d+)\??/g,(m,n)=>String.fromCharCode(n<0?+n+65536:+n)).replace(/\\pard?\b/g,'\n').replace(/\\[a-z]+-?\d* ?|[{}]/gi,'')}
-    else if(/\.doc$/.test(nm))throw new Error('doc')
-    else if(/\.(png|jpe?g|webp|heic|heif)$/.test(nm)){if(buf.length<15e6)visual='image/'+(/jpe?g$/.test(nm)?'jpeg':nm.split('.').pop())}
-    else{let t=buf.toString('utf8');if(buf[0]===0xFF&&buf[1]===0xFE)t=buf.toString('utf16le');else if((t.match(/\uFFFD/g)||[]).length>3){try{t=new TextDecoder('euc-kr').decode(buf)}catch{}}txt=t.replace(/^\uFEFF/,'')}
-  }catch{return null}
+function parseText(txt,defPos,auto){
   const items=[],seen=new Set();let cur='';
   const hasK=x=>/[가-힣]/.test(x),lat=x=>/[A-Za-z]/.test(x)&&!hasK(x);
   const add=(ko,uz)=>{ko=ko.trim();uz=uz.trim();let p=cur,px=!!cur;
@@ -220,8 +153,44 @@ async function extract(file,defPos,auto,job){
     for(const w of line.match(/[가-힣]{1,12}/g)||[])if(!seen.has(w)){seen.add(w);items.push({ko:w,uz:'',pos:cur||defPos,px:!!cur})}
   }
   if(auto)for(const it of items)if(!it.px&&/다$/.test(it.ko))it.pos='fel';
-  return await aiWords(items,txt,visual&&{buf,mime:visual},defPos,auto,job)}
-async function addWords(job,d,items,levelOf,auto){
+  return items}
+const VOCAB_PROMPT="Bu koreys tili darsligi yoki lug'ati sahifalari. O'rganiladigan so'zlarni (ot, fel, sifat, ravish) lug'at (asos) shaklida ajrat: fe'l va sifatlarni -다 shaklida yoz. Har biri uchun o'zbekcha (lotin yozuvi) qisqa tarjima ber; sahifada tarjima berilgan bo'lsa, shuni ishlat. Yuklamalar, qo'shimchalar, tuslangan shakllar, ismlar va takrorlarni qo'shma. FAQAT JSON massiv qaytar: [{\"ko\":\"...\",\"uz\":\"...\",\"pos\":\"ot|fel|sifat|ravish\"}]";
+async function aiChunk(content){
+  const txt=await callClaude([{role:'user',content}],"Sen koreys-o'zbek lug'at tuzuvchisan.",4000);
+  try{return JSON.parse(txt.match(/\[[\s\S]*\]/)[0]).filter(o=>o&&o.ko&&/[가-힣]/.test(o.ko)).map(o=>({ko:String(o.ko).trim(),uz:String(o.uz||'').trim(),pos:normPos(o.pos),px:!!normPos(o.pos),ai:true}))}catch{return []}}
+async function aiVocab(chunks,job,label){
+  const out=new Map();let i=0,done=0;
+  const w=async()=>{while(i<chunks.length){const c=chunks[i++];let r=[];try{r=await aiChunk(c)}catch{}
+    for(const o of r)if(!out.has(o.ko))out.set(o.ko,o);done++;if(job){job.stage=label+' ('+done+'/'+chunks.length+')';job.found=out.size}}};
+  await Promise.all(Array.from({length:Math.min(5,chunks.length)},w));return [...out.values()]}
+async function pdfParts(buf){
+  try{const {PDFDocument}=require('pdf-lib');const src=await PDFDocument.load(buf,{ignoreEncryption:true}),n=Math.min(src.getPageCount(),200),out=[];
+    for(let s=0;s<n;s+=10){const d=await PDFDocument.create(),idx=[];for(let i=s;i<Math.min(s+10,n);i++)idx.push(i);(await d.copyPages(src,idx)).forEach(p=>d.addPage(p));out.push(await d.saveAsBase64())}
+    return out}catch{return buf.length<30e6?[buf.toString('base64')]:[]}}
+async function extract(file,defPos,auto,job){
+  const buf=fs.readFileSync(file.path);fs.unlinkSync(file.path);const nm=file.originalname.toLowerCase();let txt='',pdf=false;
+  try{
+    if(/\.pdf$/.test(nm)){pdf=true;txt=(await require('pdf-parse')(buf)).text||''}
+    else if(/\.(xlsx|xls|ods)$/.test(nm)){const X=require('xlsx'),wb=X.read(buf);txt=wb.SheetNames.map(n=>X.utils.sheet_to_csv(wb.Sheets[n])).join('\n')}
+    else if(/\.docx$/.test(nm))txt=(await require('mammoth').extractRawText({buffer:buf})).value;
+    else if(/\.(html?|xml)$/.test(nm))txt=buf.toString('utf8').replace(/<(script|style)[\s\S]*?<\/\1>/gi,'').replace(/<br\s*\/?>|<\/(p|div|li|tr|h\d)>/gi,'\n').replace(/<[^>]+>/g,' ');
+    else txt=buf.toString('utf8').replace(/^\uFEFF/,'');
+  }catch{if(!pdf)return null}
+  const hang=(txt.match(/[가-힣]/g)||[]).length;
+  if(pdf&&hang<60){
+    if(!ANTHROPIC_API_KEY){if(job)job.note="Bu PDF rasmli (skan qilingan). Uni o'qish uchun ANTHROPIC_API_KEY kerak.";return []}
+    if(job)job.stage="Skan PDF Claude bilan o'qilmoqda...";
+    const parts=await pdfParts(buf);
+    return (await aiVocab(parts.map(b=>[{type:'document',source:{type:'base64',media_type:'application/pdf',data:b}},{type:'text',text:VOCAB_PROMPT}]),job,"PDF o'qilmoqda")).map(x=>({...x,pos:x.pos||defPos}))}
+  const items=parseText(txt,defPos,auto);
+  if(ANTHROPIC_API_KEY&&items.length>3){
+    const noUz=items.filter(i=>!i.uz).length,lang=txt.split(/\r?\n/).filter(l=>/[가-힣]/.test(l)).length,tpl=(txt.match(/[가-힣]+/g)||[]).length/Math.max(1,lang);
+    if(noUz/items.length>0.6&&tpl>2.5){
+      const parts=[];let c='';for(const l of txt.split(/\r?\n/)){if(c.length+l.length>6000){parts.push(c);c=''}c+=l+'\n'}if(c.trim())parts.push(c);
+      const ai=await aiVocab(parts.slice(0,150).map(t=>[{type:'text',text:VOCAB_PROMPT+'\n\nMATN:\n'+t}]),job,"Matn o'qilmoqda");
+      if(ai.length)return ai.map(x=>({...x,pos:x.pos||defPos}))}}
+  return items}
+async function addWords(job,d,items,levelOf,auto,retr){
   job.stage="Tekshirilmoqda...";
   const todo=items.slice(0,5000).filter(it=>!one('select 1 from words where dict_id=? and ko=?',d.id,it.ko));
   todo.forEach((it,i)=>it.idx=i);job.found=items.length;job.total=todo.length;job.done=0;
@@ -230,13 +199,13 @@ async function addWords(job,d,items,levelOf,auto){
     if(cnt[k]==null)cnt[k]=one('select count(*) n from words where dict_id=? and level=? and pos=?',d.id,lv,it.pos).n;
     ins.run(d.id,lv,it.pos,Math.floor(cnt[k]/d.sec)+1,it.ko,it.uz);cnt[k]++;
     job.perLevel[lv]=(job.perLevel[lv]||0)+1;job.perPos[it.pos]=(job.perPos[it.pos]||0)+1;job.added++}})()};
-  const aiOn=!!AI_KEY,needAI=it=>!it.uz||(auto&&!it.px);
+  const aiOn=!!ANTHROPIC_API_KEY,needAI=it=>!it.uz||(auto&&!it.px)||(retr&&!it.ai);
   const first=todo.filter(it=>it.uz&&!(aiOn&&needAI(it)));put(first);job.done=first.length;
   const fs0=new Set(first);let rest=todo.filter(it=>!fs0.has(it));
-  if(aiOn&&rest.length){job.stage="Tarjima va tur aniqlash (AI)...";
+  if(aiOn&&rest.length){job.stage="Tarjima va tur aniqlash (Claude)...";
     const bs=[];for(let i=0;i<rest.length;i+=50)bs.push(rest.slice(i,i+50));let bi=0;
     const worker=async()=>{while(bi<bs.length){const b=bs[bi++];let o={};try{o=await claudeTranslate(b)}catch{}
-      const ok=[];for(const it of b){const x=o[it.ko];if(x){if(!it.uz&&x.uz){it.uz=x.uz;job.translated++}if(auto&&!it.px&&x.pos){it.pos=x.pos;it.px=true}}if(it.uz)ok.push(it);else it.left=1}
+      const ok=[];for(const it of b){const x=o[it.ko];if(x){if((!it.uz||retr)&&x.uz){it.uz=x.uz;job.translated++}if(auto&&!it.px&&x.pos){it.pos=x.pos;it.px=true}}if(it.uz)ok.push(it);else it.left=1}
       put(ok);job.done+=b.length}};
     await Promise.all(Array.from({length:Math.min(6,bs.length)},worker));rest=rest.filter(it=>it.left)}
   if(rest.length){job.stage="Tarjima (tarjima xizmati)...";const lim=rest.slice(0,600);let ri=0;
@@ -250,21 +219,21 @@ app.get('/api/admin/job/:id',adm('import'),(r,s)=>{const j=jobs[r.params.id];if(
 app.post('/api/admin/import',adm('import'),up.single('file'),(r,s)=>{
   const {dict_id,level=1,pos='ot'}=r.body,d=one('select * from dicts where id=?',dict_id);if(!d||!r.file)return s.status(400).json({e:'bad'});
   const job=newJob(),auto=r.body.auto==='1';s.json({job:job.id});
-  (async()=>{try{const items=await extract(r.file,pos,auto,job);if(!items){job.err="Faylni o'qib bo'lmadi (.doc bo'lsa, .docx yoki PDF qilib saqlang; rasm/skan faqat Gemini bilan o'qiladi)";return}await addWords(job,d,items,()=>+level,auto)}catch(e){job.err=String(e.message||e)}finally{job.fin=true}})()});
+  (async()=>{try{const items=await extract(r.file,pos,auto,job);if(!items){job.err="Faylni o'qib bo'lmadi";return}await addWords(job,d,items,()=>+level,auto,r.body.retr==='1')}catch(e){job.err=String(e.message||e)}finally{job.fin=true}})()});
 app.post('/api/admin/book',adm('import'),up.single('file'),(r,s)=>{
   const b=r.body,name=(b.name||'').trim(),pos=b.pos||'ot';let L=Math.max(1,Math.min(+b.levels||1,30));
   if(!name||!r.file)return s.status(400).json({e:'bad'});
   const cs=String(b.counts||'').split(/[,;\s]+/).map(Number).filter(n=>n>0);if(b.split==='custom'&&!cs.length)return s.status(400).json({e:'counts'});
   const job=newJob(),auto=b.auto==='1';s.json({job:job.id});
-  (async()=>{try{const items=await extract(r.file,pos,auto,job);if(!items){job.err="Faylni o'qib bo'lmadi (.doc bo'lsa, .docx yoki PDF qilib saqlang; rasm/skan faqat Gemini bilan o'qiladi)";return}
+  (async()=>{try{const items=await extract(r.file,pos,auto,job);if(!items){job.err="Faylni o'qib bo'lmadi";return}
     let levelOf;
     if(b.split==='level'){const lv=Math.max(1,+b.level||1);L=Math.max(L,lv);levelOf=()=>lv}
     else if(b.split==='custom'){L=Math.max(L,cs.length);const cum=[];cs.reduce((a,n,i)=>(cum[i]=a+n),0);levelOf=i=>{const k=cum.findIndex(c=>i<c);return k<0?cs.length:k+1}}
     else levelOf=(i,n)=>Math.min(L,Math.floor(i*L/n)+1);
     const id=run('insert into dicts(name,levels,sec) values(?,?,?)',name,L,+b.sec||30).lastInsertRowid,d=one('select * from dicts where id=?',id);job.dict_id=id;
-    await addWords(job,d,items,levelOf,auto)}catch(e){job.err=String(e.message||e)}finally{job.fin=true}})()});
-app.get('/api/admin/status',adm('admins'),(r,s)=>s.json({key:!!AI_KEY,keyLen:(AI_KEY||'').length,provider:USE_GEMINI?'Gemini':'Claude',model:FOXM,bot:!!BOT_TOKEN,webapp:WEBAPP_URL||'',data:DATA}));
-app.post('/api/admin/claude-test',adm('admins'),async(r,s)=>{if(!AI_KEY)return s.json({ok:false,error:"GEMINI_API_KEY serverda ko'rinmayapti. Railway → Variables'ga qo'shing va Deploy bosing. Ikkita loyiha bo'lsa, domen bog'langan loyihaga qo'shing."});
+    await addWords(job,d,items,levelOf,auto,b.retr==='1')}catch(e){job.err=String(e.message||e)}finally{job.fin=true}})()});
+app.get('/api/admin/status',adm('admins'),(r,s)=>s.json({key:!!ANTHROPIC_API_KEY,keyLen:(ANTHROPIC_API_KEY||'').length,model:FOXM,bot:!!BOT_TOKEN,webapp:WEBAPP_URL||'',data:DATA}));
+app.post('/api/admin/claude-test',adm('admins'),async(r,s)=>{if(!ANTHROPIC_API_KEY)return s.json({ok:false,error:"ANTHROPIC_API_KEY serverda ko'rinmayapti. Railway → Variables'ga qo'shing va Deploy bosing. Ikkita loyiha bo'lsa, domen bog'langan loyihaga qo'shing."});
   try{const t=await callClaude([{role:'user',content:"Bir so'z bilan javob ber: tayyormisan?"}],"Qisqa javob ber.",50);s.json({ok:true,reply:t,model:FOXM})}catch(e){s.json({ok:false,error:String(e.message||e)})}});
 
 function resection(id){const d=one('select * from dicts where id=?',id);if(!d)return;const rows=q('select id,level,pos from words where dict_id=? order by id',id),c={};const up=db.prepare('update words set section=? where id=?');db.transaction(()=>{for(const w of rows){const k=w.level+'|'+w.pos;c[k]=c[k]||0;up.run(Math.floor(c[k]/d.sec)+1,w.id);c[k]++}})()}
