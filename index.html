@@ -233,6 +233,45 @@ body{background:linear-gradient(170deg,#d9ecff 0%,#efe6ff 55%,#ffe8f2 100%)}
 .fl .k{--d1:#0cae96;--d2:#0a9482;--d3:#087a6a;background:linear-gradient(145deg,#1de0b4,#1a9bff)}
 .fl .f::before,.fl .k::before{background:radial-gradient(circle at 16% 0%,#ffffff66,transparent 50%),linear-gradient(115deg,transparent 30%,#ffffff55 46%,transparent 62%) var(--sx,110%) 0/260% 100% no-repeat}
 .fl .tx{text-shadow:0 4px 0 #0003,0 8px 14px #0003}
+
+/* ===== v17: o'rtacha ranglar, yorug'liksiz 3D, bir xil kartochka ===== */
+:root{--bg:#f1f3fa;--c:#fff;--bd:#e1e5f0;--edge:#cdd3e4;--mu:#667085;--fg:#1b2033;--pri:#5b6bd6;--pri-d:#3d4bae;--acc:#efa73a;--acc-d:#b5771b}
+@media(prefers-color-scheme:dark){:root{--bg:#12162a;--c:#1c2240;--bd:#2c3558;--edge:#0b0e1d;--mu:#9aa5c8;--fg:#eef1fb}}
+body,body{background:var(--bg)!important}
+main>*{animation:none!important}.fl{animation:cin .18s ease-out}
+button,.card,.book,.tile,.gl,.dk,.opt2,.lv,.chp{will-change:auto}
+.nxt::before,.big2::before,.b::before,.pill::before,.lrn::before,.gold::before,.book::before,.tile::before,.gl::before,.hero::before,.hero::after,.sticker::before,.dk i::after,.fl .f::before,.fl .k::before,.fl .f::after,.fl .k::after,.fl::after{display:none!important;content:none!important}
+.book::after{background:linear-gradient(90deg,#0003,transparent)!important}
+.pt,.h2{background:none!important;-webkit-background-clip:border-box;background-clip:border-box;color:var(--fg)!important}
+.stats b{background:none;color:var(--pri);-webkit-text-fill-color:currentColor}.stats>div::before{background:var(--pri)}.sec::after{background:var(--pri)}
+.nxt,.big2,.b:not(.g){background:var(--pri);color:#fff;box-shadow:0 5px 0 var(--pri-d)}
+.nxt,.big2{border-radius:18px}.b:not(.g){border-radius:14px}
+.nxt:active,.big2:active,.b:not(.g):active{transform:translateY(4px);box-shadow:0 1px 0 var(--pri-d)}
+.pill,.lrn,.gold,.cta button{background:var(--acc);color:#3a2600;box-shadow:0 5px 0 var(--acc-d)}.gold,.cta button{border-radius:18px}
+.pill:active,.lrn:active,.gold:active,.cta button:active{transform:translateY(4px);box-shadow:0 1px 0 var(--acc-d)}
+.lrn.on{background:#35b273;color:#fff;box-shadow:0 5px 0 #23824f}
+.b.g,.backpill,.bkb{background:var(--c);color:var(--fg);border:1px solid var(--bd);box-shadow:0 4px 0 var(--edge)}
+.opt2{border:1px solid var(--bd);box-shadow:0 5px 0 var(--edge)}.opt2:active{transform:translateY(4px);box-shadow:0 1px 0 var(--edge)}
+.opt2.ok{background:#35b273!important;box-shadow:0 5px 0 #23824f}.opt2.no{background:#e0566b!important;box-shadow:0 5px 0 #a63346}
+.opt2 span{background:var(--acc);box-shadow:none}
+.card,.stats>div{border:1px solid var(--bd);box-shadow:0 5px 0 var(--edge)}
+.card .em{background:#fff1d6}.lv{box-shadow:0 4px 0 var(--edge)}.lv.all{background:var(--acc);box-shadow:0 4px 0 var(--acc-d)}
+.chp{box-shadow:0 4px 0 var(--edge)}input,select{box-shadow:0 3px 0 var(--edge)}input:focus,select:focus{box-shadow:0 3px 0 var(--pri);border-color:var(--pri)}
+.hero{background:linear-gradient(135deg,#5b6bd6,#9a5bb8);box-shadow:0 8px 0 #3d4bae}
+.dock .dk i{border-radius:20px;width:58px;height:58px;box-shadow:0 5px 0 #0004}
+.book,.tile,.gl{box-shadow:0 6px 0 #0004}.book{padding-left:20px}
+.vcall{background:linear-gradient(135deg,#5b6bd6,#9a5bb8)!important;box-shadow:0 6px 0 #3d4bae!important}
+.send{background:var(--acc)!important;box-shadow:0 5px 0 var(--acc-d)!important}.bub.me span{background:var(--pri)!important;box-shadow:0 3px 0 var(--pri-d)}.bub.bot span{box-shadow:0 3px 0 var(--edge)}
+/* yagona kartochka: yumaloq burchakli to'rtburchak, qalin 3D plita */
+.fl{margin:24px 8px 18px;perspective:1100px;isolation:isolate}
+.fl::before{content:""!important;display:block!important;position:absolute;inset:0;border-radius:24px;background:var(--pri-d);opacity:.5;transform:translateY(12px) scale(.95);z-index:-1;filter:none;box-shadow:none}
+.fl .f,.fl .k{border:0;border-radius:24px;overflow:hidden;font-size:46px;
+ box-shadow:0 1px 0 var(--d1),0 2px 0 var(--d1),0 3px 0 var(--d1),0 4px 0 var(--d1),0 5px 0 var(--d1),0 6px 0 var(--d1),0 7px 0 var(--d1),0 8px 0 var(--d1),0 9px 0 var(--d1),0 10px 0 var(--d1),0 26px 28px #00000030}
+.fl .f{--d1:#3d4bae;background:var(--pri)}.fl .k{--d1:#1f7a6c;background:#2f9e8c}
+.fl .tx{text-shadow:0 2px 0 #0003}.fl .f small{animation:none;opacity:.85}
+.mc span{border-radius:16px;box-shadow:0 4px 0 #0003}.mf{background:var(--pri)!important}.mb{background:var(--c);box-shadow:0 4px 0 var(--edge)}
+.sticker{border-radius:24px;transform:none;border:0;background:var(--pri);box-shadow:0 9px 0 #3d4bae}
+.fl.on::before{background:var(--pri-d)}
 </style></head><body><div id="hd"></div><main id="m"></main>
 <script>
 const tg=window.Telegram?.WebApp;tg?.ready();tg?.expand();tg?.BackButton?.hide();
@@ -245,11 +284,14 @@ async function api(p,o={}){const h={'x-init':tg?.initData||'','x-dev':dev||''},t
 const esc=t=>String(t??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const POS={ot:'Ot',fel:"Fe'l",ravish:'Ravish',sifat:'Sifat'};
 function speak(t){try{const u=new SpeechSynthesisUtterance(t);u.lang='ko-KR';speechSynthesis.cancel();speechSynthesis.speak(u)}catch{}}
-function playWord(w){if(w&&w.audio){new Audio('/audio/'+w.audio).play().catch(()=>speak(w.ko));return}if(w)speak(w.ko)}
+function playWord(w){if(!w)return;if(w.audio){new Audio('/audio/'+w.audio).play().catch(()=>speak(w.ko));return}
+ if(!w.id||w._vf){speak(w.ko);return}
+ let done=0;const tm=setTimeout(()=>{if(!done){done=1;speak(w.ko)}},3500);
+ api('/word-voice/'+w.id,{body:{}}).then(r=>{if(r&&r.audio)w.audio=r.audio;else w._vf=1;if(done)return;done=1;clearTimeout(tm);if(w.audio)new Audio('/audio/'+w.audio).play().catch(()=>speak(w.ko));else speak(w.ko)}).catch(()=>{w._vf=1;if(!done){done=1;clearTimeout(tm);speak(w.ko)}})}
 const shuf=a=>[...a].sort(()=>Math.random()-.5);
 const D=ms=>ms>Date.now()?new Date(ms).toLocaleDateString():'—';
 const has=p=>me.is_admin==2||(me.is_admin==1&&me.perms.split(',').includes(p));
-const GR=[['#4facfe','#2b6bff'],['#43e97b','#12b886'],['#ff8a8a','#ff3d6e'],['#ffc14d','#ff7a18'],['#c08bff','#6a4cff'],['#2ee6d0','#0891b2']];
+const GR=[['#3f6fc4','#2a4d94'],['#2f9a76','#1d6e53'],['#d4604b','#a8402e'],['#d49a2c','#aa7312'],['#6a5bb8','#46398a'],['#2a9bb0','#1a6f80']];
 function confetti(n=34){const e=['🎉','⭐','✨','🎊','💛','🇰🇷'];for(let i=0;i<n;i++){const s=document.createElement('span');s.className='cf';s.textContent=e[i%e.length];s.style.left=Math.random()*100+'vw';s.style.animationDelay=Math.random()*.7+'s';s.style.fontSize=18+Math.random()*18+'px';document.body.appendChild(s);setTimeout(()=>s.remove(),3600)}}
 // ---------- navigatsiya (bitta "Orqaga" tugma)
 function head(t,bk){S.bk=bk||null;$('#hd').innerHTML=bk?`<button class=backpill onclick="${bk}">← Orqaga</button><h1 class=pt>${t}</h1>`:''}
