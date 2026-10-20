@@ -183,6 +183,22 @@ button{transition:transform .05s linear,box-shadow .05s linear,filter .05s}
 .fl .f small{position:absolute;left:0;right:0;bottom:20px;text-align:center}
 .sticker{font-size:clamp(22px,7.5vw,38px);line-height:1.2;overflow-wrap:anywhere;padding:26px 16px;box-shadow:0 9px 0 #2a1480,0 22px 34px #2a148055,inset 0 2px 0 #fff6}
 .mc span{overflow:hidden;overflow-wrap:anywhere;line-height:1.1;font-size:clamp(11px,3.6vw,17px)!important}.mf{font-size:clamp(15px,5vw,26px)!important}
+
+/* ===== v15: tezlik + chuqur 3D ===== */
+body{background-attachment:scroll}.card,.stats>div,.mas span{backdrop-filter:none}
+main>*{animation-duration:.16s!important}*{-webkit-tap-highlight-color:transparent}
+button,.card,.book,.tile,.gl,.dk,.opt2,.lv,.chp{will-change:transform;touch-action:manipulation}
+.hero{box-shadow:0 10px 0 #4a2fc4,0 24px 36px #4a2fc466,inset 0 2px 0 #fff6}
+.card{box-shadow:0 5px 0 var(--edge),0 12px 20px #6c4cf014}.stats>div{box-shadow:0 5px 0 var(--edge),0 10px 16px #6c4cf010}
+.card[onclick]:active,.stats>div:active{transform:translateY(4px);box-shadow:0 1px 0 var(--edge)}
+.book::after{content:"";position:absolute;left:0;top:0;bottom:0;width:12px;background:linear-gradient(90deg,#0005,#ffffff30 55%,transparent);pointer-events:none}
+.book{padding-left:22px}
+.bub.bot span{box-shadow:0 4px 0 var(--edge)}.bub.me span{box-shadow:0 4px 0 #3a2fb0}
+input,select{box-shadow:inset 0 3px 0 #6c4cf012,0 3px 0 var(--edge)}
+.fl{animation:cin .26s cubic-bezier(.3,1.3,.5,1)}@keyframes cin{from{opacity:0;transform:translateY(26px) scale(.94)}}
+.fl>div{transition:transform .42s cubic-bezier(.3,1.3,.5,1)}
+.fl .f,.fl .k{background-image:linear-gradient(135deg,#ffffff22 0,transparent 40%),var(--fg0)}
+.fl .f{--fg0:linear-gradient(135deg,#6a4cff,#e0508a)}.fl .k{--fg0:linear-gradient(135deg,#0fa57e,#0e8bc4)}
 </style></head><body><div id="hd"></div><main id="m"></main>
 <script>
 const tg=window.Telegram?.WebApp;tg?.ready();tg?.expand();tg?.BackButton?.hide();
@@ -546,7 +562,12 @@ window.moOpts=sel=>[1,2,3,4,5,6,7,8,9,10,11,12,18,24,36].map(n=>`<option value=$
 window.autoVoice=async()=>{const r=await api('/admin/autovoice',{body:{dict_id:+document.getElementById('vd').value}});alert(r.n+" ta so'zga ovoz fonda qo'shilmoqda (bir necha daqiqa ketishi mumkin).")};
 function fitTx(){document.querySelectorAll('.fl .tx').forEach(el=>{const p=el.parentElement;let fs=52;el.style.fontSize=fs+'px';const lim=p.clientHeight-(p.querySelector('small')?84:44);while(el.offsetHeight>lim&&fs>14){fs-=2;el.style.fontSize=fs+'px'}})}
 new MutationObserver(()=>{clearTimeout(window._ft);window._ft=setTimeout(fitTx,30)}).observe(document.body,{childList:true,subtree:true});addEventListener('resize',fitTx);
-(()=>{let x0=0,y0=0,t0=0;document.addEventListener('touchstart',e=>{if(!e.target.closest('.fl'))return;x0=e.touches[0].clientX;y0=e.touches[0].clientY;t0=Date.now()},{passive:true});
-document.addEventListener('touchend',e=>{if(!e.target.closest('.fl')||!window.S||!S.run)return;const t=e.changedTouches[0],dx=t.clientX-x0,dy=t.clientY-y0;
- if(Math.abs(dx)>60&&Math.abs(dx)>Math.abs(dy)*1.5&&Date.now()-t0<800){window._sw=Date.now();hap('medium');if(dx>0){if(S.run.i>0){S.run.i--;step()}}else{S.run.i++;step()}}},{passive:true})})();
+(()=>{let el=null,x0=0,y0=0,dx=0,mv=0;
+document.addEventListener('touchstart',e=>{const f=e.target.closest('.fl');if(!f){el=null;return}el=f;x0=e.touches[0].clientX;y0=e.touches[0].clientY;dx=0;mv=0;f.style.transition='none'},{passive:true});
+document.addEventListener('touchmove',e=>{if(!el)return;dx=e.touches[0].clientX-x0;const dy=e.touches[0].clientY-y0;if(Math.abs(dx)>10&&Math.abs(dx)>Math.abs(dy)){mv=1;el.style.transform=`translateX(${dx*.7}px) rotate(${dx/22}deg)`}},{passive:true});
+document.addEventListener('touchend',()=>{if(!el)return;const f=el;el=null;f.style.transition='transform .2s cubic-bezier(.3,1.2,.5,1),opacity .18s';
+ if(!mv)return;window._sw=Date.now();
+ if(Math.abs(dx)>70&&window.S&&S.run){const nx=dx<0;if(!nx&&S.run.i<=0){f.style.transform='';return}f.style.transform=`translateX(${nx?-440:440}px) rotate(${nx?-18:18}deg)`;f.style.opacity='0';hap('medium');setTimeout(()=>{S.run.i+=nx?1:-1;step()},150)}
+ else f.style.transform=''},{passive:true})})();
+document.addEventListener('touchstart',()=>{},{passive:true});
 </script></body></html>

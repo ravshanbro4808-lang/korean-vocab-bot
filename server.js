@@ -229,27 +229,33 @@ async function extract(file,defPos,auto,job){
     else{let t=buf.toString('utf8');if(buf[0]===0xFF&&buf[1]===0xFE)t=buf.toString('utf16le');else if((t.match(/\uFFFD/g)||[]).length>3){try{t=new TextDecoder('euc-kr').decode(buf)}catch{}}txt=t.replace(/^\uFEFF/,'')}
   }catch{return null}
   const items=[],seen=new Set();let cur='';
-  const hasK=x=>/[가-힣]/.test(x),lat=x=>/[A-Za-z]/.test(x)&&!hasK(x);
+  const hasK=x=>/[가-힣]/.test(x),lat=x=>/\p{L}/u.test(x)&&!hasK(x);
   const add=(ko,uz)=>{ko=ko.trim();uz=uz.trim();let p=cur,px=!!cur;
     const tg=uz.match(/\s*[(\[]\s*([^)\]]+?)\s*[)\]]\s*$/);if(tg&&normPos(tg[1])){p=normPos(tg[1]);px=true;uz=uz.slice(0,tg.index).trim()}
+    uz=uz.replace(/^["“”«»]+|["“”«»]+$/g,'').trim();
     const ps=uz.split(/\s*[,;|\t]\s*/);if(ps.length>1&&normPos(ps[ps.length-1])){p=normPos(ps.pop());px=true;uz=ps.join(', ')}
     if(ko&&uz&&!seen.has(ko)){seen.add(ko);items.push({ko,uz,pos:p||defPos,px})}};
+  const isTab=/\.(xlsx|xls|ods|csv|tsv)$/.test(nm);
+  const csvSplit=(l,c)=>{const o=[];let b='',q=0;for(let i=0;i<l.length;i++){const ch=l[i];if(ch==='"'){if(q&&l[i+1]==='"'){b+='"';i++}else q=!q}else if(!q&&(ch==='\t'||ch===';'||ch==='|'||(c&&ch===','))){o.push(b);b=''}else b+=ch}o.push(b);return o.map(x=>x.trim())};
   const lines=txt.split(/\r?\n/).map(l=>l.replace(/^\s*(\d+[.)]?|[•*·])\s+/,'').trim()).filter(Boolean);
   for(let i=0;i<lines.length;i++){const line=lines[i];
     const hd=normPos(line.replace(/^[^A-Za-z가-힣'’‘`]+|[^A-Za-z가-힣'’‘`]+$/g,''));if(hd&&line.length<30){cur=hd;continue}
+    if(/[\t;|]/.test(line)||(isTab&&line.includes(','))){const cells=csvSplit(line,isTab),ki=cells.findIndex(c=>hasK(c));
+      if(cells.length>=2&&ki>=0){const rest=cells.filter((c,j)=>j!==ki&&c&&!hasK(c)&&/\p{L}/u.test(c)&&!normPos(c)),ps=cells.map(c=>normPos(c)).find(Boolean);
+        if(rest.length){const keep=cur;if(ps)cur=ps;add(cells[ki],rest[0]);cur=keep;continue}}}
     let m=line.match(/^([가-힣][^\-–—:=,;\t|]*?)\s*[\-–—:=]\s*(.+)$/)||line.match(/^([가-힣][^,;\t|]*?)\s*[,;\t|]\s*(.+)$/);
     if(m&&!hasK(m[2])){add(m[1],m[2]);continue}
-    const rv=line.match(/^([A-Za-z'’‘ʻʼ][^가-힣]*?)\s*[\-–—:=\t,;|]\s*([가-힣].*)$/);if(rv&&!hasK(rv[1])){add(rv[2],rv[1]);continue}
+    const rv=line.match(/^([\p{L}'’‘ʻʼ][^가-힣]*?)\s*[\-–—:=\t,;|]\s*([가-힣].*)$/u);if(rv&&!hasK(rv[1])){add(rv[2],rv[1]);continue}
     const pr=line.match(/^([가-힣][가-힣\s~]*?)\s*[(（]\s*([^가-힣()（）]+?)\s*[)）]\s*$/);if(pr&&!normPos(pr[2])){add(pr[1],pr[2]);continue}
-    const sp=line.match(/^([가-힣][가-힣~\s]*?)\s+([A-Za-z'’‘ʻʼ].*)$/);if(sp&&!hasK(sp[2])){add(sp[1],sp[2]);continue}
-    if(hasK(line)&&!/[A-Za-z]/.test(line)&&lines[i+1]&&lat(lines[i+1])&&!normPos(lines[i+1])){add(line,lines[i+1]);i++;continue}
-    for(const w of line.match(/[가-힣]{1,12}/g)||[])if(!seen.has(w)){seen.add(w);items.push({ko:w,uz:'',pos:cur||defPos,px:!!cur})}
+    const sp=line.match(/^([가-힣][가-힣~\s]*?)\s+([\p{L}'’‘ʻʼ].*)$/u);if(sp&&!hasK(sp[2])){add(sp[1],sp[2]);continue}
+    if(hasK(line)&&!/[A-Za-z\u0400-\u04FF]/.test(line)&&lines[i+1]&&lat(lines[i+1])&&!normPos(lines[i+1])){add(line,lines[i+1]);i++;continue}
+    for(const w of line.match(/[가-힣]{1,20}/g)||[])if(!seen.has(w)){seen.add(w);items.push({ko:w,uz:'',pos:cur||defPos,px:!!cur})}
   }
   if(auto)for(const it of items)if(!it.px&&/다$/.test(it.ko))it.pos='fel';
   return await aiWords(items,txt,visual&&{buf,mime:visual},defPos,auto,job)}
 async function addWords(job,d,items,levelOf,auto){
   job.stage="Tekshirilmoqda...";
-  const todo=items.slice(0,5000).filter(it=>!one('select 1 from words where dict_id=? and ko=?',d.id,it.ko));
+  const todo=items.slice(0,20000).filter(it=>!one('select 1 from words where dict_id=? and ko=?',d.id,it.ko));
   todo.forEach((it,i)=>it.idx=i);job.found=items.length;job.total=todo.length;job.done=0;
   const ins=db.prepare('insert into words(dict_id,level,pos,section,ko,uz) values(?,?,?,?,?,?)'),cnt={};
   const put=list=>{db.transaction(()=>{for(const it of list){const lv=levelOf(it.idx,todo.length),k=lv+'|'+it.pos;
@@ -265,9 +271,13 @@ async function addWords(job,d,items,levelOf,auto){
       const ok=[];for(const it of b){const x=o[it.ko];if(x){if(!it.uz&&x.uz){it.uz=x.uz;job.translated++}if(auto&&!it.px&&x.pos){it.pos=x.pos;it.px=true}}if(it.uz)ok.push(it);else it.left=1}
       put(ok);job.done+=b.length}};
     await Promise.all(Array.from({length:Math.min(6,bs.length)},worker));rest=rest.filter(it=>it.left)}
-  if(rest.length){job.stage="Tarjima (tarjima xizmati)...";const lim=rest.slice(0,600);let ri=0;
+  if(aiOn&&rest.length){job.stage="Tarjima (qayta urinish)...";const bs2=[];for(let i=0;i<rest.length;i+=20)bs2.push(rest.slice(i,i+20));let bj=0;
+    const w3=async()=>{while(bj<bs2.length){const b=bs2[bj++];let o={};for(let a=0;a<3&&!Object.keys(o).length;a++){try{o=await claudeTranslate(b)}catch{await new Promise(z=>setTimeout(z,1500))}}
+      const ok=[];for(const it of b){const x=o[it.ko];if(x&&x.uz){it.uz=x.uz;job.translated++;if(auto&&!it.px&&x.pos){it.pos=x.pos;it.px=true}it.left=0;ok.push(it)}}put(ok)}};
+    await Promise.all(Array.from({length:Math.min(4,bs2.length)},w3));rest=rest.filter(it=>it.left)}
+  if(rest.length){job.stage="Tarjima (tarjima xizmati)...";const lim=rest.slice(0,3000);let ri=0;
     const w2=async()=>{while(ri<lim.length){const it=lim[ri++];it.uz=await tr(it.ko);if(it.uz){job.translated++;put([it])}else job.skipped++;job.done++}};
-    await Promise.all(Array.from({length:5},w2));job.skipped+=rest.length-lim.length}
+    await Promise.all(Array.from({length:8},w2));job.skipped+=rest.length-lim.length}
   if(job.ids&&job.ids.length)ttsEnqueue(job.ids);
   job.done=job.total;job.stage="Tayyor (ovozlar fonda avtomatik qo'shilmoqda)";return job}
 const jobs={};
