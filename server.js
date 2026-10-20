@@ -3,7 +3,7 @@ const Database=require('better-sqlite3'),multer=require('multer'),{Telegraf,Mark
 const {OAuth2Client}=require('google-auth-library');
 const {BOT_TOKEN,WEBAPP_URL,ADMIN_IDS='',ADMIN_EMAILS='',GOOGLE_CLIENT_ID,SECRET='change-me',DEV,PORT=3000,TRANSLATE_URL,TRANSLATE_KEY,TRANSLATE_TARGET='uz',ANTHROPIC_API_KEY,GEMINI_API_KEY,GEMINI_MODEL='gemini-3.8-flash',FOX_MODEL='claude-haiku-5-5',GOOGLE_TRANSLATE_KEY,BOT_USERNAME='Koreys_lugat_2026_bot'}=process.env;
 let THINK=process.env.GEMINI_THINKING||'low';const GEMINI_FALLBACK=process.env.GEMINI_FALLBACK_MODEL||'gemini-2.5-flash';const USE_GEMINI=!!GEMINI_API_KEY,AI_KEY=GEMINI_API_KEY||ANTHROPIC_API_KEY;
-const DAY=864e5,PERMS=['dicts','import','tasks','payments','trials','users','plans','methods','admins'];
+const addM=(ts,n)=>{const d=new Date(ts);d.setMonth(d.getMonth()+n);return d.getTime()};const DAY=864e5,PERMS=['dicts','import','tasks','payments','trials','users','plans','methods','admins'];
 const DATA=process.env.DATA_DIR||'.';fs.mkdirSync(DATA+'/uploads',{recursive:true});fs.mkdirSync(DATA+'/audio',{recursive:true});
 const db=new Database(DATA+'/data.db');
 db.exec(`create table if not exists users(id integer primary key,name text,email text unique,is_admin int default 0,perms text default '',paid_until int default 0,trial text default 'none',created int);
@@ -100,7 +100,7 @@ const foxLeft=(u,t)=>u.is_admin?null:Math.max(0,foxLimit(u,t)-(foxUse[foxKey(u,t
 const TTSM=process.env.GEMINI_TTS_MODEL||'gemini-3.8-flash-lite-tts',VOICE=process.env.GEMINI_VOICE||'Kore';
 function wavWrap(pcm,rate){rate=rate||24000;const h=Buffer.alloc(44);h.write('RIFF',0);h.writeUInt32LE(36+pcm.length,4);h.write('WAVEfmt ',8);h.writeUInt32LE(16,16);h.writeUInt16LE(1,20);h.writeUInt16LE(1,22);h.writeUInt32LE(rate,24);h.writeUInt32LE(rate*2,28);h.writeUInt16LE(2,32);h.writeUInt16LE(16,34);h.write('data',36);h.writeUInt32LE(pcm.length,40);return Buffer.concat([h,pcm])}
 async function geminiTTS(text){
-  const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+encodeURIComponent(TTSM)+':generateContent',{method:'POST',signal:AbortSignal.timeout(60000),headers:{'content-type':'application/json','x-goog-api-key':GEMINI_API_KEY},body:JSON.stringify({contents:[{parts:[{text}]}],generationConfig:{responseModalities:['AUDIO'],speechConfig:{voiceConfig:{prebuiltVoiceConfig:{voiceName:VOICE}}}}})});
+  const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+encodeURIComponent(TTSM)+':generateContent',{method:'POST',signal:AbortSignal.timeout(20000),headers:{'content-type':'application/json','x-goog-api-key':GEMINI_API_KEY},body:JSON.stringify({contents:[{parts:[{text}]}],generationConfig:{responseModalities:['AUDIO'],speechConfig:{voiceConfig:{prebuiltVoiceConfig:{voiceName:VOICE}}}}})});
   const j=await r.json();if(!r.ok)throw new Error((j.error&&j.error.message)||('HTTP '+r.status));
   const p=((j.candidates||[])[0]?.content?.parts||[]).find(x=>x.inlineData&&x.inlineData.data);if(!p)throw new Error('audio yoq');
   let b=Buffer.from(p.inlineData.data,'base64');
@@ -139,11 +139,12 @@ app.post('/api/admin/dict/:id',adm('dicts'),(r,s)=>{const b=r.body;
   if(b.sec){run('update dicts set sec=? where id=?',+b.sec,r.params.id);resection(+r.params.id)}
   if(b.del){run('delete from words where dict_id=?',r.params.id);run('delete from dicts where id=?',r.params.id)}s.json({ok:1})});
 let FOXM=USE_GEMINI?GEMINI_MODEL:FOX_MODEL;
-async function callGemini(messages,system,max,model,n=0){
+async function callGemini(messages,system,max,model,n=0){try{return await callGemini0(messages,system,max,model,n)}catch(e){if(n<2&&model!==GEMINI_FALLBACK&&/timeout|aborted|fetch failed/i.test(String(e&&(e.message||e.name))))return callGemini0(messages,system,max,GEMINI_FALLBACK,2);throw e}}
+async function callGemini0(messages,system,max,model,n=0){
   const body={systemInstruction:{parts:[{text:system||''}]},contents:messages.map(m=>({role:m.role==='assistant'?'model':'user',parts:[{text:String(m.content)}]})),generationConfig:{maxOutputTokens:max}};
   if(/gemini-3/i.test(model)){const fast=max<=1000;body.generationConfig.thinkingConfig={thinkingLevel:fast?THINK:'low'};body.generationConfig.maxOutputTokens=max+(fast?400:1500)}
   else if(/gemini-2\.5-flash/i.test(model))body.generationConfig.thinkingConfig={thinkingBudget:0};
-  const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+encodeURIComponent(model)+':generateContent',{method:'POST',signal:AbortSignal.timeout(90000),headers:{'content-type':'application/json','x-goog-api-key':GEMINI_API_KEY},body:JSON.stringify(body)});
+  const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+encodeURIComponent(model)+':generateContent',{method:'POST',signal:AbortSignal.timeout(max<=1000?15000:90000),headers:{'content-type':'application/json','x-goog-api-key':GEMINI_API_KEY},body:JSON.stringify(body)});
   const j=await r.json().catch(()=>({}));
   if(!r.ok){if(/thinking level/i.test((j.error&&j.error.message)||'')&&THINK!=='low'){THINK='low';return callGemini(messages,system,max,model)}const em0=(j.error&&j.error.message)||'';if(n<2&&(r.status===503||r.status===429||/high demand|overload|unavailable/i.test(em0))&&model!==GEMINI_FALLBACK){if(r.status!==429&&n===0){await new Promise(z=>setTimeout(z,1500));return callGemini(messages,system,max,model,1)}return callGemini(messages,system,max,GEMINI_FALLBACK,2)}if(r.status===404&&model!=='gemini-3.8-flash'){const t=await callGemini(messages,system,max,'gemini-3.8-flash');FOXM='gemini-3.8-flash';return t}throw new Error((j.error&&j.error.message)||'api '+r.status)}
   const c=j.candidates&&j.candidates[0];
@@ -160,9 +161,10 @@ async function callClaude(messages,system,max=500,model=FOXM){
 const WPROMPT="Bu fayldan koreys tilidagi barcha so'z va iboralarni lug'at yozuvi sifatida ajratib ol. Tarjima faylning o'zida bo'lsa (so'z yonida, keyingi qatorda, jadval ustunida, qavs ichida; o'zbekcha, ruscha yoki inglizcha, qayerda yozilgan bo'lmasin) shuni o'zbek tiliga (lotin yozuvi) o'tkazib ol; fayl ichida tarjima bo'lmasa, o'zing o'zbek tiliga tarjima qil. Fe'llarni lug'at shaklida (-다) yoz. To'liq gaplarni emas, alohida so'zlarni ol, takrorlama. FAQAT JSON massiv qaytar: [{\"ko\":\"...\",\"uz\":\"...\",\"pos\":\"ot|fel|sifat|ravish|boshqa\"}]";
 function parseWords(t){const out=[];try{JSON.parse(String(t).match(/\[[\s\S]*\]/)[0]).forEach(o=>{if(o&&o.ko&&/[가-힣]/.test(o.ko)&&o.uz)out.push({ko:String(o.ko).trim(),uz:String(o.uz).trim(),pos:normPos(o.pos)})})}catch{}return out}
 function gcfg(model,max,fast){const c={maxOutputTokens:max};if(/gemini-3/i.test(model)){c.thinkingConfig={thinkingLevel:fast?THINK:'low'};c.maxOutputTokens=max+(fast?400:1500)}else if(/gemini-2\.5-flash/i.test(model))c.thinkingConfig={thinkingBudget:0};return c}
-async function geminiRaw(contents,system,cfg,n=0,mdl){
+async function geminiRaw(contents,system,cfg,n=0,mdl){try{return await geminiRaw0(contents,system,cfg,n,mdl)}catch(e){if(n<2&&(mdl||FOXM)!==GEMINI_FALLBACK&&/timeout|aborted|fetch failed/i.test(String(e&&(e.message||e.name)))){const c2=Object.assign({},cfg);delete c2.thinkingConfig;if(/gemini-2\.5-flash/i.test(GEMINI_FALLBACK))c2.thinkingConfig={thinkingBudget:0};return geminiRaw0(contents,system,c2,2,GEMINI_FALLBACK)}throw e}}
+async function geminiRaw0(contents,system,cfg,n=0,mdl){
   const body={contents,generationConfig:cfg};if(system)body.systemInstruction={parts:[{text:system}]};
-  const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+encodeURIComponent(mdl||FOXM)+':generateContent',{method:'POST',signal:AbortSignal.timeout(120000),headers:{'content-type':'application/json','x-goog-api-key':GEMINI_API_KEY},body:JSON.stringify(body)});
+  const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+encodeURIComponent(mdl||FOXM)+':generateContent',{method:'POST',signal:AbortSignal.timeout(cfg.maxOutputTokens<=1500?30000:120000),headers:{'content-type':'application/json','x-goog-api-key':GEMINI_API_KEY},body:JSON.stringify(body)});
   const j=await r.json().catch(()=>({}));
   if(!r.ok){const em=(j.error&&j.error.message)||'api '+r.status;if(/thinking level/i.test(em)&&cfg.thinkingConfig&&cfg.thinkingConfig.thinkingLevel!=='low'){THINK='low';cfg.thinkingConfig.thinkingLevel='low';return geminiRaw(contents,system,cfg)}if(n<2&&(r.status===503||r.status===429||/high demand|overload|unavailable/i.test(em))&&(mdl||FOXM)!==GEMINI_FALLBACK){if(r.status!==429&&n===0){await new Promise(z=>setTimeout(z,1500));return geminiRaw(contents,system,cfg,1,mdl)}const c2=Object.assign({},cfg);delete c2.thinkingConfig;if(/gemini-2\.5-flash/i.test(GEMINI_FALLBACK))c2.thinkingConfig={thinkingBudget:0};return geminiRaw(contents,system,c2,2,GEMINI_FALLBACK)}throw new Error(em)}
   const c=j.candidates&&j.candidates[0];const t=c&&c.content?(c.content.parts||[]).map(x=>x.text||'').join('').trim():'';
@@ -299,7 +301,8 @@ app.post('/api/admin/method',adm('methods'),(r,s)=>{const b=r.body;
 app.get('/api/admin/methods',adm('methods'),(r,s)=>s.json(q('select * from methods')));
 app.get('/api/admin/users',adm('users'),(r,s)=>s.json(q('select id,name,email,is_admin,perms,paid_until,trial,created from users order by created desc')));
 app.post('/api/admin/user',adm('users'),(r,s)=>{const {id,months,grant,revoke}=r.body;
-  if(months)run('update users set paid_until=max(paid_until,?)+? where id=?',Date.now(),months*30*DAY,id);
+  if(+months){const u0=one('select paid_until from users where id=?',id);run('update users set paid_until=? where id=?',addM(Math.max(u0?u0.paid_until:0,Date.now()),Math.round(+months)),id)}
+  if(r.body.cancel)run('update users set paid_until=0 where id=?',id);
   if(grant)run('insert or ignore into access(user_id,dict_id) values(?,?)',id,grant);if(revoke)run('delete from access where user_id=? and dict_id=?',id,revoke);s.json({ok:1})});
 app.post('/api/admin/admin',adm('admins'),(r,s)=>{const {id,email,admin,perms}=r.body;let u=id?one('select * from users where id=?',id):one('select * from users where email=?',(email||'').toLowerCase());
   if(!u&&email){run('insert into users(name,email,created) values(?,?,?)',email,email.toLowerCase(),Date.now());u=one('select * from users where email=?',email.toLowerCase())}
@@ -313,12 +316,13 @@ app.post('/api/admin/trial/:id',adm('trials'),(r,s)=>{const ok=!!r.body.ok,id=r.
   if(ok)run("update users set trial='accepted',paid_until=max(paid_until,?)+? where id=?",Date.now(),30*DAY,id);else run("update users set trial='rejected' where id=?",id);
   tell(id,ok?"✅ So'rov qabul qilindi: 1 oy bepul foydalanasiz!":"❌ Bepul sinov so'rovi rad etildi.");s.json({ok:1})});
 app.post('/api/admin/pay/:id',adm('payments'),(r,s)=>{const p=one('select * from pays where id=?',r.params.id),pl=one('select * from plans where id=?',p.plan_id),ok=!!r.body.ok;
-  run('update pays set status=? where id=?',ok?'accepted':'rejected',p.id);
+  const mo=Math.max(1,Math.min(36,Math.round(+r.body.months||p.months||(pl&&pl.months)||1)));let end=0;
+  run('update pays set status=?,months=? where id=?',ok?'accepted':'rejected',mo,p.id);
   if(ok&&pl){if(pl.dict_id){const a=one('select until from access where user_id=? and dict_id=?',p.user_id,pl.dict_id);
-    if(!a)run('insert into access(user_id,dict_id,until) values(?,?,?)',p.user_id,pl.dict_id,Date.now()+(p.months||pl.months)*30*DAY);
-    else if(a.until!==0)run('update access set until=? where user_id=? and dict_id=?',Math.max(a.until,Date.now())+(p.months||pl.months)*30*DAY,p.user_id,pl.dict_id)}
-  else run('update users set paid_until=max(paid_until,?)+? where id=?',Date.now(),(p.months||pl.months)*30*DAY,p.user_id)}
-  tell(p.user_id,ok?"✅ To'lov qabul qilindi. Obuna faollashtirildi!":"❌ To'lov rad etildi. Qayta yuboring.");s.json({ok:1})});
+    if(!a){end=addM(Date.now(),mo);run('insert into access(user_id,dict_id,until) values(?,?,?)',p.user_id,pl.dict_id,end)}
+    else if(a.until!==0){end=addM(Math.max(a.until,Date.now()),mo);run('update access set until=? where user_id=? and dict_id=?',end,p.user_id,pl.dict_id)}}
+  else{const u0=one('select paid_until from users where id=?',p.user_id);end=addM(Math.max(u0?u0.paid_until:0,Date.now()),mo);run('update users set paid_until=? where id=?',end,p.user_id)}}
+  tell(p.user_id,ok?"✅ To'lov qabul qilindi. Obuna "+mo+" oyga faollashtirildi"+(end?" ("+new Date(end).toLocaleDateString('ru-RU')+" gacha)":"")+"!":"❌ To'lov rad etildi. Qayta yuboring.");s.json({ok:1})});
 // xonalar
 const server=http.createServer(app),io=new Server(server),rooms={};
 const shuffle=a=>a.map(x=>[Math.random(),x]).sort((a,b)=>a[0]-b[0]).map(x=>x[1]);
