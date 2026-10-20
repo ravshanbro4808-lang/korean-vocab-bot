@@ -106,6 +106,15 @@ async function geminiTTS(text){
   let b=Buffer.from(p.inlineData.data,'base64');
   if(b.slice(0,4).toString()!=='RIFF'){const m=String(p.inlineData.mimeType||'').match(/rate=(\d+)/);b=wavWrap(b,m?+m[1]:24000)}
   return b.toString('base64')}
+const ttsQ=[],ttsTry={};let ttsRun=0,ttsPause=0;
+function ttsEnqueue(ids){for(const id of ids)if(!ttsQ.includes(id))ttsQ.push(id);ttsPump()}
+async function ttsPump(){
+  if(!USE_GEMINI||ttsRun>=2||Date.now()<ttsPause)return;const id=ttsQ.shift();if(!id)return;ttsRun++;
+  try{const w=one('select ko,audio from words where id=?',id);if(w&&w.ko&&!w.audio){const b=await geminiTTS(w.ko);const name='w'+id+'_'+Date.now()+'.wav';fs.writeFileSync(DATA+'/audio/'+name,Buffer.from(b,'base64'));run("update words set audio=? where id=? and (audio is null or audio='')",name,id)}}
+  catch(e){ttsTry[id]=(ttsTry[id]||0)+1;if(ttsTry[id]<4){ttsQ.push(id);const d=/quota|429|demand|503|exceed/i.test(String(e.message))?20000:3000;ttsPause=Date.now()+d;setTimeout(ttsPump,d+100)}}
+  finally{ttsRun--;setTimeout(ttsPump,250)}
+  ttsPump()}
+app.post('/api/admin/autovoice',adm('import'),(r,s)=>{const d=+r.body.dict_id;const ids=(d?q('select id from words where dict_id=? and (audio is null or audio=\'\')',d):q("select id from words where audio is null or audio=''")).map(x=>x.id);ttsEnqueue(ids);s.json({ok:1,n:ids.length})});
 app.post('/api/fox-tts',async(r,s)=>{if(!USE_GEMINI)return s.json({e:'tts'});const k=foxKey(r.u,'tts'),cap=r.u.is_admin?1e9:active(r.u)?400:60;
   if((foxUse[k]||0)>=cap)return s.json({e:'tts'});const t=String(r.body.text||'').replace(/[*_#`]/g,'').trim().slice(0,600);if(!t)return s.json({e:'tts'});
   foxUse[k]=(foxUse[k]||0)+1;try{s.json({a:await geminiTTS(t)})}catch(e){foxUse[k]--;s.json({e:'tts',msg:String(e.message||e).slice(0,200)})}});
@@ -245,7 +254,7 @@ async function addWords(job,d,items,levelOf,auto){
   const ins=db.prepare('insert into words(dict_id,level,pos,section,ko,uz) values(?,?,?,?,?,?)'),cnt={};
   const put=list=>{db.transaction(()=>{for(const it of list){const lv=levelOf(it.idx,todo.length),k=lv+'|'+it.pos;
     if(cnt[k]==null)cnt[k]=one('select count(*) n from words where dict_id=? and level=? and pos=?',d.id,lv,it.pos).n;
-    ins.run(d.id,lv,it.pos,Math.floor(cnt[k]/d.sec)+1,it.ko,it.uz);cnt[k]++;
+    const rr=ins.run(d.id,lv,it.pos,Math.floor(cnt[k]/d.sec)+1,it.ko,it.uz);(job.ids=job.ids||[]).push(rr.lastInsertRowid);cnt[k]++;
     job.perLevel[lv]=(job.perLevel[lv]||0)+1;job.perPos[it.pos]=(job.perPos[it.pos]||0)+1;job.added++}})()};
   const aiOn=!!AI_KEY,needAI=it=>!it.uz||(auto&&!it.px);
   const first=todo.filter(it=>it.uz&&!(aiOn&&needAI(it)));put(first);job.done=first.length;
@@ -259,7 +268,8 @@ async function addWords(job,d,items,levelOf,auto){
   if(rest.length){job.stage="Tarjima (tarjima xizmati)...";const lim=rest.slice(0,600);let ri=0;
     const w2=async()=>{while(ri<lim.length){const it=lim[ri++];it.uz=await tr(it.ko);if(it.uz){job.translated++;put([it])}else job.skipped++;job.done++}};
     await Promise.all(Array.from({length:5},w2));job.skipped+=rest.length-lim.length}
-  job.done=job.total;job.stage="Tayyor";return job}
+  if(job.ids&&job.ids.length)ttsEnqueue(job.ids);
+  job.done=job.total;job.stage="Tayyor (ovozlar fonda avtomatik qo'shilmoqda)";return job}
 const jobs={};
 setInterval(()=>{const t=Date.now();for(const k in jobs)if(t-jobs[k].ts>36e5)delete jobs[k]},6e5).unref();
 const newJob=()=>{const id=crypto.randomBytes(6).toString('hex');return jobs[id]={id,stage:"Fayl o'qilmoqda...",found:0,total:0,done:0,added:0,translated:0,skipped:0,perLevel:{},perPos:{},fin:false,err:null,ts:Date.now()}};

@@ -152,6 +152,37 @@ body{letter-spacing:.1px;background:radial-gradient(700px 380px at 90% -5%,#e050
 .fl .f{background:linear-gradient(135deg,#6a4cff,#e0508a)}.fl .k{background:linear-gradient(135deg,#0fa57e,#0e8bc4)}
 .fl .f small{bottom:24px;font-size:14px;font-weight:700;opacity:.9;animation:tapp 1.8s ease-in-out infinite}@keyframes tapp{50%{transform:translateY(-4px);opacity:.6}}
 .mc>div{transition:transform .6s cubic-bezier(.34,1.35,.4,1)}.mc span{border-radius:22px;box-shadow:0 10px 18px #0000002e,inset 0 1px 0 #fff6}.mf{background:linear-gradient(135deg,#6a4cff,#e0508a)}
+
+/* ===== v14: 3D tugmalar, kartochka ichiga sig'dirish ===== */
+:root{--edge:#d3cdee}@media(prefers-color-scheme:dark){:root{--edge:#07051a}}
+button{transition:transform .05s linear,box-shadow .05s linear,filter .05s}
+.nxt,.big2{animation:none;background:linear-gradient(180deg,#9a7bff,#6a4cff);background-size:100%;border-radius:20px;box-shadow:0 7px 0 #4528c2,0 14px 22px #4528c255,inset 0 2px 0 #fff6}
+.nxt:active,.big2:active{transform:translateY(6px);box-shadow:0 1px 0 #4528c2,0 4px 8px #4528c244,inset 0 2px 0 #fff6}
+.b:not(.g){border-radius:16px;background:linear-gradient(180deg,#9a7bff,#6a4cff);box-shadow:0 5px 0 #4528c2,0 10px 16px #4528c240,inset 0 2px 0 #fff6}
+.b:not(.g):active{transform:translateY(4px);box-shadow:0 1px 0 #4528c2,0 3px 6px #4528c240,inset 0 2px 0 #fff6}
+.b.g,.backpill,.bkb{background:var(--c);color:var(--fg);border:1px solid var(--bd);box-shadow:0 5px 0 var(--edge),0 9px 14px #0000000d}
+.b.g:active,.backpill:active,.bkb:active{transform:translateY(4px);box-shadow:0 1px 0 var(--edge)}
+.bkb{border-radius:20px;padding:15px 18px;font-weight:800;font-size:16px;white-space:nowrap;margin:8px 0}
+.navr{display:flex;gap:10px;align-items:stretch}.navr .nxt{margin:8px 0;flex:1}
+.pill{border-radius:16px;box-shadow:0 5px 0 #c27d0c,0 9px 14px #c27d0c44,inset 0 2px 0 #fff9}.pill:active{transform:translateY(4px);box-shadow:0 1px 0 #c27d0c}
+.lrn{border-radius:16px;box-shadow:0 5px 0 #c98a00,0 9px 14px #c98a0044,inset 0 2px 0 #fffa}.lrn.on{box-shadow:0 5px 0 #0e8a50,0 9px 14px #0e8a5044,inset 0 2px 0 #fff6}.lrn:active{transform:translateY(4px);box-shadow:0 1px 0 #c98a00}
+.gold,.cta button{box-shadow:0 7px 0 #b8741e,0 14px 22px #b8741e55,inset 0 2px 0 #fff8}.gold:active,.cta button:active{transform:translateY(6px);box-shadow:0 1px 0 #b8741e}
+.opt2{box-shadow:0 5px 0 var(--edge),0 9px 14px #0000000d}.opt2:active{transform:translateY(4px);box-shadow:0 1px 0 var(--edge)}
+.opt2.ok{box-shadow:0 5px 0 #0e8a50}.opt2.no{box-shadow:0 5px 0 #b02040}
+.lv{box-shadow:0 4px 0 var(--edge)}.lv:active{transform:translateY(3px);box-shadow:0 1px 0 var(--edge)}.lv.all{box-shadow:0 4px 0 #c27d0c}
+.chp{box-shadow:0 4px 0 var(--edge)}.chp:active{transform:translateY(3px);box-shadow:0 1px 0 var(--edge)}
+.send,.vcall,.cb{box-shadow:0 5px 0 #0003,0 9px 14px #0002}.send:active,.cb:active{transform:translateY(4px) rotate(0);box-shadow:0 1px 0 #0003}
+.dock .dk i{box-shadow:0 6px 0 #0004,0 12px 16px #0002,inset 0 2px 0 #fff7;transition:transform .05s linear,box-shadow .05s linear}.dk:active i{transform:translateY(5px);box-shadow:0 1px 0 #0004}
+.book,.tile,.gl{box-shadow:0 7px 0 #0004,0 16px 24px #0002,inset 0 2px 0 #fff5;transition:transform .06s linear,box-shadow .06s linear}.book:active,.tile:active,.gl:active{transform:translateY(6px);box-shadow:0 1px 0 #0004,0 3px 8px #0002,inset 0 2px 0 #fff5}
+.card:active{transform:translateY(2px)}
+.fl .f small{animation:none}.hero::after{animation:none}
+.fl>div{transition:transform .5s cubic-bezier(.3,1.25,.5,1)}
+.fl .f,.fl .k{padding:20px 18px 40px;grid-template-columns:minmax(0,1fr);box-shadow:0 10px 0 #2a1480,0 26px 40px #2a148055,inset 0 2px 0 #fff7,inset 0 -30px 60px #0000001f}
+.fl .k{box-shadow:0 10px 0 #086a63,0 26px 40px #086a6355,inset 0 2px 0 #fff7,inset 0 -30px 60px #0000001f}
+.fl .tx{display:block;width:100%;text-align:center;font-weight:800;line-height:1.18;overflow-wrap:anywhere;word-break:break-word;letter-spacing:-.3px;text-shadow:0 3px 0 #0003}
+.fl .f small{position:absolute;left:0;right:0;bottom:20px;text-align:center}
+.sticker{font-size:clamp(22px,7.5vw,38px);line-height:1.2;overflow-wrap:anywhere;padding:26px 16px;box-shadow:0 9px 0 #2a1480,0 22px 34px #2a148055,inset 0 2px 0 #fff6}
+.mc span{overflow:hidden;overflow-wrap:anywhere;line-height:1.1;font-size:clamp(11px,3.6vw,17px)!important}.mf{font-size:clamp(15px,5vw,26px)!important}
 </style></head><body><div id="hd"></div><main id="m"></main>
 <script>
 const tg=window.Telegram?.WebApp;tg?.ready();tg?.expand();tg?.BackButton?.hide();
@@ -233,8 +264,8 @@ function step(keep){const r=S.run;head('Mashq','leave()');if(r.mode=='speed'&&r.
  if(r.mode=='list')return H(r.w.map(x=>`<div class=card><div><b>${esc(x.ko)}</b><br><small>${esc(x.uz)}</small></div><button class=pill onclick="playWord(S.run.w.find(z=>z.id==${x.id}))">🔊</button>${lrn(x)}</div>`).join(''));
  if(!w||(r.mode=='life'&&r.lives<=0)){clearInterval(S.ti);if(!r.sent){r.sent=1;api('/score',{body:{points:r.score}}).catch(()=>{});confetti()}return H(`${mas("Zo'r natija! 🎉")}<div class=sticker>🏆 ${r.score}${r.mode=='speed'?' ball':' / '+r.w.length}</div><button class=nxt onclick="leave()">Davom etish ➜</button>`)}
  const pr=r.mode=='speed'?`<div class=sp2><b id=tm>⏱ 60</b><span>⭐ ${r.score}</span></div>`:r.mode=='life'?`<div class=sp2><b>${'❤️'.repeat(r.lives)}${'🖤'.repeat(3-r.lives)}</b><span>⭐ ${r.score}</span></div>`:`<div class=pb><i style="width:${Math.round(r.i/r.w.length*100)}%"></i></div>`;
- const nx='<button class=nxt onclick="S.run.i++;step()">Keyingi ➜</button>';
- if(r.mode=='cards')return H(pr+mas("Kartani bosing — tarjimasi ochiladi!")+`<div class=fl onclick="this.classList.toggle('on')"><div><span class=f>${esc(w.ko)}<small>👆 bosing</small></span><span class=k>${esc(w.uz)}</span></div></div><div class=row><button class=pill onclick="playWord(cur())">🔊 Eshitish</button>${lrn(w)}</div><div class=row>${foxBtn}</div>${nx}`);
+ const nx=`<div class=navr>${r.i>0?'<button class=bkb onclick="S.run.i--;step()">⬅ Orqaga</button>':''}<button class=nxt onclick="S.run.i++;step()">Keyingi ➜</button></div>`;
+ if(r.mode=='cards')return H(pr+mas("Kartani bosing — tarjimasi ochiladi!")+`<div class=fl onclick="if(Date.now()-(window._sw||0)>400)this.classList.toggle('on')"><div><span class=f><b class=tx>${esc(w.ko)}</b><small>👆 bosing · ⬅ ➡ suring</small></span><span class=k><b class=tx>${esc(w.uz)}</b></span></div></div><div class=row><button class=pill onclick="playWord(cur())">🔊 Eshitish</button>${lrn(w)}</div><div class=row>${foxBtn}</div>${nx}`);
  if(['test','listen','speed','life','gram'].includes(r.mode)){const o=r.o&&r.oi==r.i?r.o:(r.o=w.opts?shuf(w.opts):opts(w),r.oi=r.i,r.o);if(r.mode=='listen'&&!keep)setTimeout(()=>playWord(cur()),250);
   const top=r.mode=='listen'?mas("Quloq sol 👂 va to'g'ri tarjimani tanla!")+`<div class=spk onclick="playWord(cur())"><i>🔊</i><b></b><b></b></div>`:`<div class=sticker>${esc(w.ko)}${w.h?`<small>${esc(w.h)}</small>`:`<button class=pill onclick="playWord(cur())">🔊</button>`}</div>`;
   return H(pr+top+o.map((t,i)=>`<button class=opt2 onclick="pick(this,${t==w.uz})"><span>${'ABCD'[i]}</span>${esc(t)}</button>`).join('')+(['speed','life','gram'].includes(r.mode)?'':`<div class=row>${lrn(w)}${foxBtn}</div>`))}
@@ -468,7 +499,7 @@ async function vAdmin(){const sec=[],d=await api('/dicts'),ops=d.map(x=>`<option
  H(`<div class=hero><i class=kr>설정</i><small>Boshqaruv paneli</small><h2>⚙️ Sozlamalar</h2></div><div class=tiles>`+sec.map((h,i)=>{const t=(h.match(/<b>(.*?)<\/b>/)||[0,"📦 Bo'lim"])[1],sp=t.indexOf(' ');return `<div class=tile style="background:linear-gradient(145deg,${G2[i%G2.length]})" onclick="S.admOpen=${i};vAdmin()"><em>${t.slice(0,sp)}</em><b>${t.slice(sp+1)}</b></div>`}).join('')+'</div>')}
 // ---------- ovoz yozish: kitob → daraja → tur → bo'lim
 const VW={};
-function voiceCard(d){return `<div class=card><b>🎙 Ovoz yozish</b><div class=s>Kitob → daraja → so'z turi → bo'lim tanlang, so'ng har bir so'z uchun ovozingizni yozing. Foydalanuvchi «Tinglash»da sizning ovozingizni eshitadi.</div><select id=vd onchange="vTree()">${d.map(x=>`<option value=${x.id}>${esc(x.name)}</option>`).join('')}</select><select id=vl onchange="vTree(1)"></select><select id=vp onchange="vTree(2)"></select><select id=vs></select><button class=big2 onclick="loadVoice()">📋 So'zlarni ko'rsat</button><div id=vlist></div></div>`}
+function voiceCard(d){return `<div class=card><b>🎙 Ovoz yozish</b><div class=s>Kitob → daraja → so'z turi → bo'lim tanlang, so'ng har bir so'z uchun ovozingizni yozing. Foydalanuvchi «Tinglash»da sizning ovozingizni eshitadi.</div><select id=vd onchange="vTree()">${d.map(x=>`<option value=${x.id}>${esc(x.name)}</option>`).join('')}</select><select id=vl onchange="vTree(1)"></select><select id=vp onchange="vTree(2)"></select><select id=vs></select><button class=big2 onclick="loadVoice()">📋 So'zlarni ko'rsat</button><button class=big2 onclick="autoVoice()">🤖 Ovozsiz so'zlarga avto ovoz qo'shish</button><div id=vlist></div></div>`}
 async function vTree(stage){const id=$('#vd').value;if(!id)return;if(!S.vt||S.vt.id!=id||!stage){const t=await api('/tree/'+id);S.vt={id,rows:t.rows}}
  const R=S.vt.rows,lv=[...new Set(R.map(r=>r.level))].sort((a,b)=>a-b);
  if(!stage)$('#vl').innerHTML='<option value="">Barcha darajalar</option>'+lv.map(l=>`<option>${l}</option>`).join('');
@@ -511,4 +542,11 @@ document.addEventListener('pointerdown',e=>{if(e.target.closest('button,.card,.b
 try{const _sc=speechSynthesis.cancel.bind(speechSynthesis);speechSynthesis.cancel=()=>{try{S.fox&&S.fox.audio&&S.fox.audio.pause()}catch{}_sc()}}catch{}
 
 window.moOpts=sel=>[1,2,3,4,5,6,7,8,9,10,11,12,18,24,36].map(n=>`<option value=${n} ${n==sel?'selected':''}>${n<12||n==18?n+' oy':n==12?'12 oy (1 yil)':(n/12)+' yil'}</option>`).join('');
+
+window.autoVoice=async()=>{const r=await api('/admin/autovoice',{body:{dict_id:+document.getElementById('vd').value}});alert(r.n+" ta so'zga ovoz fonda qo'shilmoqda (bir necha daqiqa ketishi mumkin).")};
+function fitTx(){document.querySelectorAll('.fl .tx').forEach(el=>{const p=el.parentElement;let fs=52;el.style.fontSize=fs+'px';const lim=p.clientHeight-(p.querySelector('small')?84:44);while(el.offsetHeight>lim&&fs>14){fs-=2;el.style.fontSize=fs+'px'}})}
+new MutationObserver(()=>{clearTimeout(window._ft);window._ft=setTimeout(fitTx,30)}).observe(document.body,{childList:true,subtree:true});addEventListener('resize',fitTx);
+(()=>{let x0=0,y0=0,t0=0;document.addEventListener('touchstart',e=>{if(!e.target.closest('.fl'))return;x0=e.touches[0].clientX;y0=e.touches[0].clientY;t0=Date.now()},{passive:true});
+document.addEventListener('touchend',e=>{if(!e.target.closest('.fl')||!window.S||!S.run)return;const t=e.changedTouches[0],dx=t.clientX-x0,dy=t.clientY-y0;
+ if(Math.abs(dx)>60&&Math.abs(dx)>Math.abs(dy)*1.5&&Date.now()-t0<800){window._sw=Date.now();hap('medium');if(dx>0){if(S.run.i>0){S.run.i--;step()}}else{S.run.i++;step()}}},{passive:true})})();
 </script></body></html>
