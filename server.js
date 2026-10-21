@@ -2,7 +2,8 @@ const express=require('express'),crypto=require('crypto'),fs=require('fs'),http=
 const Database=require('better-sqlite3'),multer=require('multer'),{Telegraf,Markup}=require('telegraf'),{Server}=require('socket.io');
 const {OAuth2Client}=require('google-auth-library');
 const {BOT_TOKEN,WEBAPP_URL,ADMIN_IDS='',ADMIN_EMAILS='',GOOGLE_CLIENT_ID,SECRET='change-me',DEV,PORT=3000,TRANSLATE_URL,TRANSLATE_KEY,TRANSLATE_TARGET='uz',ANTHROPIC_API_KEY,GEMINI_API_KEY,GEMINI_MODEL='gemini-3.8-flash',FOX_MODEL='claude-haiku-5-5',GOOGLE_TRANSLATE_KEY,BOT_USERNAME='Koreys_lugat_2026_bot'}=process.env;
-let THINK=process.env.GEMINI_THINKING||'low';const GEMINI_FALLBACK=process.env.GEMINI_FALLBACK_MODEL||'gemini-3.6-flash';const USE_GEMINI=!!GEMINI_API_KEY,AI_KEY=GEMINI_API_KEY||ANTHROPIC_API_KEY;
+let THINK=process.env.GEMINI_THINKING||'low';const FALLBACKS=(process.env.GEMINI_FALLBACK_MODEL||'gemini-3.6-flash,gemini-3.5-flash-lite,gemini-3.1-flash-lite').split(',').map(x=>x.trim()).filter(Boolean),GEMINI_FALLBACK=FALLBACKS[0],BUSY=/quota|429|exceed|demand|overload|unavailable|timeout|aborted|fetch failed|not found|no longer available|404|rate/i;
+const friendlyErr=m=>{m=String(m||'');return /quota|exceed|429|rate/i.test(m)?"Gemini kunlik limiti tugadi (bepul tarif). Birozdan keyin urinib ko'ring yoki Google AI Studio'da billing ulang.":/demand|overload|unavailable|503/i.test(m)?"Gemini hozir band. Birozdan keyin urinib ko'ring.":/timeout|aborted|fetch failed/i.test(m)?"Gemini javob bermadi. Qayta urinib ko'ring.":m.slice(0,160)};const USE_GEMINI=!!GEMINI_API_KEY,AI_KEY=GEMINI_API_KEY||ANTHROPIC_API_KEY;
 const addM=(ts,n)=>{const d=new Date(ts);d.setMonth(d.getMonth()+n);return d.getTime()};const DAY=864e5,PERMS=['dicts','import','tasks','payments','trials','users','plans','methods','admins'];
 const DATA=process.env.DATA_DIR||'.';fs.mkdirSync(DATA+'/uploads',{recursive:true});fs.mkdirSync(DATA+'/audio',{recursive:true});
 const db=new Database(DATA+'/data.db');
@@ -92,36 +93,45 @@ async function askFox(messages,words){
   const ms=messages.slice(-8).map(m=>({role:m.role==='assistant'?'assistant':'user',content:String(m.content).slice(0,1500)}));
   while(ms.length&&ms[0].role==='assistant')ms.shift();if(!ms.length)return {e:'bad'};
   const sys=FOXSYS+(words&&words.length?"\nHozir foydalanuvchi shu so'zlarni mashq qilmoqda: "+words.slice(0,20).map(w=>w.ko+' = '+w.uz).join('; ')+". Shu so'zlardan foydalanib qisqa savol-javob yoki dialog qil.":'');
-  try{return {reply:await callClaude(ms,sys,800)}}catch(e){return {e:'api',msg:String(e.message||e)}}}
+  try{return {reply:await callClaude(ms,sys,800)}}catch(e){return {e:'api',msg:friendlyErr(e.message||e)}}}
 const LIM={chat:[15,150],voice:[5,150]};// [bepul, obunachi] kuniga
 const foxLimit=(u,t='chat')=>u.is_admin?1e9:LIM[t][active(u)?1:0];
 const foxKey=(u,t)=>u.id+':'+t+':'+Math.floor(Date.now()/DAY);
 const foxLeft=(u,t)=>u.is_admin?null:Math.max(0,foxLimit(u,t)-(foxUse[foxKey(u,t)]||0));
 const TTSM=process.env.GEMINI_TTS_MODEL||'gemini-3.8-flash-lite-tts',VOICE=process.env.GEMINI_VOICE||'Kore';
 function wavWrap(pcm,rate){rate=rate||24000;const h=Buffer.alloc(44);h.write('RIFF',0);h.writeUInt32LE(36+pcm.length,4);h.write('WAVEfmt ',8);h.writeUInt32LE(16,16);h.writeUInt16LE(1,20);h.writeUInt16LE(1,22);h.writeUInt32LE(rate,24);h.writeUInt32LE(rate*2,28);h.writeUInt16LE(2,32);h.writeUInt16LE(16,34);h.write('data',36);h.writeUInt32LE(pcm.length,40);return Buffer.concat([h,pcm])}
-async function geminiTTS(text){
-  const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+encodeURIComponent(TTSM)+':generateContent',{method:'POST',signal:AbortSignal.timeout(20000),headers:{'content-type':'application/json','x-goog-api-key':GEMINI_API_KEY},body:JSON.stringify({contents:[{parts:[{text}]}],generationConfig:{responseModalities:['AUDIO'],speechConfig:{voiceConfig:{prebuiltVoiceConfig:{voiceName:VOICE}}}}})});
+async function geminiTTS(text,mdl){
+  const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+encodeURIComponent(mdl||TTSM)+':generateContent',{method:'POST',signal:AbortSignal.timeout(20000),headers:{'content-type':'application/json','x-goog-api-key':GEMINI_API_KEY},body:JSON.stringify({contents:[{parts:[{text}]}],generationConfig:{responseModalities:['AUDIO'],speechConfig:{voiceConfig:{prebuiltVoiceConfig:{voiceName:VOICE}}}}})});
   const j=await r.json();if(!r.ok)throw new Error((j.error&&j.error.message)||('HTTP '+r.status));
   const p=((j.candidates||[])[0]?.content?.parts||[]).find(x=>x.inlineData&&x.inlineData.data);if(!p)throw new Error('audio yoq');
   let b=Buffer.from(p.inlineData.data,'base64');
   if(b.slice(0,4).toString()!=='RIFF'){const m=String(p.inlineData.mimeType||'').match(/rate=(\d+)/);b=wavWrap(b,m?+m[1]:24000)}
   return b.toString('base64')}
+async function geminiTTSany(text){let le;for(const m of [...new Set([TTSM,'gemini-3.8-flash-tts','gemini-3.8-flash-lite-tts'])]){try{return await geminiTTS(text,m)}catch(e){le=e;if(!/404|not found|no longer|unsupported|invalid/i.test(String(e.message)))throw e}}throw le}
+let gemTtsOff=0;
+async function wordAudio(ko){if(USE_GEMINI&&Date.now()>gemTtsOff){try{return {b:Buffer.from(await geminiTTSany(ko),'base64'),ext:'wav'}}catch(e){if(/quota|exceed|429|demand|404|not found/i.test(String(e.message)))gemTtsOff=Date.now()+30*60000}}
+  const r=await fetch('https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=ko&q='+encodeURIComponent(ko),{headers:{'user-agent':'Mozilla/5.0'},signal:AbortSignal.timeout(10000)});if(!r.ok)throw new Error('tts '+r.status);const b=Buffer.from(await r.arrayBuffer());if(b.length<500)throw new Error('tts bosh');return {b,ext:'mp3'}}
+const PENDING="⏳ tarjima kutilmoqda";let trBusy=0;
+async function trFill(){if(trBusy)return;trBusy=1;try{const rows=q("select id,ko from words where uz=? limit 40",PENDING);if(!rows.length)return;let o={};if(AI_KEY){try{o=await claudeTranslate(rows.map(x=>({ko:x.ko})))}catch{}}
+  let tc=0;for(const w of rows){let uz=o[w.ko]&&o[w.ko].uz;if(!uz&&tc<12){tc++;uz=await tr(w.ko)}if(uz)run('update words set uz=? where id=? and uz=?',uz,w.id,PENDING)}}catch{}finally{trBusy=0}}
+setInterval(trFill,60000).unref();setTimeout(trFill,20000).unref();
+setInterval(()=>{if(ttsQ.length<10){ttsEnqueue(q("select id from words where audio is null or audio='' limit 40").map(x=>x.id).filter(id=>(ttsTry[id]||0)<8))}},120000).unref();
 const ttsQ=[],ttsTry={};let ttsRun=0,ttsPause=0;
 function ttsEnqueue(ids){for(const id of ids)if(!ttsQ.includes(id))ttsQ.push(id);ttsPump()}
 async function ttsPump(){
-  if(!USE_GEMINI||ttsRun>=3||Date.now()<ttsPause)return;const id=ttsQ.shift();if(!id)return;ttsRun++;
-  try{const w=one('select ko,audio from words where id=?',id);if(w&&w.ko&&!w.audio){const b=await geminiTTS(w.ko);const name='w'+id+'_'+Date.now()+'.wav';fs.writeFileSync(DATA+'/audio/'+name,Buffer.from(b,'base64'));run("update words set audio=? where id=? and (audio is null or audio='')",name,id)}}
-  catch(e){ttsTry[id]=(ttsTry[id]||0)+1;if(ttsTry[id]<4){ttsQ.push(id);const d=/quota|429|demand|503|exceed/i.test(String(e.message))?20000:3000;ttsPause=Date.now()+d;setTimeout(ttsPump,d+100)}}
+  if(ttsRun>=3||Date.now()<ttsPause)return;const id=ttsQ.shift();if(!id)return;ttsRun++;
+  try{const w=one('select ko,audio from words where id=?',id);if(w&&w.ko&&!w.audio){const a=await wordAudio(w.ko);const name='w'+id+'_'+Date.now()+'.'+a.ext;fs.writeFileSync(DATA+'/audio/'+name,a.b);run("update words set audio=? where id=? and (audio is null or audio='')",name,id)}}
+  catch(e){ttsTry[id]=(ttsTry[id]||0)+1;if(ttsTry[id]<8){ttsQ.push(id);const d=/quota|429|demand|503|exceed/i.test(String(e.message))?20000:5000;ttsPause=Date.now()+d;setTimeout(ttsPump,d+100)}}
   finally{ttsRun--;setTimeout(ttsPump,250)}
   ttsPump()}
 app.post('/api/admin/autovoice',adm('import'),(r,s)=>{const d=+r.body.dict_id;const ids=(d?q('select id from words where dict_id=? and (audio is null or audio=\'\')',d):q("select id from words where audio is null or audio=''")).map(x=>x.id);ttsEnqueue(ids);s.json({ok:1,n:ids.length})});
 const ttsBusy=new Map();
-app.post('/api/word-voice/:id',async(r,s)=>{const w=one('select id,ko,audio from words where id=?',r.params.id);if(!w)return s.json({e:'yoq'});if(w.audio)return s.json({audio:w.audio});if(!USE_GEMINI)return s.json({e:'tts'});
-  try{let p=ttsBusy.get(w.id);if(!p){p=(async()=>{const b=await geminiTTS(w.ko);const name='w'+w.id+'_'+Date.now()+'.wav';fs.writeFileSync(DATA+'/audio/'+name,Buffer.from(b,'base64'));run("update words set audio=? where id=? and (audio is null or audio='')",name,w.id);return one('select audio from words where id=?',w.id).audio})();ttsBusy.set(w.id,p);p.finally(()=>ttsBusy.delete(w.id)).catch(()=>{})}
+app.post('/api/word-voice/:id',async(r,s)=>{const w=one('select id,ko,audio from words where id=?',r.params.id);if(!w)return s.json({e:'yoq'});if(w.audio)return s.json({audio:w.audio});
+  try{let p=ttsBusy.get(w.id);if(!p){p=(async()=>{const a=await wordAudio(w.ko);const name='w'+w.id+'_'+Date.now()+'.'+a.ext;fs.writeFileSync(DATA+'/audio/'+name,a.b);run("update words set audio=? where id=? and (audio is null or audio='')",name,w.id);return one('select audio from words where id=?',w.id).audio})();ttsBusy.set(w.id,p);p.finally(()=>ttsBusy.delete(w.id)).catch(()=>{})}
     s.json({audio:await p})}catch(e){s.json({e:'tts'})}});
 app.post('/api/fox-tts',async(r,s)=>{if(!USE_GEMINI)return s.json({e:'tts'});const k=foxKey(r.u,'tts'),cap=r.u.is_admin?1e9:active(r.u)?400:60;
   if((foxUse[k]||0)>=cap)return s.json({e:'tts'});const t=String(r.body.text||'').replace(/[*_#`]/g,'').trim().slice(0,600);if(!t)return s.json({e:'tts'});
-  foxUse[k]=(foxUse[k]||0)+1;try{s.json({a:await geminiTTS(t)})}catch(e){foxUse[k]--;s.json({e:'tts',msg:String(e.message||e).slice(0,200)})}});
+  foxUse[k]=(foxUse[k]||0)+1;try{s.json({a:await geminiTTSany(t)})}catch(e){foxUse[k]--;s.json({e:'tts',msg:String(e.message||e).slice(0,200)})}});
 app.post('/api/fox',async(r,s)=>{const k=foxKey(r.u,'chat');if((foxUse[k]||0)>=foxLimit(r.u,'chat'))return s.json({e:'limit',left:0});foxUse[k]=(foxUse[k]||0)+1;
   const ms=(r.body.messages||[]).filter(m=>m&&m.content);const o=await askFox(ms,Array.isArray(r.body.words)?r.body.words:[]);if(o.e==='api')foxUse[k]--;o.left=foxLeft(r.u,'chat');s.json(o)});
 const VOICESYS="\nFoydalanuvchi ovozli xabar yubordi (o'zbek yoki koreys tilida). Avval u nima deganini aniq yozib ol, keyin unga javob ber. FAQAT JSON qaytar: {\"heard\":\"foydalanuvchi aytgan gap (o'z tilida)\",\"reply\":\"javobing\"}. Javob ovoz bilan o'qiladi: 1-3 qisqa gap yoz, *, #, emoji ishlatma, koreys so'zining lotincha o'qilishini qavs ichida yozma. Agar hech narsa eshitilmasa yoki faqat shovqin bo'lsa, heard ni bo'sh qoldir.";
@@ -134,7 +144,7 @@ app.post('/api/fox-voice',up.single('audio'),async(r,s)=>{
   try{const t=await geminiVoice(ms,sys,buf);let o={};try{o=JSON.parse(t)}catch{try{o=JSON.parse(t.match(/\{[\s\S]*\}/)[0])}catch{}}
     const heard=String(o.heard||'').trim(),reply=String(o.reply||'').trim();
     if(!heard||!reply){foxUse[k]--;return s.json({e:'nohear'})}
-    s.json({heard,reply,left:foxLeft(r.u,'voice')})}catch(e){foxUse[k]--;s.json({e:'api',msg:String(e.message||e)})}});
+    s.json({heard,reply,left:foxLeft(r.u,'voice')})}catch(e){foxUse[k]--;s.json({e:'api',msg:friendlyErr(e.message||e)})}});
 app.get('/api/tasks',(r,s)=>s.json(q('select t.*,d.name dname from tasks t join dicts d on d.id=t.dict_id')));
 // bepul sinov (1 oy) so'rovi
 app.post('/api/trial',(r,s)=>{if(r.u.trial!=='none')return s.json({trial:r.u.trial});run("update users set trial='pending' where id=?",r.u.id);s.json({trial:'pending'})});
@@ -152,14 +162,14 @@ app.post('/api/admin/dict/:id',adm('dicts'),(r,s)=>{const b=r.body;
   if(b.sec){run('update dicts set sec=? where id=?',+b.sec,r.params.id);resection(+r.params.id)}
   if(b.del){run('delete from words where dict_id=?',r.params.id);run('delete from dicts where id=?',r.params.id)}s.json({ok:1})});
 let FOXM=USE_GEMINI?GEMINI_MODEL:FOX_MODEL;
-async function callGemini(messages,system,max,model,n=0){try{return await callGemini0(messages,system,max,model,n)}catch(e){if(n<2&&model!==GEMINI_FALLBACK&&/timeout|aborted|fetch failed/i.test(String(e&&(e.message||e.name)))){try{return await callGemini0(messages,system,max,GEMINI_FALLBACK,2)}catch(e2){throw e}}throw e}}
+async function callGemini(messages,system,max,model,n=0){try{return await callGemini0(messages,system,max,model,n)}catch(e){if(n>=2||!BUSY.test(String(e&&(e.message||e.name))))throw e;for(const fm of FALLBACKS){if(fm===model)continue;try{return await callGemini0(messages,system,max,fm,2)}catch(e2){if(!BUSY.test(String(e2&&(e2.message||e2.name))))throw e2}}throw e}}
 async function callGemini0(messages,system,max,model,n=0){
   const body={systemInstruction:{parts:[{text:system||''}]},contents:messages.map(m=>({role:m.role==='assistant'?'model':'user',parts:[{text:String(m.content)}]})),generationConfig:{maxOutputTokens:max}};
   if(/gemini-3/i.test(model)){const fast=max<=1000;body.generationConfig.thinkingConfig={thinkingLevel:fast?THINK:'low'};body.generationConfig.maxOutputTokens=max+(fast?400:1500)}
   else if(/gemini-2\.5-flash/i.test(model))body.generationConfig.thinkingConfig={thinkingBudget:0};
   const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+encodeURIComponent(model)+':generateContent',{method:'POST',signal:AbortSignal.timeout(max<=1000?15000:90000),headers:{'content-type':'application/json','x-goog-api-key':GEMINI_API_KEY},body:JSON.stringify(body)});
   const j=await r.json().catch(()=>({}));
-  if(!r.ok){if(/thinking level/i.test((j.error&&j.error.message)||'')&&THINK!=='low'){THINK='low';return callGemini(messages,system,max,model)}const em0=(j.error&&j.error.message)||'';if(n<2&&(r.status===503||r.status===429||/high demand|overload|unavailable/i.test(em0))&&model!==GEMINI_FALLBACK){if(r.status!==429&&n===0){await new Promise(z=>setTimeout(z,1500));return callGemini(messages,system,max,model,1)}try{return await callGemini(messages,system,max,GEMINI_FALLBACK,2)}catch(e2){throw new Error(em0||'Gemini band, birozdan keyin urinib koring')}}if(r.status===404&&model!=='gemini-3.8-flash'){const t=await callGemini(messages,system,max,'gemini-3.8-flash');FOXM='gemini-3.8-flash';return t}throw new Error((j.error&&j.error.message)||'api '+r.status)}
+  if(!r.ok){if(/thinking level/i.test((j.error&&j.error.message)||'')&&THINK!=='low'){THINK='low';return callGemini(messages,system,max,model)}const em0=(j.error&&j.error.message)||'';if(n===0&&r.status===503){await new Promise(z=>setTimeout(z,1500));return callGemini0(messages,system,max,model,1)}if(r.status===404&&n<2&&model!=='gemini-3.8-flash'){const t=await callGemini(messages,system,max,'gemini-3.8-flash');FOXM='gemini-3.8-flash';return t}throw new Error((j.error&&j.error.message)||'api '+r.status)}
   const c=j.candidates&&j.candidates[0];
   if(!c||!c.content){throw new Error((j.promptFeedback&&j.promptFeedback.blockReason)?'Gemini javobni blokladi: '+j.promptFeedback.blockReason:'Gemini bo\'sh javob qaytardi')}
   return (c.content.parts||[]).map(x=>x.text||'').join('').trim()}
@@ -174,12 +184,12 @@ async function callClaude(messages,system,max=500,model=FOXM){
 const WPROMPT="Bu fayldan koreys tilidagi barcha so'z va iboralarni lug'at yozuvi sifatida ajratib ol. Tarjima faylning o'zida bo'lsa (so'z yonida, keyingi qatorda, jadval ustunida, qavs ichida; o'zbekcha, ruscha yoki inglizcha, qayerda yozilgan bo'lmasin) shuni o'zbek tiliga (lotin yozuvi) o'tkazib ol; fayl ichida tarjima bo'lmasa, o'zing o'zbek tiliga tarjima qil. Fe'llarni lug'at shaklida (-다) yoz. To'liq gaplarni emas, alohida so'zlarni ol, takrorlama. FAQAT JSON massiv qaytar: [{\"ko\":\"...\",\"uz\":\"...\",\"pos\":\"ot|fel|sifat|ravish|boshqa\"}]";
 function parseWords(t){const out=[];try{JSON.parse(String(t).match(/\[[\s\S]*\]/)[0]).forEach(o=>{if(o&&o.ko&&/[가-힣]/.test(o.ko)&&o.uz)out.push({ko:String(o.ko).trim(),uz:String(o.uz).trim(),pos:normPos(o.pos)})})}catch{}return out}
 function gcfg(model,max,fast){const c={maxOutputTokens:max};if(/gemini-3/i.test(model)){c.thinkingConfig={thinkingLevel:fast?THINK:'low'};c.maxOutputTokens=max+(fast?400:1500)}else if(/gemini-2\.5-flash/i.test(model))c.thinkingConfig={thinkingBudget:0};return c}
-async function geminiRaw(contents,system,cfg,n=0,mdl){try{return await geminiRaw0(contents,system,cfg,n,mdl)}catch(e){if(n<2&&(mdl||FOXM)!==GEMINI_FALLBACK&&/timeout|aborted|fetch failed/i.test(String(e&&(e.message||e.name)))){const c2=Object.assign({},cfg);delete c2.thinkingConfig;c2.thinkingConfig=/gemini-3/i.test(GEMINI_FALLBACK)?{thinkingLevel:'low'}:{thinkingBudget:0};try{return await geminiRaw0(contents,system,c2,2,GEMINI_FALLBACK)}catch(e2){throw e}}throw e}}
+async function geminiRaw(contents,system,cfg,n=0,mdl){try{return await geminiRaw0(contents,system,cfg,n,mdl)}catch(e){if(n>=2||!BUSY.test(String(e&&(e.message||e.name))))throw e;for(const fm of FALLBACKS){if(fm===(mdl||FOXM))continue;const c2=Object.assign({},cfg);c2.thinkingConfig=/gemini-3/i.test(fm)?{thinkingLevel:'low'}:{thinkingBudget:0};try{return await geminiRaw0(contents,system,c2,2,fm)}catch(e2){if(!BUSY.test(String(e2&&(e2.message||e2.name))))throw e2}}throw e}}
 async function geminiRaw0(contents,system,cfg,n=0,mdl){
   const body={contents,generationConfig:cfg};if(system)body.systemInstruction={parts:[{text:system}]};
   const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+encodeURIComponent(mdl||FOXM)+':generateContent',{method:'POST',signal:AbortSignal.timeout(cfg.maxOutputTokens<=1500?30000:120000),headers:{'content-type':'application/json','x-goog-api-key':GEMINI_API_KEY},body:JSON.stringify(body)});
   const j=await r.json().catch(()=>({}));
-  if(!r.ok){const em=(j.error&&j.error.message)||'api '+r.status;if(/thinking level/i.test(em)&&cfg.thinkingConfig&&cfg.thinkingConfig.thinkingLevel!=='low'){THINK='low';cfg.thinkingConfig.thinkingLevel='low';return geminiRaw(contents,system,cfg)}if(n<2&&(r.status===503||r.status===429||/high demand|overload|unavailable/i.test(em))&&(mdl||FOXM)!==GEMINI_FALLBACK){if(r.status!==429&&n===0){await new Promise(z=>setTimeout(z,1500));return geminiRaw(contents,system,cfg,1,mdl)}const c2=Object.assign({},cfg);delete c2.thinkingConfig;c2.thinkingConfig=/gemini-3/i.test(GEMINI_FALLBACK)?{thinkingLevel:'low'}:{thinkingBudget:0};try{return await geminiRaw(contents,system,c2,2,GEMINI_FALLBACK)}catch(e2){throw new Error(em)}}throw new Error(em)}
+  if(!r.ok){const em=(j.error&&j.error.message)||'api '+r.status;if(/thinking level/i.test(em)&&cfg.thinkingConfig&&cfg.thinkingConfig.thinkingLevel!=='low'){THINK='low';cfg.thinkingConfig.thinkingLevel='low';return geminiRaw(contents,system,cfg)}if(n===0&&r.status===503){await new Promise(z=>setTimeout(z,1500));return geminiRaw0(contents,system,cfg,1,mdl)}throw new Error(em)}
   const c=j.candidates&&j.candidates[0];const t=c&&c.content?(c.content.parts||[]).map(x=>x.text||'').join('').trim():'';
   if(!t)throw new Error("Gemini bo'sh javob qaytardi");return t}
 const geminiFile=(buf,mime,prompt,max)=>geminiRaw([{role:'user',parts:[{inlineData:{mimeType:mime,data:buf.toString('base64')}},{text:prompt}]}],'',gcfg(FOXM,max));
@@ -199,13 +209,13 @@ async function aiWords(items,txt,vis,defPos,auto,job){
     if(vis){if(!USE_GEMINI){if(job)job.aiErr="GEMINI_API_KEY topilmadi";return null}if(job)job.stage="AI fayldan so'zlarni qidiryapti...";
       const rgs=[];if(vis.mime==='application/pdf'&&vis.pages>10){for(let p=1;p<=vis.pages;p+=10)rgs.push([p,Math.min(vis.pages,p+9)])}else rgs.push(null);
       let ri=0,dn=0,lastE='';const wv=async()=>{while(ri<rgs.length){const rg=rgs[ri++],pr=WPROMPT+(rg?"\n\nFAQAT PDFning "+rg[0]+"-"+rg[1]+"-sahifalaridagi so'zlarni ol.":"");
-        for(let a=0;a<3;a++){try{got.push(...parseWords(await geminiFile(vis.buf,vis.mime,pr,16000)));break}catch(e){lastE=String(e&&e.message||e).slice(0,220);await new Promise(z=>setTimeout(z,2000))}}
+        for(let a=0;a<3;a++){try{got.push(...parseWords(await geminiFile(vis.buf,vis.mime,pr,16000)));break}catch(e){lastE=friendlyErr(e&&e.message||e);await new Promise(z=>setTimeout(z,2000))}}
         dn++;if(job)job.stage="AI fayldan so'zlarni qidiryapti ("+dn+"/"+rgs.length+")..."}};
       await Promise.all(Array.from({length:Math.min(4,rgs.length)},wv));if(!got.length&&job)job.aiErr=lastE||"AI fayldan so'z topa olmadi"}
     else{const cs=[];for(let i=0;i<Math.min(txt.length,150000);i+=8000)cs.push(txt.slice(i,i+8000));let ci=0,dn=0;
-      const w=async()=>{while(ci<cs.length){const c=cs[ci++];if(/[가-힣]/.test(c)){try{got.push(...parseWords(await callClaude([{role:'user',content:WPROMPT+"\n\n"+c}],"Sen koreys-o'zbek lug'at tuzuvchisan.",6000)))}catch(e){if(job)job.aiErr=String(e&&e.message||e).slice(0,220)}}dn++;if(job)job.stage="AI fayldan so'zlarni qidiryapti ("+dn+"/"+cs.length+")..."}};
+      const w=async()=>{while(ci<cs.length){const c=cs[ci++];if(/[가-힣]/.test(c)){try{got.push(...parseWords(await callClaude([{role:'user',content:WPROMPT+"\n\n"+c}],"Sen koreys-o'zbek lug'at tuzuvchisan.",6000)))}catch(e){if(job)job.aiErr=friendlyErr(e&&e.message||e)}}dn++;if(job)job.stage="AI fayldan so'zlarni qidiryapti ("+dn+"/"+cs.length+")..."}};
       await Promise.all(Array.from({length:Math.min(8,cs.length)},w))}
-  }catch(e){if(job)job.aiErr=String(e&&e.message||e).slice(0,220)}
+  }catch(e){if(job)job.aiErr=friendlyErr(e&&e.message||e)}
   if(!got.length)return vis?null:items;
   const seen=new Set(),out=[];
   for(const g of got)if(!seen.has(g.ko)){seen.add(g.ko);out.push({ko:g.ko,uz:g.uz,pos:(auto&&g.pos)||defPos,px:!!(auto&&g.pos)})}
@@ -233,7 +243,7 @@ async function extract(file,defPos,auto,job){
     else if(/\.(html?|xml)$/.test(nm))txt=buf.toString('utf8').replace(/<(script|style)[\s\S]*?<\/\1>/gi,'').replace(/<br\s*\/?>|<\/(p|div|li|tr|h\d)>/gi,'\n').replace(/<[^>]+>/g,' ');
     else if(/\.(pptx|odt|odp|epub)$/.test(nm)){const z=await require('jszip').loadAsync(buf);let o='';for(const n of Object.keys(z.files).sort()){if(!z.files[n].dir&&/^ppt\/slides\/slide\d+\.xml$|^content\.xml$|\.x?html?$/.test(n))o+=(await z.files[n].async('string')).replace(/<\/(a:p|text:p|text:h|p|div|h\d|li|tr)>|<br\s*\/?>/gi,'\n').replace(/<\/(td|th|a:tc|table:table-cell)>/gi,'\t').replace(/<[^>]+>/g,'').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;|&apos;/g,"'")+'\n'}txt=o}
     else if(/\.rtf$/.test(nm)){const dc=new TextDecoder('euc-kr');txt=buf.toString('latin1').replace(/(?:\\'[0-9a-f]{2})+/gi,m=>dc.decode(Buffer.from(m.replace(/\\'/g,''),'hex'))).replace(/\\u(-?\d+)\??/g,(m,n)=>String.fromCharCode(n<0?+n+65536:+n)).replace(/\\pard?\b/g,'\n').replace(/\\[a-z]+-?\d* ?|[{}]/gi,'')}
-    else if(/\.doc$/.test(nm))throw new Error('doc')
+    else if(/\.doc$/.test(nm)){txt=(buf.toString('utf16le').match(/[\u0009\u000d\u0020-\u007e\u00a0-\u052f\u1100-\u11ff\u3130-\u318f\uac00-\ud7af\u2018-\u201f\u2013\u2014]{2,}/g)||[]).map(x=>x.replace(/\r/g,'\n')).join('\n')}
     else if(/\.(png|jpe?g|webp|heic|heif)$/.test(nm)){if(buf.length<15e6)visual='image/'+(/jpe?g$/.test(nm)?'jpeg':nm.split('.').pop())}
     else{let t=buf.toString('utf8');if(buf[0]===0xFF&&buf[1]===0xFE)t=buf.toString('utf16le');else if((t.match(/\uFFFD/g)||[]).length>3){try{t=new TextDecoder('euc-kr').decode(buf)}catch{}}txt=t.replace(/^\uFEFF/,'')}
   }catch{return null}
@@ -285,8 +295,9 @@ async function addWords(job,d,items,levelOf,auto){
       const ok=[];for(const it of b){const x=o[it.ko];if(x&&x.uz){it.uz=x.uz;job.translated++;if(auto&&!it.px&&x.pos){it.pos=x.pos;it.px=true}it.left=0;ok.push(it)}}put(ok)}};
     await Promise.all(Array.from({length:Math.min(4,bs2.length)},w3));rest=rest.filter(it=>it.left)}
   if(rest.length){job.stage="Tarjima (tarjima xizmati)...";const lim=rest.slice(0,3000);let ri=0;
-    const w2=async()=>{while(ri<lim.length){const it=lim[ri++];it.uz=await tr(it.ko);if(it.uz){job.translated++;put([it])}else job.skipped++;job.done++}};
-    await Promise.all(Array.from({length:8},w2));job.skipped+=rest.length-lim.length}
+    const w2=async()=>{while(ri<lim.length){const it=lim[ri++];it.uz=await tr(it.ko);if(it.uz){job.translated++;put([it])}job.done++}};
+    await Promise.all(Array.from({length:8},w2));rest=rest.filter(it=>!it.uz)}
+  if(rest.length){for(const it of rest)it.uz=PENDING;put(rest);job.pending=rest.length;setTimeout(trFill,5000)}
   if(job.ids&&job.ids.length)ttsEnqueue(job.ids);
   job.done=job.total;job.stage="Tayyor (ovozlar fonda avtomatik qo'shilmoqda)";return job}
 const jobs={};

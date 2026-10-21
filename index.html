@@ -272,6 +272,30 @@ button,.card,.book,.tile,.gl,.dk,.opt2,.lv,.chp{will-change:auto}
 .mc span{border-radius:16px;box-shadow:0 4px 0 #0003}.mf{background:var(--pri)!important}.mb{background:var(--c);box-shadow:0 4px 0 var(--edge)}
 .sticker{border-radius:24px;transform:none;border:0;background:var(--pri);box-shadow:0 9px 0 #3d4bae}
 .fl.on::before{background:var(--pri-d)}
+
+/* ===== v18: rang-barang, yaxshilangan kartochka ===== */
+.fl{--k:#4a78d4;--kd:#2f55a8}
+.fl.c0{--k:#4a78d4;--kd:#2f55a8}.fl.c1{--k:#2b9a8a;--kd:#1c6f63}.fl.c2{--k:#dc6552;--kd:#a8402f}.fl.c3{--k:#8a62c9;--kd:#5f3d99}.fl.c4{--k:#4b9e52;--kd:#2f7236}.fl.c5{--k:#d98f2b;--kd:#a56612}
+.fl::before{background:var(--kd)!important;opacity:.45!important}.fl.on::before{background:var(--kd)!important}
+.fl .f,.fl .k{--d1:var(--kd);padding:56px 22px 54px;outline-offset:-12px}
+.fl .f{background:radial-gradient(#00000014 1.4px,transparent 1.7px) 0 0/16px 16px,var(--k)!important;color:#fff;outline:2px dashed #ffffff44}
+.fl .k{background:radial-gradient(#00000010 1.4px,transparent 1.7px) 0 0/16px 16px,var(--c)!important;color:var(--kd);outline:2px dashed var(--k)}
+.fl .k .tx{color:var(--kd);text-shadow:none}.fl .f .tx{color:#fff}
+.chip1,.chip2{position:absolute;top:20px;font-style:normal;font-size:12.5px;font-weight:700;padding:4px 11px;border-radius:999px;z-index:2}
+.chip1{left:22px}.chip2{right:22px}.fl .f .chip1,.fl .f .chip2{background:#00000030;color:#fff}.fl .k .chip1{background:var(--k);color:#fff}.fl .k .chip2{background:#0000000f;color:var(--kd)}
+.fl .f small{color:#fff;opacity:.85}
+.fl.c0~.navr .nxt,.fl.c0~.row .lrn:not(.on){background:#4a78d4;box-shadow:0 5px 0 #2f55a8}.fl.c1~.navr .nxt{background:#2b9a8a;box-shadow:0 5px 0 #1c6f63}.fl.c2~.navr .nxt{background:#dc6552;box-shadow:0 5px 0 #a8402f}
+.fl.c3~.navr .nxt{background:#8a62c9;box-shadow:0 5px 0 #5f3d99}.fl.c4~.navr .nxt{background:#4b9e52;box-shadow:0 5px 0 #2f7236}.fl.c5~.navr .nxt{background:#d98f2b;box-shadow:0 5px 0 #a56612}
+.fl~.navr .nxt:active{transform:translateY(4px);box-shadow:none}
+.pill{background:#4a86e0;color:#fff;box-shadow:0 5px 0 #2f62ae}.pill.fx{background:#8a62c9;box-shadow:0 5px 0 #5f3d99}
+.pill:active{box-shadow:0 1px 0 #2f62ae}.pill.fx:active{box-shadow:0 1px 0 #5f3d99}
+.stats>div:nth-child(1)::before{background:#4a78d4}.stats>div:nth-child(2)::before{background:#2b9a8a}.stats>div:nth-child(3)::before{background:#d98f2b}.stats>div:nth-child(4)::before{background:#8a62c9}
+.stats>div:nth-child(1) b{color:#4a78d4}.stats>div:nth-child(2) b{color:#2b9a8a}.stats>div:nth-child(3) b{color:#d98f2b}.stats>div:nth-child(4) b{color:#8a62c9}
+.opt2:nth-of-type(4n+1) span{background:#4a78d4;color:#fff}.opt2:nth-of-type(4n+2) span{background:#2b9a8a;color:#fff}.opt2:nth-of-type(4n+3) span{background:#d98f2b;color:#fff}.opt2:nth-of-type(4n+4) span{background:#8a62c9;color:#fff}
+.hero{background:linear-gradient(135deg,#4a78d4,#8a62c9);box-shadow:0 8px 0 #34459a}
+.vcall{background:linear-gradient(135deg,#8a62c9,#dc6552)!important;box-shadow:0 6px 0 #5f3d99!important}
+.bub span{overflow-wrap:anywhere;word-break:break-word;min-width:0}.bub{min-width:0}
+.vcc{flex:1;min-height:0;max-height:none;margin:10px 0;overflow:auto}.vcf{overflow-wrap:anywhere;font-size:clamp(15px,4.6vw,20px)}.vcu{overflow-wrap:anywhere}
 </style></head><body><div id="hd"></div><main id="m"></main>
 <script>
 const tg=window.Telegram?.WebApp;tg?.ready();tg?.expand();tg?.BackButton?.hide();
@@ -350,14 +374,14 @@ const sim=(a,b)=>{a=a.replace(/[\s.,!?]/g,'');b=b.replace(/[\s.,!?]/g,'');return
 async function mark(id,on){await api('/learned',{body:{id,on}});const x=S.run.w.find(w=>w.id==id);x.learned=on;if(on)confetti(10);step(true)}
 function opts(w){const o=shuf(S.run.w.filter(x=>x.id!=w.id)).slice(0,3).map(x=>x.uz);return shuf([w.uz,...o])}
 function ask1(){const w=cur();nav(foxChat,[w],`«${w.ko}» (${w.uz}) so'zini tushuntir va misol keltir.`)}
-const foxBtn='<button class=pill onclick="ask1()">🦊 Tulkidan so\'ra</button>';
+const foxBtn='<button class="pill fx" onclick="ask1()">🦊 Tulkidan so\'ra</button>';
 function step(keep){const r=S.run;head('Mashq','leave()');if(r.mode=='speed'&&r.i>=r.w.length&&Date.now()<r.deadline){r.w=shuf(r.w);r.i=0}
  const w=r.w[r.i];
  if(r.mode=='list')return H(r.w.map(x=>`<div class=card><div><b>${esc(x.ko)}</b><br><small>${esc(x.uz)}</small></div><button class=pill onclick="playWord(S.run.w.find(z=>z.id==${x.id}))">🔊</button>${lrn(x)}</div>`).join(''));
  if(!w||(r.mode=='life'&&r.lives<=0)){clearInterval(S.ti);if(!r.sent){r.sent=1;api('/score',{body:{points:r.score}}).catch(()=>{});confetti()}return H(`${mas("Zo'r natija! 🎉")}<div class=sticker>🏆 ${r.score}${r.mode=='speed'?' ball':' / '+r.w.length}</div><button class=nxt onclick="leave()">Davom etish ➜</button>`)}
  const pr=r.mode=='speed'?`<div class=sp2><b id=tm>⏱ 60</b><span>⭐ ${r.score}</span></div>`:r.mode=='life'?`<div class=sp2><b>${'❤️'.repeat(r.lives)}${'🖤'.repeat(3-r.lives)}</b><span>⭐ ${r.score}</span></div>`:`<div class=pb><i style="width:${Math.round(r.i/r.w.length*100)}%"></i></div>`;
  const nx=`<div class=navr>${r.i>0?'<button class=bkb onclick="S.run.i--;step()">⬅ Orqaga</button>':''}<button class=nxt onclick="S.run.i++;step()">Keyingi ➜</button></div>`;
- if(r.mode=='cards')return H(pr+mas("Kartani bosing — tarjimasi ochiladi!")+`<div class=fl onclick="if(Date.now()-(window._sw||0)>400)this.classList.toggle('on')"><div><span class=f><b class=tx>${esc(w.ko)}</b><small>👆 bosing · ⬅ ➡ suring</small></span><span class=k><b class=tx>${esc(w.uz)}</b></span></div></div><div class=row><button class=pill onclick="playWord(cur())">🔊 Eshitish</button>${lrn(w)}</div><div class=row>${foxBtn}</div>${nx}`);
+ if(r.mode=='cards')return H(pr+mas("Kartani bosing — tarjimasi ochiladi!")+`<div class="fl c${r.i%6}" onclick="if(Date.now()-(window._sw||0)>400)this.classList.toggle('on')"><div><span class=f><i class=chip1>${esc(POS[w.pos]||'So\'z')}</i><i class=chip2>${r.i+1} / ${r.w.length}</i><b class=tx>${esc(w.ko)}</b><small>👆 bosing · ⬅ ➡ suring</small></span><span class=k><i class=chip1>O'zbekcha</i><i class=chip2>${r.i+1} / ${r.w.length}</i><b class=tx>${esc(w.uz)}</b></span></div></div><div class=row><button class=pill onclick="playWord(cur())">🔊 Eshitish</button>${lrn(w)}</div><div class=row>${foxBtn}</div>${nx}`);
  if(['test','listen','speed','life','gram'].includes(r.mode)){const o=r.o&&r.oi==r.i?r.o:(r.o=w.opts?shuf(w.opts):opts(w),r.oi=r.i,r.o);if(r.mode=='listen'&&!keep)setTimeout(()=>playWord(cur()),250);
   const top=r.mode=='listen'?mas("Quloq sol 👂 va to'g'ri tarjimani tanla!")+`<div class=spk onclick="playWord(cur())"><i>🔊</i><b></b><b></b></div>`:`<div class=sticker>${esc(w.ko)}${w.h?`<small>${esc(w.h)}</small>`:`<button class=pill onclick="playWord(cur())">🔊</button>`}</div>`;
   return H(pr+top+o.map((t,i)=>`<button class=opt2 onclick="pick(this,${t==w.uz})"><span>${'ABCD'[i]}</span>${esc(t)}</button>`).join('')+(['speed','life','gram'].includes(r.mode)?'':`<div class=row>${lrn(w)}${foxBtn}</div>`))}
