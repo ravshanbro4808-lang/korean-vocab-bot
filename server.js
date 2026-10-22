@@ -21,8 +21,14 @@ create table if not exists methods(id integer primary key autoincrement,name tex
 create table if not exists scores(user_id int,name text,week int,pts int default 0,primary key(user_id,week));
 create table if not exists pays(id integer primary key autoincrement,user_id int,plan_id int,method_id int,file text,status text default 'pending',ts int);`);
 for(const m0 of ['alter table words add column audio text','alter table access add column until int default 0','alter table plans add column dict_id int default 0',"alter table tasks add column pos text default ''",'alter table tasks add column section int default 0','alter table plans add column monthly int default 0','alter table pays add column months int default 0'])try{db.exec(m0)}catch{}
+db.exec(`create table if not exists lvnames(dict_id int,level int,name text,primary key(dict_id,level));
+create table if not exists poss(key text primary key,name text,ko text default '',ord int default 0);`);
+if(!db.prepare('select 1 from poss').get()){const ip=db.prepare('insert into poss(key,name,ko,ord) values(?,?,?,?)');[['ot','Ot','명사'],['fel',"Fe'l (harakat)",'동사'],['sifat','Sifat (holat)','형용사'],['ravish','Ravish','부사'],['olmosh','Olmosh','대명사'],['son','Son','수사'],['yordamchi',"Ko'makchi / yordamchi",'조사']].forEach((p,i)=>ip.run(p[0],p[1],p[2],i))}
 if(!one0('select 1 from methods'))for(const n of['Click','Payme','Karta'])db.prepare('insert into methods(name,number,holder) values(?,?,?)').run(n,'','');
 function one0(s){return db.prepare(s).get()}
+let possC=0,possL=[];const getPoss=()=>{if(Date.now()>possC){possL=db.prepare('select * from poss order by ord,rowid').all();possC=Date.now()+3000}return possL};
+const DEFLV=["Boshlang'ich","O'rta","Yuqori"];
+const lvList=d=>{const m={};db.prepare('select level,name from lvnames where dict_id=?').all(d.id).forEach(r=>m[r.level]=r.name);return Array.from({length:d.levels||1},(_,i)=>({level:i+1,name:m[i+1]||DEFLV[i]||(i+1)+'-daraja'}))};
 const q=(s,...a)=>db.prepare(s).all(...a),one=(s,...a)=>db.prepare(s).get(...a),run=(s,...a)=>db.prepare(s).run(...a);
 const ownerIds=ADMIN_IDS.split(',').filter(Boolean).map(Number),ownerMail=ADMIN_EMAILS.toLowerCase().split(',').filter(Boolean);
 const sign=id=>{const e=Date.now()+30*DAY,b=id+'.'+e;return b+'.'+crypto.createHmac('sha256',SECRET).update(b).digest('hex')};
@@ -62,7 +68,8 @@ app.get('/api/methods',(r,s)=>s.json(q('select * from methods where on_=1')));
 app.get('/api/dicts',(r,s)=>s.json(q('select * from dicts').map(d=>({...d,ok:can(r.u,d)}))));
 app.get('/api/tree/:id',(r,s)=>{const d=one('select * from dicts where id=?',r.params.id);
   if(!d||!can(r.u,d))return s.status(402).json({e:'pay'});
-  s.json({d,rows:q('select level,pos,section,count(*) n from words where dict_id=? group by 1,2,3',d.id)})});
+  s.json({d,levels:lvList(d),rows:q('select level,pos,section,count(*) n from words where dict_id=? group by 1,2,3',d.id)})});
+app.get('/api/poss',(r,s)=>s.json(getPoss()));
 app.get('/api/words',(r,s)=>{const {dict,level,pos,section,mode}=r.query;
   const d=one('select * from dicts where id=?',dict);if(!d||!can(r.u,d))return s.status(402).json({e:'pay'});
   let sql='select w.*,(l.word_id is not null) learned from words w left join learned l on l.word_id=w.id and l.user_id=? where w.dict_id=?';
@@ -157,6 +164,36 @@ app.post('/api/pay',up.single('shot'),(r,s)=>{const b=r.body,pl=one('select * fr
   run('insert into pays(user_id,plan_id,method_id,file,ts,months) values(?,?,?,?,?,?)',r.u.id,pl.id,b.method_id,r.file.filename,Date.now(),m);s.json({ok:1})});
 app.get('/api/mypay',(r,s)=>s.json(q('select id,status,ts from pays where user_id=? order by id desc limit 5',r.u.id)));
 // admin
+// ---- darajalar (nomi bilan) va so'z turkumlarini boshqarish
+function relevel(id,from,to){db.prepare('update words set level=? where dict_id=? and level=?').run(to,id,from)}
+app.post('/api/admin/level',adm('dicts'),(r,s)=>{const b=r.body,id=+b.dict_id,d=one('select * from dicts where id=?',id);if(!d)return s.status(400).json({e:'bad'});
+  const name=String(b.name||'').trim();
+  db.transaction(()=>{
+    if(b.add){const n=d.levels+1;run('update dicts set levels=? where id=?',n,id);if(name)run('insert or replace into lvnames values(?,?,?)',id,n,name)}
+    else if(b.del){const L=+b.del;if(d.levels<=1||L<1||L>d.levels)throw new Error('bad');
+      const mv=Math.min(Math.max(+b.move_to||(L>1?L-1:2),1),d.levels);
+      if(mv!==L)relevel(id,L,mv);
+      for(let k=L+1;k<=d.levels;k++){run('update words set level=? where dict_id=? and level=?',k-1,id,k)}
+      const nm=db.prepare('select level,name from lvnames where dict_id=?').all(id);run('delete from lvnames where dict_id=?',id);
+      for(const x of nm){if(x.level===L)continue;run('insert into lvnames values(?,?,?)',id,x.level>L?x.level-1:x.level,x.name)}
+      run('update dicts set levels=? where id=?',d.levels-1,id);
+      run('delete from tasks where dict_id=? and level=?',id,L);run('update tasks set level=level-1 where dict_id=? and level>?',id,L)}
+    else if(+b.level){const L=+b.level;if(L<1||L>d.levels)throw new Error('bad');if(name)run('insert or replace into lvnames values(?,?,?)',id,L,name);else run('delete from lvnames where dict_id=? and level=?',id,L)}
+  })();
+  if(b.del)resection(id);s.json({ok:1,levels:lvList(one('select * from dicts where id=?',id))})});
+app.post('/api/admin/words-level',adm('dicts'),(r,s)=>{const b=r.body,id=+b.dict_id,d=one('select * from dicts where id=?',id),to=+b.to_level;if(!d||!(to>=1&&to<=d.levels))return s.status(400).json({e:'bad'});
+  let n=0;
+  if(Array.isArray(b.ids)&&b.ids.length){const u=db.prepare('update words set level=? where id=? and dict_id=?');db.transaction(()=>{for(const w of b.ids)n+=u.run(to,+w,id).changes})()}
+  else{let sql='update words set level=? where dict_id=?';const a=[to,id];for(const k of ['level','pos','section'])if(b['from_'+k]){sql+=` and ${k}=?`;a.push(b['from_'+k])}n=run(sql,...a).changes}
+  resection(id);s.json({ok:1,n})});
+app.post('/api/admin/pos',adm('dicts'),(r,s)=>{const b=r.body,name=String(b.name||'').trim(),ko=String(b.ko||'').trim();
+  if(b.del){const k=String(b.del);if(one('select 1 from words where pos=? limit 1',k))return s.status(400).json({e:"Bu turkumda so'zlar bor. Avval so'zlarni boshqa turkumga o'tkazing."});run('delete from poss where key=?',k)}
+  else if(b.key){if(!name)return s.status(400).json({e:'bad'});run('update poss set name=?,ko=? where key=?',name,ko,String(b.key))}
+  else{if(!name)return s.status(400).json({e:'bad'});let k=name.toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'')||'t'+Date.now();if(/^\d/.test(k))k='k'+k;while(one('select 1 from poss where key=?',k))k+='_';
+    run('insert into poss(key,name,ko,ord) values(?,?,?,?)',k,name,ko,(one('select coalesce(max(ord),0)+1 n from poss').n))}
+  possC=0;s.json({ok:1,poss:getPoss()})});
+app.post('/api/admin/tts-test',adm('admins'),async(r,s)=>{if(!USE_GEMINI)return s.json({ok:false,error:"GEMINI_API_KEY yo'q — ovozli javob brauzer ovozi bilan ishlaydi."});
+  try{const a=await geminiTTSany("안녕하세요. Salom!");s.json({ok:true,a,model:TTSM})}catch(e){s.json({ok:false,error:friendlyErr(e.message||e)})}});
 app.post('/api/admin/dict',adm('dicts'),(r,s)=>{run('insert into dicts(name,levels,sec) values(?,?,?)',r.body.name,+r.body.levels||1,+r.body.sec||30);s.json({ok:1})});
 app.post('/api/admin/dict/:id',adm('dicts'),(r,s)=>{const b=r.body;
   if('free'in b)run('update dicts set free=? where id=?',b.free?1:0,r.params.id);
@@ -184,8 +221,11 @@ async function callAnthropic(messages,system,max,model){
 async function callClaude(messages,system,max=500,model=FOXM){
   if(!AI_KEY)return null;
   return USE_GEMINI?callGemini(messages,system,max,model):callAnthropic(messages,system,max,model)}
+const wp=()=>WPROMPT.replace("ot|fel|sifat|ravish|boshqa",posKeys());
 const WPROMPT="Bu fayldan koreys tilidagi barcha so'z va iboralarni lug'at yozuvi sifatida ajratib ol. Tarjima faylning o'zida bo'lsa (so'z yonida, keyingi qatorda, jadval ustunida, qavs ichida; o'zbekcha, ruscha yoki inglizcha, qayerda yozilgan bo'lmasin) shuni o'zbek tiliga (lotin yozuvi) o'tkazib ol; fayl ichida tarjima bo'lmasa, o'zing o'zbek tiliga tarjima qil. Fe'llarni lug'at shaklida (-다) yoz. To'liq gaplarni emas, alohida so'zlarni ol, takrorlama. FAQAT JSON massiv qaytar: [{\"ko\":\"...\",\"uz\":\"...\",\"pos\":\"ot|fel|sifat|ravish|boshqa\"}]";
-function parseWords(t){const out=[];try{JSON.parse(String(t).match(/\[[\s\S]*\]/)[0]).forEach(o=>{if(o&&o.ko&&/[가-힣]/.test(o.ko)&&o.uz)out.push({ko:String(o.ko).trim(),uz:String(o.uz).trim(),pos:normPos(o.pos)})})}catch{}return out}
+function parseWords(t){const out=[],add=o=>{if(o&&o.ko&&/[가-힣]/.test(o.ko)&&o.uz)out.push({ko:String(o.ko).trim(),uz:String(o.uz).trim(),pos:normPos(o.pos)})};t=String(t||'');
+  try{JSON.parse(t.match(/\[[\s\S]*\]/)[0]).forEach(add);return out}catch{}
+  for(const m of t.match(/\{[^{}]*\}/g)||[])try{add(JSON.parse(m))}catch{}return out}
 function gcfg(model,max,fast){const c={maxOutputTokens:max};if(/gemini-3/i.test(model)){c.thinkingConfig={thinkingLevel:fast?THINK:'low'};c.maxOutputTokens=max+(fast?400:1500)}else if(/gemini-2\.5-flash/i.test(model))c.thinkingConfig={thinkingBudget:0};return c}
 async function geminiRaw(contents,system,cfg,n=0,mdl){const base=mdl||FOXM;let le;for(const m of (n>=2?[base]:chainFor(base,(cfg.maxOutputTokens||0)<=1500))){const c2=Object.assign({},cfg);if(m!==base)c2.thinkingConfig=/gemini-3/i.test(m)?{thinkingLevel:'low'}:{thinkingBudget:0};
   try{return await geminiRaw0(contents,system,c2,2,m)}catch(e){le=e;if(!BUSY.test(String(e&&(e.message||e.name))))throw e;markDown(m,e)}}throw le}
@@ -207,23 +247,30 @@ async function geminiVoice(hist,system,audio){
   return geminiRaw(cs,system,cfg)}
 async function aiWords(items,txt,vis,defPos,auto,job){
   const kL=txt.split(/\n/).filter(l=>/[가-힣]/.test(l)).length,good=items.filter(i=>i.uz).length;
-  if(!AI_KEY||(!vis&&(kL===0||good>=kL*.6)))return vis?null:items;
-  let got=[];
+  if(job)job.expected=kL;
+  if(!AI_KEY||(!vis&&(kL===0||good>=kL*.6))){if(!AI_KEY&&vis&&vis.partial&&job)job.warn.push((vis.pageList||[]).length+" ta sahifada matn topilmadi (skan/rasm bo'lishi mumkin): sahifalar "+(vis.pageList||[]).slice(0,30).join(', ')+". Ularni o'qish uchun GEMINI_API_KEY kerak.");return (vis&&!vis.partial)?null:items}
+  let got=[],failed=0;
   try{
-    if(vis){if(!USE_GEMINI){if(job)job.aiErr="GEMINI_API_KEY topilmadi";return null}if(job)job.stage="AI fayldan so'zlarni qidiryapti...";
-      const rgs=[];if(vis.mime==='application/pdf'&&vis.pages>10){for(let p=1;p<=vis.pages;p+=10)rgs.push([p,Math.min(vis.pages,p+9)])}else rgs.push(null);
-      let ri=0,dn=0,lastE='';const wv=async()=>{while(ri<rgs.length){const rg=rgs[ri++],pr=WPROMPT+(rg?"\n\nFAQAT PDFning "+rg[0]+"-"+rg[1]+"-sahifalaridagi so'zlarni ol.":"");
-        for(let a=0;a<3;a++){try{got.push(...parseWords(await geminiFile(vis.buf,vis.mime,pr,16000)));break}catch(e){lastE=friendlyErr(e&&e.message||e);await new Promise(z=>setTimeout(z,2000))}}
+    if(vis){if(!USE_GEMINI){if(job)job.aiErr="GEMINI_API_KEY topilmadi";return vis.partial?items:null}if(job)job.stage="AI fayldan so'zlarni qidiryapti...";
+      const rgs=[];
+      if(vis.pageList&&vis.pageList.length){for(let i=0;i<vis.pageList.length;i+=8)rgs.push(vis.pageList.slice(i,i+8))}
+      else if(vis.mime==='application/pdf'&&vis.pages>8){for(let p=1;p<=vis.pages;p+=8){const g=[];for(let k=p;k<p+8&&k<=vis.pages;k++)g.push(k);rgs.push(g)}}else rgs.push(null);
+      let ri=0,dn=0,lastE='';const wv=async()=>{while(ri<rgs.length){const rg=rgs[ri++],pr=wp()+(rg?"\n\nFAQAT PDFning quyidagi sahifalaridagi so'zlarni ol (sahifa raqamlari): "+rg.join(', ')+". Har bir sahifani to'liq o'qi, hech bir so'zni tashlab ketma.":"");let okc=0;
+        for(let a=0;a<3&&!okc;a++){try{const w=parseWords(await geminiFile(vis.buf,vis.mime,pr,30000));got.push(...w);okc=1}catch(e){lastE=friendlyErr(e&&e.message||e);await new Promise(z=>setTimeout(z,2000))}}
+        if(!okc){failed++;if(job)job.failedPages.push(...(rg||[]))}
         dn++;if(job)job.stage="AI fayldan so'zlarni qidiryapti ("+dn+"/"+rgs.length+")..."}};
       await Promise.all(Array.from({length:Math.min(4,rgs.length)},wv));if(!got.length&&job)job.aiErr=lastE||"AI fayldan so'z topa olmadi"}
-    else{const cs=[];for(let i=0;i<Math.min(txt.length,150000);i+=8000)cs.push(txt.slice(i,i+8000));let ci=0,dn=0;
-      const w=async()=>{while(ci<cs.length){const c=cs[ci++];if(/[가-힣]/.test(c)){try{got.push(...parseWords(await callClaude([{role:'user',content:WPROMPT+"\n\n"+c}],"Sen koreys-o'zbek lug'at tuzuvchisan.",6000)))}catch(e){if(job)job.aiErr=friendlyErr(e&&e.message||e)}}dn++;if(job)job.stage="AI fayldan so'zlarni qidiryapti ("+dn+"/"+cs.length+")..."}};
-      await Promise.all(Array.from({length:Math.min(8,cs.length)},w))}
+    else{const cs=[];for(let i=0;i<txt.length&&i<600000;i+=3500){let e=Math.min(txt.length,i+3500);const nl=txt.indexOf('\n',e);if(nl>0&&nl-e<400)e=nl;cs.push(txt.slice(i,e));i=e-3500}
+      if(txt.length>600000&&job)job.warn.push("Fayl juda katta: faqat dastlabki 600 000 belgi qayta ishlandi.");
+      let ci=0,dn=0;const bad=[];
+      const w=async()=>{while(ci<cs.length){const c=cs[ci++];if(/[가-힣]/.test(c)){let okc=0;for(let a=0;a<2&&!okc;a++){try{got.push(...parseWords(await callClaude([{role:'user',content:wp()+"\n\n"+c}],"Sen koreys-o'zbek lug'at tuzuvchisan.",8000)));okc=1}catch(e){if(job)job.aiErr=friendlyErr(e&&e.message||e);await new Promise(z=>setTimeout(z,1500))}}if(!okc){failed++;bad.push(c)}}dn++;if(job)job.stage="AI fayldan so'zlarni qidiryapti ("+dn+"/"+cs.length+")..."}};
+      await Promise.all(Array.from({length:Math.min(8,cs.length)},w));if(failed&&job)job.warn.push(failed+" ta matn bo'lagi AI tomonidan o'qilmadi; ular oddiy usulda ajratildi (tarjimasi/turi to'liq bo'lmasligi mumkin).")}
   }catch(e){if(job)job.aiErr=friendlyErr(e&&e.message||e)}
-  if(!got.length)return vis?null:items;
+  if(failed&&job&&vis)job.warn.push(failed+" ta sahifa guruhi o'qilmadi: "+[...new Set(job.failedPages)].sort((a,b)=>a-b).join(', ')+" sahifalar.");
+  if(!got.length)return (vis&&!vis.partial)?null:items;
   const seen=new Set(),out=[];
   for(const g of got)if(!seen.has(g.ko)){seen.add(g.ko);out.push({ko:g.ko,uz:g.uz,pos:(auto&&g.pos)||defPos,px:!!(auto&&g.pos)})}
-  for(const it of items)if(it.uz&&!seen.has(it.ko)){seen.add(it.ko);out.push(it)}
+  for(const it of items)if(!seen.has(it.ko)&&(it.uz||failed||vis)){seen.add(it.ko);out.push(it)}
   return out}
 async function tr(t){
   const tryit=async f=>{try{const v=await f();return v&&v!==t?v:''}catch{return ''}},sg=()=>AbortSignal.timeout(7000);
@@ -233,15 +280,23 @@ async function tr(t){
   if(!r)r=await tryit(async()=>{const x=await fetch('https://api.mymemory.translated.net/get?q='+encodeURIComponent(t)+'&langpair=ko|'+TRANSLATE_TARGET,{signal:sg()});const j=await x.json();const v=j.responseData&&j.responseData.translatedText;return v&&!/MYMEMORY WARNING|QUERY LENGTH/i.test(v)?v:''});
   return r}
 async function claudeTranslate(part){
-  const txt=await callClaude([{role:'user',content:"Quyidagi koreys so'zlarini o'zbek tiliga (lotin yozuvi) tarjima qil va so'z turini aniqla (ot, fel, sifat, ravish yoki boshqa). Har bir so'zning eng keng tarqalgan ma'nosini 1-3 ta qisqa o'zbekcha ekvivalent bilan ber (vergul bilan). Fe'llarni bosh shaklda (-moq) yoz. Ruscha yoki inglizcha so'z ishlatma. Ma'nosiga ishonching komil bo'lmasa, uz ni bo'sh qoldir, taxmin qilma. FAQAT JSON massiv qaytar: [{\"ko\":\"...\",\"uz\":\"...\",\"pos\":\"ot|fel|sifat|ravish|boshqa\"}]\n\n"+part.map(x=>x.ko).join('\n')}],"Sen tajribali koreys-o'zbek lug'at tuzuvchisan. Tarjimalar aniq, qisqa va to'g'ri o'zbek tilida bo'lsin.",4000);
+  const txt=await callClaude([{role:'user',content:"Quyidagi koreys so'zlarini o'zbek tiliga (lotin yozuvi) tarjima qil va so'z turini aniqla (ot, fel=harakat 동사, sifat=holat 형용사, ravish, olmosh, son, yordamchi yoki boshqa; sifat va fe'lni aralashtirma). Har bir so'zning eng keng tarqalgan ma'nosini 1-3 ta qisqa o'zbekcha ekvivalent bilan ber (vergul bilan). Fe'llarni bosh shaklda (-moq) yoz. Ruscha yoki inglizcha so'z ishlatma. Ma'nosiga ishonching komil bo'lmasa, uz ni bo'sh qoldir, taxmin qilma. FAQAT JSON massiv qaytar: [{\"ko\":\"...\",\"uz\":\"...\",\"pos\":\""+posKeys()+"\"}]\n\n"+part.map(x=>x.ko).join('\n')}],"Sen tajribali koreys-o'zbek lug'at tuzuvchisan. Tarjimalar aniq, qisqa va to'g'ri o'zbek tilida bo'lsin.",4000);
   const out={};try{JSON.parse(txt.match(/\[[\s\S]*\]/)[0]).forEach(o=>{if(o&&o.ko)out[o.ko]={uz:String(o.uz||'').trim(),pos:normPos(o.pos)}})}catch{}
   return out}
 const POSMAP=[[/^(ot|otlar|noun|nouns|명사|isim)$/i,'ot'],[/^(fe['’‘`]?l|fe['’‘`]?llar|verb|verbs|동사)$/i,'fel'],[/^(sifat|sifatlar|adjective|adjectives|형용사)$/i,'sifat'],[/^(ravish|ravishlar|adverb|adverbs|부사)$/i,'ravish']];
-const normPos=x=>{x=String(x||'').trim().replace(/[()\[\]{}.:]/g,'');for(const [re,p] of POSMAP)if(re.test(x))return p;return ''};
+POSMAP.push([/^(olmosh|olmoshlar|pronoun|pronouns|대명사)$/i,'olmosh'],[/^(son|sonlar|numeral|numerals|number|수사)$/i,'son'],[/^(ko['’‘`]?makchi|yordamchi|particle|particles|조사)$/i,'yordamchi']);
+const normPos=x=>{x=String(x||'').trim().replace(/[()\[\]{}.:]/g,'');if(!x)return '';const ps=getPoss(),has0=k=>ps.some(p=>p.key===k);
+  for(const [re,p] of POSMAP)if(re.test(x)&&has0(p))return p;
+  const l=x.toLowerCase();for(const p of ps)if(l===p.key||l===String(p.name).toLowerCase()||(p.ko&&x===p.ko))return p.key;return ''};
+const posKeys=()=>getPoss().map(p=>p.key).join('|')+'|boshqa';
 async function extract(file,defPos,auto,job){
-  const buf=fs.readFileSync(file.path);fs.unlinkSync(file.path);const nm=file.originalname.toLowerCase();let txt='',visual=null,pages=0;
+  const buf=fs.readFileSync(file.path);fs.unlinkSync(file.path);const nm=file.originalname.toLowerCase();let txt='',visual=null,pages=0,vpl=null;const emptyP=[];
   try{
-    if(/\.pdf$/.test(nm)){try{const pr0=await require('pdf-parse')(buf);txt=pr0.text||'';pages=pr0.numpages||0}catch{txt=''}if((txt.replace(/\s/g,'').length<40||!/[가-힣]/.test(txt))&&buf.length<15e6)visual='application/pdf'}
+    if(/\.pdf$/.test(nm)){try{const pg=[],pr0=await require('pdf-parse')(buf,{pagerender:p=>p.getTextContent().then(tc=>{let t='',ly=null;for(const it of tc.items){if(ly!==null&&Math.abs(it.transform[5]-ly)>2)t+='\n';t+=it.str;ly=it.transform[5]}pg.push(t);return t})});
+      pages=pr0.numpages||pg.length;txt=pg.length?pg.join('\n'):(pr0.text||'');if(job){job.pages=pages}
+      pg.forEach((t,i)=>{if(t.replace(/\s/g,'').length<15)emptyP.push(i+1)});if(job)job.emptyPages=emptyP.slice()}catch{txt=''}
+      if((txt.replace(/\s/g,'').length<40||!/[가-힣]/.test(txt))&&buf.length<15e6)visual='application/pdf';
+      else if(emptyP.length&&buf.length<15e6){visual='application/pdf';vpl=emptyP.slice()}}
     else if(/\.(xlsx|xls|ods)$/.test(nm)){const X=require('xlsx'),wb=X.read(buf);txt=wb.SheetNames.map(n=>X.utils.sheet_to_csv(wb.Sheets[n])).join('\n')}
     else if(/\.docx$/.test(nm))txt=(await require('mammoth').extractRawText({buffer:buf})).value;
     else if(/\.(html?|xml)$/.test(nm))txt=buf.toString('utf8').replace(/<(script|style)[\s\S]*?<\/\1>/gi,'').replace(/<br\s*\/?>|<\/(p|div|li|tr|h\d)>/gi,'\n').replace(/<[^>]+>/g,' ');
@@ -275,11 +330,11 @@ async function extract(file,defPos,auto,job){
     for(const w of line.match(/[가-힣]{1,20}/g)||[])if(!seen.has(w)){seen.add(w);items.push({ko:w,uz:'',pos:cur||defPos,px:!!cur})}
   }
   if(auto)for(const it of items)if(!it.px&&/다$/.test(it.ko))it.pos='fel';
-  return await aiWords(items,txt,visual&&{buf,mime:visual,pages},defPos,auto,job)}
+  return await aiWords(items,txt,visual&&{buf,mime:visual,pages,pageList:vpl,partial:!!vpl},defPos,auto,job)}
 async function addWords(job,d,items,levelOf,auto){
   job.stage="Tekshirilmoqda...";
   const todo=items.slice(0,20000).filter(it=>!one('select 1 from words where dict_id=? and ko=?',d.id,it.ko));
-  todo.forEach((it,i)=>it.idx=i);job.found=items.length;job.total=todo.length;job.done=0;
+  job.dups=Math.max(0,Math.min(items.length,20000)-todo.length);todo.forEach((it,i)=>it.idx=i);job.found=items.length;job.total=todo.length;job.done=0;
   const ins=db.prepare('insert into words(dict_id,level,pos,section,ko,uz) values(?,?,?,?,?,?)'),cnt={};
   const put=list=>{db.transaction(()=>{for(const it of list){const lv=levelOf(it.idx,todo.length),k=lv+'|'+it.pos;
     if(cnt[k]==null)cnt[k]=one('select count(*) n from words where dict_id=? and level=? and pos=?',d.id,lv,it.pos).n;
@@ -303,10 +358,13 @@ async function addWords(job,d,items,levelOf,auto){
     await Promise.all(Array.from({length:8},w2));rest=rest.filter(it=>!it.uz)}
   if(rest.length){for(const it of rest)it.uz=PENDING;put(rest);job.pending=rest.length;setTimeout(trFill,5000)}
   if(job.ids&&job.ids.length)ttsEnqueue(job.ids);
+  if(job.expected&&job.found<job.expected*.5)job.warn.push("Faylda ~"+job.expected+" ta koreyscha qator bor, lekin faqat "+job.found+" ta so'z ajratildi. Fayl to'liq o'qilmagan bo'lishi mumkin — tekshirib ko'ring.");
+  if(job.pending)job.warn.push(job.pending+" ta so'z tarjimasi kutilmoqda (fonda tarjima qilinadi).");
+  job.incomplete=job.warn.some(w=>/o'qilmadi|to'liq o'qilmagan|topilmadi/.test(w));
   job.done=job.total;job.stage="Tayyor (ovozlar fonda avtomatik qo'shilmoqda)";return job}
 const jobs={};
 setInterval(()=>{const t=Date.now();for(const k in jobs)if(t-jobs[k].ts>36e5)delete jobs[k]},6e5).unref();
-const newJob=()=>{const id=crypto.randomBytes(6).toString('hex');return jobs[id]={id,stage:"Fayl o'qilmoqda...",found:0,total:0,done:0,added:0,translated:0,skipped:0,perLevel:{},perPos:{},fin:false,err:null,ts:Date.now()}};
+const newJob=()=>{const id=crypto.randomBytes(6).toString('hex');return jobs[id]={id,stage:"Fayl o'qilmoqda...",found:0,total:0,done:0,added:0,translated:0,skipped:0,perLevel:{},perPos:{},warn:[],failedPages:[],expected:0,dups:0,pages:0,emptyPages:[],fin:false,err:null,ts:Date.now()}};
 app.get('/api/admin/job/:id',adm('import'),(r,s)=>{const j=jobs[r.params.id];if(!j)return s.status(404).json({e:'yoq'});s.json(j)});
 app.post('/api/admin/import',adm('import'),up.single('file'),(r,s)=>{
   const {dict_id,level=1,pos='ot'}=r.body,d=one('select * from dicts where id=?',dict_id);if(!d||!r.file)return s.status(400).json({e:'bad'});
