@@ -359,13 +359,9 @@ html.rm *,html.rm *::before,html.rm *::after{animation-duration:.001s!important;
 textarea{border:1px solid var(--bd);border-radius:14px;padding:10px;font-size:16px;background:var(--c);color:var(--fg);font-family:inherit}
 
 /* ===== v22: 1 tugmada 2 rang aylanadi + bosganda qochib qaytadi ===== */
-.nxt,.big2,.cta button{background:#7b5cff linear-gradient(180deg,#fff3,#fff0)!important;color:#fff!important;text-shadow:0 2px 0 #0003;animation:hueCycle 10s ease-in-out infinite!important}
-@keyframes hueCycle{
-0%,100%{background-color:#7b5cff;box-shadow:0 7px 0 #4a2fd0,0 14px 22px #7b5cff66,inset 0 2px 0 #fff6}
-20%{background-color:#e0508a;box-shadow:0 7px 0 #a82a5e,0 14px 22px #e0508a66,inset 0 2px 0 #fff6}
-40%{background-color:#ff8a3d;box-shadow:0 7px 0 #c4561a,0 14px 22px #ff8a3d66,inset 0 2px 0 #fff6}
-60%{background-color:#19b383;box-shadow:0 7px 0 #0e7f5c,0 14px 22px #19b38366,inset 0 2px 0 #fff6}
-80%{background-color:#2e8bff;box-shadow:0 7px 0 #1c5fc4,0 14px 22px #2e8bff66,inset 0 2px 0 #fff6}}
+.nxt,.big2,.cta button{background:#2563eb!important;color:#fff!important;text-shadow:none;animation:none!important;box-shadow:0 4px 0 #1b4cb8,0 8px 16px #2563eb40!important;border:0!important;transition:transform .15s,filter .15s}
+.nxt:hover,.big2:hover,.cta button:hover{filter:brightness(1.08);transform:translateY(-2px)}
+.nxt:active,.big2:active,.cta button:active{transform:translateY(2px);box-shadow:0 1px 0 #1b4cb8!important}
 /* ===== v23: kartochka interaktivligi ===== */
 .cdw{--rx:0deg;--ry:0deg;animation:cdfloat 5.5s ease-in-out infinite}
 @keyframes cdfloat{50%{translate:0 -7px}}
