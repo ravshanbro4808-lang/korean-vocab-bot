@@ -44,7 +44,8 @@ function auth({init,dev,token}){
     if(crypto.createHmac('sha256',key).update(s).digest('hex')!==h)return null;u=JSON.parse(p.get('user'))}catch{return null}}
   run('insert or ignore into users(id,name,created) values(?,?,?)',u.id,u.first_name,Date.now());return fin(u.id)}
 const active=u=>u.is_admin||u.paid_until>Date.now();
-const can=(u,d)=>active(u)||d.free||!!one('select 1 from access where user_id=? and dict_id=? and (until=0 or until>?)',u.id,d.id,Date.now());
+const PAID_ONLY=process.env.PAID_ONLY!=='0'; // 1 = hamma narsa (lug'at, TOPIK testlari, TOPIK so'zlari) faqat obunachilarga; o'chirish: PAID_ONLY=0
+const can=(u,d)=>active(u)||(!PAID_ONLY&&d.free)||!!one('select 1 from access where user_id=? and dict_id=? and (until=0 or until>?)',u.id,d.id,Date.now());
 const has=(u,p)=>u.is_admin==2||(u.is_admin==1&&u.perms.split(',').includes(p));
 const wk=()=>Math.floor(Date.now()/(7*DAY));
 const addScore=(id,name,p)=>{if(p>0)run('insert into scores(user_id,name,week,pts) values(?,?,?,?) on conflict(user_id,week) do update set pts=pts+excluded.pts',id,name,wk(),p)};
@@ -65,7 +66,7 @@ app.post('/api/score',(r,s)=>{addScore(r.u.id,r.u.name,Math.min(+r.body.points||
 app.get('/api/rating',(r,s)=>s.json(q('select name,pts from scores where week=? order by pts desc limit 20',wk())));
 app.get('/api/plans',(r,s)=>s.json(q('select p.*,d.name dname from plans p left join dicts d on d.id=p.dict_id order by p.dict_id,p.months')));
 app.get('/api/methods',(r,s)=>s.json(q('select * from methods where on_=1')));
-app.get('/api/dicts',(r,s)=>s.json(q('select * from dicts').map(d=>({...d,ok:can(r.u,d)}))));
+app.get('/api/dicts',(r,s)=>s.json(q('select * from dicts').map(d=>({...d,free:PAID_ONLY?0:d.free,ok:can(r.u,d)}))));
 app.get('/api/tree/:id',(r,s)=>{const d=one('select * from dicts where id=?',r.params.id);
   if(!d||!can(r.u,d))return s.status(402).json({e:'pay'});
   s.json({d,levels:lvList(d),rows:q('select level,pos,section,count(*) n from words where dict_id=? group by 1,2,3',d.id)})});
@@ -122,14 +123,14 @@ let gemTtsOff=0;
 async function wordAudio(ko){if(USE_GEMINI&&Date.now()>gemTtsOff){try{return {b:Buffer.from(await geminiTTSany(ko),'base64'),ext:'wav'}}catch(e){if(/quota|exceed|429|demand|404|not found/i.test(String(e.message)))gemTtsOff=Date.now()+30*60000}}
   const r=await fetch('https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=ko&q='+encodeURIComponent(ko),{headers:{'user-agent':'Mozilla/5.0'},signal:AbortSignal.timeout(10000)});if(!r.ok)throw new Error('tts '+r.status);const b=Buffer.from(await r.arrayBuffer());if(b.length<500)throw new Error('tts bosh');return {b,ext:'mp3'}}
 const PENDING="⏳ tarjima kutilmoqda";let trBusy=0;
-async function trFill(){if(trBusy)return;trBusy=1;try{const rows=q("select id,ko from words where uz=? limit 40",PENDING);if(!rows.length)return;let o={};if(AI_KEY){try{o=await claudeTranslate(rows.map(x=>({ko:x.ko})))}catch{}}
+async function trFill(){if(trBusy)return;trBusy=1;try{const rows=q("select id,ko from words where uz=? limit 80",PENDING);if(!rows.length)return;let o={};if(AI_KEY){try{o=await claudeTranslate(rows.map(x=>({ko:x.ko})))}catch{}}
   let tc=0;for(const w of rows){let uz=o[w.ko]&&o[w.ko].uz;if(!uz&&tc<12&&!AI_KEY){tc++;uz=await tr(w.ko)}if(uz)run('update words set uz=? where id=? and uz=?',uz,w.id,PENDING)}}catch{}finally{trBusy=0}}
-setInterval(trFill,60000).unref();setTimeout(trFill,20000).unref();
+setInterval(trFill,20000).unref();setTimeout(trFill,20000).unref();
 setInterval(()=>{if(ttsQ.length<10){ttsEnqueue(q("select id from words where audio is null or audio='' limit 40").map(x=>x.id).filter(id=>(ttsTry[id]||0)<8))}},120000).unref();
 const ttsQ=[],ttsTry={};let ttsRun=0,ttsPause=0;
 function ttsEnqueue(ids){for(const id of ids)if(!ttsQ.includes(id))ttsQ.push(id);ttsPump()}
 async function ttsPump(){
-  if(ttsRun>=3||Date.now()<ttsPause)return;const id=ttsQ.shift();if(!id)return;ttsRun++;
+  if(ttsRun>=6||Date.now()<ttsPause)return;const id=ttsQ.shift();if(!id)return;ttsRun++;
   try{const w=one('select ko,audio from words where id=?',id);if(w&&w.ko&&!w.audio){const a=await wordAudio(w.ko);const name='w'+id+'_'+Date.now()+'.'+a.ext;fs.writeFileSync(DATA+'/audio/'+name,a.b);run("update words set audio=? where id=? and (audio is null or audio='')",name,id)}}
   catch(e){ttsTry[id]=(ttsTry[id]||0)+1;if(ttsTry[id]<8){ttsQ.push(id);const d=/quota|429|demand|503|exceed/i.test(String(e.message))?20000:5000;ttsPause=Date.now()+d;setTimeout(ttsPump,d+100)}}
   finally{ttsRun--;setTimeout(ttsPump,250)}
@@ -404,7 +405,7 @@ create table if not exists topik_words(id integer primary key autoincrement,ko t
 create table if not exists topik_learned(user_id int,word_id int,primary key(user_id,word_id));`);
 const TSECS={1:['듣기','읽기'],2:['듣기','쓰기','읽기']},TMIN={1:{'듣기':40,'읽기':60},2:{'듣기':60,'쓰기':50,'읽기':70}};
 const TSECN=x=>{x=String(x||'').trim().toLowerCase();return /^(듣기|listening|tinglash|tinglab)/.test(x)?'듣기':/^(읽기|reading|o['’`]?qish|o['’`]?qib)/.test(x)?'읽기':/^(쓰기|writing|yozish)/.test(x)?'쓰기':''};
-const tOk=(u,e)=>!!e.free||active(u);
+const tOk=(u,e)=>active(u)||(!PAID_ONLY&&!!e.free);
 const tUrl=f=>f?'/audio/'+f:'';
 function tGrade(level,total){
   if(+level===1)return total>=140?'2-daraja (2급)':total>=80?'1-daraja (1급)':"Daraja berilmadi (80 balldan past)";
@@ -445,11 +446,11 @@ app.get('/api/topik/results',(r,s)=>s.json(q('select * from topik_res where user
 app.get('/api/topik/result/:id',(r,s)=>{const x=one('select * from topik_res where id=? and user_id=?',r.params.id,r.u.id);if(!x)return s.status(404).json({e:'yoq'});s.json(tRes(x))});
 // --- so'zlar (alohida jadval)
 app.get('/api/topik/filters',(r,s)=>s.json({rows:q("select level,exam_no no,sec,count(*) n from topik_words group by 1,2,3 order by level,no desc,sec")}));
-app.get('/api/topik/words',(r,s)=>{const {level,no,sec,mode}=r.query;let sql='select w.*,(select 1 from topik_learned l where l.user_id=? and l.word_id=w.id) learned from topik_words w where 1=1';const a=[r.u.id];
+app.get('/api/topik/words',(r,s)=>{if(PAID_ONLY&&!active(r.u))return s.status(402).json({e:'pay'});const {level,no,sec,mode}=r.query;let sql='select w.*,(select 1 from topik_learned l where l.user_id=? and l.word_id=w.id) learned from topik_words w where 1=1';const a=[r.u.id];
   if(+level){sql+=' and level=?';a.push(+level)}if(+no>0){sql+=' and exam_no=?';a.push(+no)}if(sec){sql+=' and sec=?';a.push(sec)}
   sql+=' order by exam_no desc,level,sec,id';let rows=q(sql,...a).map(x=>({id:x.id,ko:x.ko,uz:x.uz,no:x.exam_no,level:x.level,sec:x.sec,type:x.type,audio:x.audio||null,learned:x.learned?1:0,tp:1}));
   if(mode==='learned')rows=rows.filter(x=>x.learned);else if(mode==='new')rows=rows.filter(x=>!x.learned);s.json(rows)});
-app.post('/api/topik/learned',(r,s)=>{const id=+r.body.id;if(!one('select 1 from topik_words where id=?',id))return s.status(404).json({e:'yoq'});
+app.post('/api/topik/learned',(r,s)=>{if(PAID_ONLY&&!active(r.u))return s.status(402).json({e:'pay'});const id=+r.body.id;if(!one('select 1 from topik_words where id=?',id))return s.status(404).json({e:'yoq'});
   r.body.on?run('insert or ignore into topik_learned values(?,?)',r.u.id,id):run('delete from topik_learned where user_id=? and word_id=?',r.u.id,id);s.json({ok:1})});
 // --- admin: testlar
 const tFile=(f,pre)=>{const mt=f.mimetype||'',nm=(f.originalname||'').toLowerCase();const ext=(nm.match(/\.([a-z0-9]{2,4})$/)||[])[1]||(mt.includes('png')?'png':mt.includes('jpeg')?'jpg':mt.includes('mpeg')?'mp3':mt.includes('wav')?'wav':mt.includes('mp4')||mt.includes('m4a')?'m4a':mt.includes('ogg')?'ogg':'bin');
@@ -468,7 +469,7 @@ app.post('/api/admin/topik/exam',adm('topik'),(r,s)=>{const b=r.body;
     return s.json({ok:1})}
   const no=+b.no;if(!(no>0))return s.status(400).json({e:"Imtihon raqamini yozing (masalan 91)"});
   if(one('select 1 from topik_exams where no=? and level=? and type=?',no,level,type))return s.status(400).json({e:"Bu imtihon allaqachon qo'shilgan"});
-  const id=run('insert into topik_exams(no,level,type,title,src,free,ts) values(?,?,?,?,?,?,?)',no,level,type,String(b.title||'').slice(0,200),String(b.src||'').slice(0,500),b.free===0||b.free===false?0:1,Date.now()).lastInsertRowid;
+  const id=run('insert into topik_exams(no,level,type,title,src,free,ts) values(?,?,?,?,?,?,?)',no,level,type,String(b.title||'').slice(0,200),String(b.src||'').slice(0,500),(PAID_ONLY||b.free===0||b.free===false)?0:1,Date.now()).lastInsertRowid;
   for(const sec of TSECS[level]){const m=+(b.minutes&&b.minutes[sec])||TMIN[level][sec];run('insert into topik_secs(exam_id,sec,minutes) values(?,?,?)',id,sec,m)}
   s.json({ok:1,id})});
 app.get('/api/admin/topik/exam/:id',adm('topik'),(r,s)=>{const e=one('select * from topik_exams where id=?',r.params.id);if(!e)return s.status(404).json({e:'yoq'});
@@ -564,14 +565,34 @@ app.post('/api/admin/topik/auto-import',adm('topik'),upBig.fields([{name:'q',max
     let words=null;if(b.words==='1'){job.stage="So'zlar ajratilmoqda (AI)...";try{words=await tExtractWords(e)}catch(x){job.warn.push("So'zlarni ajratib bo'lmadi: "+friendlyErr(x&&x.message||x))}}
     job.result={added:res.added,updated:res.updated,counts:cnt,audio:!!audio,words};job.stage="Tayyor";
   }catch(x){job.err=String(x&&x.message||x)}finally{job.fin=true}})()});
+
+// ===== TOPIK: audiolarni birdan yuklash (havolalar ro'yxati) =====
+app.post('/api/admin/topik/audio-bulk',adm('topik'),(r,s)=>{
+  const items=[],bad=[];
+  for(const l of String(r.body.lines||'').split(/\r?\n/).map(x=>x.trim()).filter(x=>x&&!x.startsWith('#'))){const c=l.split(/\s*[|\t]\s*/),no=+c[0],t=String(c[1]||'').trim().toLowerCase(),lv=/^(2|ii)$/.test(t)?2:/^(1|i)$/.test(t)?1:0,url=c[2],ty=String(c[3]||'').toUpperCase();
+    if(!(no>0)||!lv||!url||!okUrl(url))bad.push(l);else items.push({no,lv,url,type:['PBT','IBT'].includes(ty)?ty:''})}
+  if(!items.length)return s.status(400).json({e:"To'g'ri qator topilmadi. Format: 102 | II | https://... (har qatorda bittadan)"});
+  const job=newJob();if(bad.length)job.warn.push(bad.length+" ta qator noto'g'ri (o'tkazib yuborildi): "+bad.slice(0,3).join(' ; ').slice(0,200));s.json({job:job.id});
+  (async()=>{try{let n=0;for(const it of items){n++;const lab='TOPIK '+(it.lv===2?'II':'I')+' · '+it.no;job.stage="Audio yuklanmoqda ("+n+"/"+items.length+"): "+lab;
+    try{let e=one('select * from topik_exams where no=? and level=? and type=?',it.no,it.lv,it.type)||one('select * from topik_exams where no=? and level=?',it.no,it.lv);
+      if(!e){const id=run('insert into topik_exams(no,level,type,title,src,free,ts) values(?,?,?,?,?,?,?)',it.no,it.lv,it.type,'','audio havolasi',1,Date.now()).lastInsertRowid;
+        for(const sc of TSECS[it.lv])run('insert into topik_secs(exam_id,sec,minutes) values(?,?,?)',id,sc,TMIN[it.lv][sc]);e=one('select * from topik_exams where id=?',id)}
+      const buf=await dlUrl(it.url,120e6),name=await audioFromBuf(buf,it.url.split('?')[0],job,e.id);
+      const old=one('select audio from topik_secs where exam_id=? and sec=?',e.id,'듣기');if(old&&old.audio)tDel(old.audio);
+      run("insert into topik_secs(exam_id,sec,minutes,audio) values(?,?,?,?) on conflict(exam_id,sec) do update set audio=?",e.id,'듣기',TMIN[e.level]['듣기'],name,name);job.added++}
+    catch(x){job.warn.push(lab+": "+String(x&&x.message||x).slice(0,160))}}
+    job.stage="Tayyor";job.result={added:job.added,total:items.length}}catch(x){job.err=String(x&&x.message||x)}finally{job.fin=true}})()});
 app.get('/api/admin/topik/writing',adm('topik'),(r,s)=>s.json(q("select r.id,r.exam_no,r.level,r.type,r.writing,r.ts,u.name from topik_res r left join users u on u.id=r.user_id where r.writing!='' and r.wscore is null order by r.id desc limit 50")));
 app.post('/api/admin/topik/grade',adm('topik'),(r,s)=>{const x=one('select * from topik_res where id=?',+r.body.id),sc=+r.body.score;if(!x||!(sc>=0&&sc<=100))return s.status(400).json({e:"Ball 0 dan 100 gacha bo'lsin"});
   const scores=JSON.parse(x.scores||'{}');scores['쓰기']=sc;const total=Object.values(scores).reduce((a,v)=>a+(+v||0),0),e=one('select * from topik_exams where id=?',x.exam_id);
   const grade=x.sec==='all'?tGrade(x.level,total):'';run('update topik_res set wscore=?,scores=?,total=?,grade=?,final=1 where id=?',sc,JSON.stringify(scores),total,grade,x.id);s.json({ok:1})});
 // --- admin: so'zlar
 async function tTrMany(kos){const out={};if(!kos.length)return out;
-  if(AI_KEY){for(let i=0;i<kos.length;i+=40){try{const o=await claudeTranslate(kos.slice(i,i+40).map(ko=>({ko})));for(const k in o)if(o[k].uz)out[k]=o[k].uz}catch{}}}
-  for(const ko of kos)if(!out[ko]){const v=await tr(ko);if(v)out[ko]=v}
+  if(AI_KEY){const bs=[];for(let i=0;i<kos.length;i+=40)bs.push(kos.slice(i,i+40));let bi=0;
+    const w=async()=>{while(bi<bs.length){const b=bs[bi++];try{const o=await claudeTranslate(b.map(ko=>({ko})));for(const k in o)if(o[k].uz)out[k]=o[k].uz}catch{}}};
+    await Promise.all(Array.from({length:Math.min(4,bs.length)},w))}
+  const rest=kos.filter(ko=>!out[ko]);let ri=0;const w2=async()=>{while(ri<rest.length){const ko=rest[ri++],v=await tr(ko);if(v)out[ko]=v}};
+  await Promise.all(Array.from({length:Math.min(8,rest.length)},w2));
   return out}
 function tWordIns(ko,uz,no,level,sec,type,src){ko=String(ko||'').trim();uz=String(uz||'').trim();if(!ko||!uz||!/[가-힣]/.test(ko))return 0;
   if(one('select 1 from topik_words where ko=? and exam_no=? and level=? and sec=?',ko,no,level,sec))return 2;
@@ -585,10 +606,10 @@ app.post('/api/admin/topik/words-import',adm('topik'),async(r,s)=>{const b=r.bod
   s.json({ok:1,added,dups:dup,noTranslation:noTr.slice(0,50),noTranslationCount:noTr.length})});
 async function tExtractWords(e){
   let added=0,dups=0,secsDone=[];
-  for(const sec of TSECS[e.level]){const qs=tSecQs(e.id,sec);if(!qs.length)continue;
-    const txt=qs.map(x=>[x.text,...JSON.parse(x.opts||'[]')].filter(Boolean).join(' ')).join('\n').slice(0,14000);if(!/[가-힣]/.test(txt))continue;
+  await Promise.all(TSECS[e.level].map(async sec=>{const qs=tSecQs(e.id,sec);if(!qs.length)return;
+    const txt=qs.map(x=>[x.text,...JSON.parse(x.opts||'[]')].filter(Boolean).join(' ')).join('\n').slice(0,14000);if(!/[가-힣]/.test(txt))return;
     try{const out=await callClaude([{role:'user',content:"Quyida TOPIK imtihoni savollari matni. Undagi muhim koreys lug'at so'zlarini (ot, fe'l, sifat va h.k.) lug'at (bosh) shaklida ajrat — fe'l va sifatlarni -다 shaklida. Juda oddiy qo'shimcha/yuklamalarni (은/는, 이/가 va h.k.) kiritma. Har birining o'zbekcha (lotin) tarjimasini 1-3 qisqa ekvivalent bilan ber. Ma'nosiga ishonching komil bo'lmasa so'zni tashlab ket. FAQAT JSON massiv qaytar: [{\"ko\":\"...\",\"uz\":\"...\"}]\n\n"+txt}],"Sen tajribali koreys-o'zbek lug'at tuzuvchisan.",6000);
-      const arr=JSON.parse(out.match(/\[[\s\S]*\]/)[0]);for(const o of arr){const rr=tWordIns(o.ko,o.uz,e.no,e.level,sec,e.type,'ai');if(rr===1)added++;else if(rr===2)dups++}secsDone.push(sec)}catch{}}
+      const arr=JSON.parse(out.match(/\[[\s\S]*\]/)[0]);for(const o of arr){const rr=tWordIns(o.ko,o.uz,e.no,e.level,sec,e.type,'ai');if(rr===1)added++;else if(rr===2)dups++}secsDone.push(sec)}catch{}}));
   return {added,dups,secs:secsDone}}
 app.post('/api/admin/topik/extract-words',adm('topik'),async(r,s)=>{const e=one('select * from topik_exams where id=?',+r.body.exam_id);if(!e)return s.status(404).json({e:'yoq'});
   if(!AI_KEY)return s.status(400).json({e:"AI kaliti (GEMINI_API_KEY) yo'q — so'zlarni qo'lda yoki ro'yxat orqali kiriting."});
