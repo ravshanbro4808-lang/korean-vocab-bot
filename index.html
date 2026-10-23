@@ -357,6 +357,15 @@ html.rm *,html.rm *::before,html.rm *::after{animation-duration:.001s!important;
 .opt2.sel{border-color:#7b5cff;background:#efeaff;color:#2a1a8a}.opt2.sel span{background:#7b5cff;color:#fff}
 .tkn{display:grid;grid-template-columns:repeat(auto-fill,minmax(40px,1fr));gap:6px;margin:10px 0}.tkn button{border-radius:10px;padding:9px 0;font-weight:700;background:var(--c);border:1px solid var(--bd);color:var(--fg)}.tkn button.done{background:#d9f7e6;border-color:#17b26a;color:#0b6b3a}.tkn button.cur{outline:3px solid #7b5cff}
 textarea{border:1px solid var(--bd);border-radius:14px;padding:10px;font-size:16px;background:var(--c);color:var(--fg);font-family:inherit}
+
+/* ===== v22: 1 tugmada 2 rang aylanadi + bosganda qochib qaytadi ===== */
+.nxt,.big2{background:linear-gradient(120deg,#7b5cff,#ff7a59,#7b5cff)!important;background-size:200% 100%!important;animation:flow2 5s linear infinite!important}
+.cta button{background:linear-gradient(120deg,#ffb02e,#ff6b8a,#ffb02e)!important;background-size:200% 100%!important;animation:flow2 5s linear infinite!important}
+@keyframes flow2{to{background-position:200% 0}}
+.nxt.dodge,.big2.dodge,.cta button.dodge{animation:dodge .52s cubic-bezier(.3,1.4,.5,1) both!important;pointer-events:none}
+@keyframes dodge{0%{transform:none}35%{transform:translate(var(--dx,40px),var(--dy,-16px)) rotate(var(--rt,4deg)) scale(.92)}72%{transform:translate(calc(var(--dx,40px)*-.1),calc(var(--dy,-16px)*-.1)) scale(1.04)}100%{transform:none}}
+.tkc{display:grid;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:6px;margin:8px 0}.tkc button{padding:9px 0;border-radius:12px;font-weight:800}
+details.mz summary{cursor:pointer;list-style:none}details.mz summary::-webkit-details-marker{display:none}details.mz table{width:100%;border-collapse:collapse;margin-top:8px;font-size:14px}details.mz td{padding:5px 6px;border-bottom:1px solid var(--bd)}
 </style></head><body><div id="hd"></div><main id="m"></main>
 <script>
 try{if(localStorage.rm=='1')document.documentElement.classList.add('rm')}catch{}
@@ -758,6 +767,10 @@ const TLV={1:'TOPIK I',2:'TOPIK II'},TSEC=['듣기','읽기','쓰기'];
 const TSN={'듣기':"듣기 · Tinglab tushunish",'읽기':"읽기 · O'qib tushunish",'쓰기':"쓰기 · Yozish"};
 const mmss=ms=>{const t=Math.ceil(Math.max(0,ms)/1000),m=Math.floor(t/60),s=t%60;return String(m).padStart(2,'0')+':'+String(s).padStart(2,'0')};
 const TK={lv:0,no:0,type:'',sec:'all',ex:[],run:null};
+
+function tkMz(l,e){const m=x=>{const r=(e.secs||[]).find(z=>z.sec==x);return r?r.minutes+' daq':'—'};
+ if(+l===1)return `<table><tr><td>Umumiy ball</td><td><b>200</b> (듣기 100 + 읽기 100)</td></tr><tr><td>1-daraja (1급)</td><td>80 ball va undan yuqori</td></tr><tr><td>2-daraja (2급)</td><td>140 ball va undan yuqori</td></tr><tr><td>80 dan past</td><td>daraja berilmaydi</td></tr><tr><td>듣기 · tinglash</td><td>30 savol · ${m('듣기')}</td></tr><tr><td>읽기 · o'qish</td><td>40 savol · ${m('읽기')}</td></tr></table><div class=s style="margin-top:8px">Ilovada ball har bir savolning rasmiy balli (배점표) bo'yicha hisoblanadi, bo'sh yoki xato javobga ball berilmaydi. Rasmiy qoidalar: topik.go.kr.</div>`;
+ return `<table><tr><td>Umumiy ball</td><td><b>300</b> (듣기 100 + 쓰기 100 + 읽기 100)</td></tr><tr><td>3-daraja (3급)</td><td>120 ball va undan yuqori</td></tr><tr><td>4-daraja (4급)</td><td>150 ball va undan yuqori</td></tr><tr><td>5-daraja (5급)</td><td>190 ball va undan yuqori</td></tr><tr><td>6-daraja (6급)</td><td>230 ball va undan yuqori</td></tr><tr><td>120 dan past</td><td>daraja berilmaydi</td></tr><tr><td>듣기 · tinglash</td><td>50 savol · ${m('듣기')}</td></tr><tr><td>쓰기 · yozish</td><td>4 savol (51–54) · ${m('쓰기')}</td></tr><tr><td>읽기 · o'qish</td><td>50 savol · ${m('읽기')}</td></tr></table><div class=s style="margin-top:8px">쓰기: 51–52 — gapni to'ldirish; 53 — jadval/grafikni 200–300 belgida yozish; 54 — mavzu bo'yicha 600–700 belgilik matn. Yozish avtomatik baholanmaydi: administrator ball qo'ygach natija yakuniy bo'ladi. Rasmiy qoidalar: topik.go.kr.</div>`}
 async function topikHome(){head('TOPIK testlari','back()');TK.run=null;TK.ex=await api('/topik/exams');tkSel()}
 function tkSel(){const ex=TK.ex;
  if(!ex.length)return H(`<div class=hero><i class=kr>토픽</i><small>Rasmiy imtihon formati</small><h2>🎓 TOPIK testlari</h2></div><div class=card style="display:block"><b>Hozircha testlar yuklanmagan</b><div class=s>Rasmiy TOPIK materiallari (savollar, javoblar, audio) administrator tomonidan «⚙️ Sozlamalar → 🎓 TOPIK testlari» orqali yuklanadi. Ilova o'zi savol to'qimaydi.</div></div><button class="b" onclick="nav(vProfile)">📊 Mening natijalarim</button>`);
@@ -772,6 +785,8 @@ function tkSel(){const ex=TK.ex;
  ${tps.length>1||TK.type?`<div class=s>IMTIHON TURI</div><div class=posch>${tps.map(t=>`<button class="b ${TK.type==t.type?'sel':''}" onclick="TK.type='${t.type}';tkSel()">${t.type||'Standart'}</button>`).join('')}</div>`:''}
  <div class=s>TEST BO'LIMI</div><div class=posch>${e.secs.map(s=>`<button class="b ${TK.sec==s.sec?'sel':''}"${s.n?'':' disabled style="opacity:.4"'} onclick="TK.sec='${s.sec}';tkSel()">${s.sec}<br><small>${s.n?s.n+' savol · '+s.minutes+' daq':'mavjud emas'}</small></button>`).join('')}${secs.length>1?`<button class="b ${TK.sec=='all'?'sel':''}" onclick="TK.sec='all';tkSel()">To'liq imtihon<br><small>${secs.reduce((a,s)=>a+s.minutes,0)} daqiqa</small></button>`:''}</div>
  <div class=card style="display:block"><b>${TLV[e.level]} · ${e.no}-imtihon${e.type?' · '+e.type:''}</b>${e.title?`<div class=s>${esc(e.title)}</div>`:''}<div class=s>${TK.sec=='all'?"To'liq imtihon":esc(TSN[TK.sec])}: ${qn} ta savol · ${mins} daqiqa. Bo'lim vaqti alohida hisoblanadi, tugaganda bo'lim avtomatik yakunlanadi.</div>${e.secs.some(s=>s.sec=='쓰기'&&s.n)&&(TK.sec=='all'||TK.sec=='쓰기')?`<div class=wnote>✍️ 쓰기 (yozish) avtomatik baholanmaydi — javobingiz saqlanadi, ball administrator tekshirgach yakuniy bo'ladi.</div>`:''}</div>
+
+ <details class="card mz" style="display:block"><summary><b>📋 Baholash mezonlari</b> <span class=s>(bosib oching)</span></summary>${tkMz(e.level,e)}</details>
  ${secs.length?`<button class=big2 onclick="tkStart()">▶ Testni boshlash</button>`:'<p class=s>Bu imtihonda hali savollar yuklanmagan.</p>'}
  <button class="b" onclick="nav(vProfile)">📊 Mening natijalarim</button>`)}
 async function tkStart(){const e=TK.ex.find(x=>x.level==TK.lv&&x.no==TK.no&&x.type==TK.type);if(!e)return;if(!e.ok)return sheet("Bu imtihon pullik. Obuna bo'ling.");
@@ -851,11 +866,43 @@ async function twGo(mode){const w=(TW.w||[]).map(x=>({...x}));let list=w;
 const secMin={1:{'듣기':40,'읽기':60},2:{'듣기':60,'쓰기':50,'읽기':70}};
 function tkaMinInputs(){const l=+($('#tkl')?.value||1);return TSEC.filter(s=>l==2||s!='쓰기').map(s=>`<label class=s>${s} (daq)<input id=tkm_${s} type=number value=${secMin[l][s]}></label>`).join('')}
 function tkaLvChange(){$('#tkmins').innerHTML=tkaMinInputs()}
+
+const TCAT=[102,96,91,83,64,60,52,47,41,37,36,35],TC={sel:new Set()};
+function tkcTog(n){TC.sel.has(n)?TC.sel.delete(n):TC.sel.add(n);document.querySelectorAll('.tcn').forEach(b=>b.classList.toggle('sel',TC.sel.has(+b.dataset.n)))}
+function tkcAll(){TCAT.forEach(n=>TC.sel.add(n));document.querySelectorAll('.tcn').forEach(b=>b.classList.add('sel'))}
+function tkcTxt(){const l=+$('#tcl').value,t=$('#tct').value;return `TOPIK: ${l?TLV[l]:'I + II'} | Imtihonlar: ${[...TC.sel].sort((a,b)=>b-a).join(', ')||'hammasi'} | Tur: ${t==='*'?'PBT + IBT':t||'standart'} | Bo'limlar: hammasi`}
+async function tkcCopy(){const t=tkcTxt();try{await navigator.clipboard.writeText(t);alert('Nusxalandi:\n'+t)}catch{prompt('Nusxalab oling:',t)}}
+async function tkcMake(){if(!TC.sel.size)return alert('Avval imtihon raqamlarini belgilang');const l=+$('#tcl').value,t=$('#tct').value,lv=l?[l]:[1,2],ty=t==='*'?['PBT','IBT']:[t];let ok=0,dup=0;
+ for(const n of [...TC.sel].sort((a,b)=>b-a))for(const L of lv)for(const T of ty){const r=await api('/admin/topik/exam',{body:{no:n,level:L,type:T,src:'topik.go.kr, '+n+'-imtihon',free:1}});r.e?dup++:ok++}
+ alert(ok+" ta imtihon yaratildi"+(dup?', '+dup+" ta oldin mavjud edi":''));TC.sel.clear();tkAdm()}
+
+async function tkAuto(){const id=+$('#au_ex').value,o=$('#au_res');if(!id)return alert('Avval imtihon yarating (yuqoridagi filtr orqali)');
+ if(!$('#au_q').files.length&&!$('#au_qu').value.trim())return alert('Savollar PDF faylini yoki havolasini bering');
+ const fd=new FormData();fd.append('exam_id',id);[...$('#au_q').files].forEach(f=>fd.append('q',f));if($('#au_a').files[0])fd.append('a',$('#au_a').files[0]);if($('#au_f').files[0])fd.append('audio',$('#au_f').files[0]);
+ fd.append('q_url',$('#au_qu').value);fd.append('a_url',$('#au_aurl').value);fd.append('audio_url',$('#au_furl').value);fd.append('replace',$('#au_r').checked?'1':'');fd.append('words',$('#au_w').checked?'1':'');
+ o.textContent='⏳ Fayllar yuborilmoqda...';const r=await api('/admin/topik/auto-import',{body:fd});if(r.e){o.textContent='❌ '+r.e;return}
+ for(let i=0;i<400;i++){await new Promise(z=>setTimeout(z,2500));const j=await api('/admin/topik/job/'+r.job);if(j.e){o.textContent='❌ Jarayon topilmadi (server qayta ishga tushgan bo\'lishi mumkin)';return}
+  if(!j.fin){o.textContent='⏳ '+j.stage;continue}
+  if(j.err){o.innerHTML='❌ '+esc(j.err)+(j.warn.length?'<br>'+j.warn.map(esc).join('<br>'):'');return}
+  const R=j.result||{},html=`✅ ${R.added} ta savol qo'shildi${R.updated?`, ${R.updated} ta yangilandi`:''}<br>${Object.entries(R.counts||{}).map(([k,v])=>k+': '+v+' ta').join(' · ')}<br>${R.audio?'🎧 Audio ulandi':'🎧 Audio ulanmadi'}${R.words?`<br>📚 So'zlar: ${R.words.added} ta qo'shildi`:''}${j.warn.length?'<br>⚠️ '+j.warn.map(esc).join('<br>⚠️ '):''}`;await tkAdm();const o2=$('#au_res');if(o2)o2.innerHTML=html;return}
+ o.textContent='⏳ Jarayon uzoq davom etyapti — keyinroq «Imtihonlar» ro\'yxatini tekshiring'}
 async function tkAdm(){const el=$('#tkabox');if(!el)return;const [ex,wr]=await Promise.all([api('/admin/topik/exams'),api('/admin/topik/writing')]);TK.aex=ex;
  el.innerHTML=`<div class=wnote>Rasmiy materiallar (savollar, javoblar, audio) <b>topik.go.kr</b> saytidan olinadi — foydalanish huquqlariga e'tibor bering. Ilova o'zi savol to'qimaydi: faqat siz yuklagan materiallar chiqadi.</div>
+ <b>🔎 topik.go.kr dagi imtihonlar</b><div class=s>Daraja, tur va imtihon raqamlarini belgilang. «Yaratish» imtihon qobig'ini ochadi (savol/audio keyin yuklanadi); «Filtrni nusxalash» tanlovingizni menga yuborish uchun.</div>
+ <div class=edr><select id=tcl><option value=0>TOPIK I + II</option><option value=1>TOPIK I</option><option value=2>TOPIK II</option></select><select id=tct><option value="">Standart (belgisiz)</option><option>PBT</option><option>IBT</option><option value="*">PBT + IBT</option></select></div>
+ <div class=tkc>${TCAT.map(n=>`<button class="b tcn ${TC.sel.has(n)?'sel':''}" data-n=${n} onclick="tkcTog(${n})">${n}</button>`).join('')}</div>
+ <div class=edr><button class=b onclick="tkcAll()">Hammasini belgilash</button><button class=b onclick="tkcCopy()">📋 Filtrni nusxalash</button></div>
+ <button class=big2 onclick="tkcMake()">➕ Tanlanganlarni yaratish</button><hr>
  <b>➕ Yangi imtihon</b><div class=edr><select id=tkl onchange="tkaLvChange()"><option value=1>TOPIK I</option><option value=2>TOPIK II</option></select><input id=tkno type=number placeholder="Imtihon raqami (91)"><select id=tkt2><option value="">Standart</option><option>PBT</option><option>IBT</option></select></div>
  <input id=tkti placeholder="Sarlavha (ixtiyoriy)"><input id=tksr placeholder="Manba (masalan: topik.go.kr, 91-imtihon)"><div class=edr id=tkmins>${tkaMinInputs()}</div><label><input type=checkbox id=tkfr checked style="width:auto"> Hamma uchun bepul</label><button class=big2 onclick="tkaNew()">➕ Imtihon yaratish</button><hr>
  <b>Imtihonlar (${ex.length})</b>${ex.map(e=>`<div class=card style="display:block;margin:6px 0"><b>${TLV[e.level]} · ${e.no}${e.type?' · '+e.type:''}</b> <small class=s>${e.secs.map(s=>s.sec+': '+s.n+' savol'+(s.audio?' 🎧':'')).join(' · ')}</small><div class=row><button class=b onclick="tkaOpen(${e.id})">⚙️ Boshqarish</button><button class="cb red" onclick="tkaDelEx(${e.id})">🗑</button></div></div>`).join('')||'<p class=s>Hali imtihon yo\'q</p>'}<div id=tkap></div><hr>
+ <b>⚡ Avtomatik yuklash (PDF + audio)</b><div class=s>topik.go.kr dan olingan fayllarni bering: savollar PDF (TOPIK II da ikkita: 듣기·쓰기 va 읽기), «정답 및 배점표» PDF va 듣기 audio (mp3 yoki zip). Fayl o'rniga https havola ham bo'ladi. AI savollarni o'qiydi, to'g'ri javob va ballarni qo'yadi, audioni ulaydi.</div>
+ <select id=au_ex>${ex.map(e=>`<option value=${e.id}>${TLV[e.level]} · ${e.no}${e.type?' · '+e.type:''}</option>`).join('')}</select>
+ <label class=s>Savollar PDF (bir nechta tanlash mumkin)<input id=au_q type=file accept=".pdf,application/pdf" multiple></label><input id=au_qu placeholder="yoki PDF havolalari (https://...)">
+ <label class=s>정답 및 배점표 PDF<input id=au_a type=file accept=".pdf,application/pdf"></label><input id=au_aurl placeholder="yoki javoblar PDF havolasi">
+ <label class=s>듣기 audio (mp3 / zip)<input id=au_f type=file accept="audio/*,.mp3,.m4a,.wav,.zip"></label><input id=au_furl placeholder="yoki audio/zip havolasi">
+ <label><input type=checkbox id=au_r checked style="width:auto"> Eski savollarni almashtirish</label><label><input type=checkbox id=au_w checked style="width:auto"> So'zlarni ham ajratish (TOPIK so'zlari)</label>
+ <button class=big2 onclick="tkAuto()">⚡ Yuklashni boshlash</button><div id=au_res class=s></div><hr>
  <b>✍️ Yozish (쓰기) javoblarini baholash (${wr.length})</b>${wr.map(x=>`<div class=card style="display:block;margin:6px 0"><div class=s>${esc(x.name||'')} · ${TLV[x.level]} ${x.no} · ${new Date(x.ts).toLocaleDateString()}</div><div style="white-space:pre-wrap;max-height:200px;overflow:auto">${esc(x.writing)}</div><div class=edr><input id=wg${x.id} type=number min=0 max=100 placeholder="Ball (0-100)"><button class=big2 style="width:auto" onclick="tkaGrade(${x.id})">✅ Baholash</button></div></div>`).join('')||'<p class=s>Baholanishi kutilayotgan javob yo\'q</p>'}`}
 async function tkaNew(){const level=+$('#tkl').value,minutes={};TSEC.forEach(s=>{const e=$('#tkm_'+s);if(e)minutes[s]=+e.value});
  const r=await api('/admin/topik/exam',{body:{no:+$('#tkno').value,level,type:$('#tkt2').value,title:$('#tkti').value,src:$('#tksr').value,free:$('#tkfr').checked?1:0,minutes}});if(r.e)return alert(r.e);await tkAdm();tkaOpen(r.id)}
@@ -978,4 +1025,11 @@ document.addEventListener('click',e=>{const b=e.target.closest('.lrn');if(b&&!b.
 const RBSEL='.b,.nxt,.big2,.pill,.lrn,.gold,.cta button,.cb,.bkb,.chp,.lv,.mic2,.send,.backpill,.vcall,.vb,.dk i';
 document.addEventListener('pointerdown',e=>{const t=e.target.closest&&e.target.closest(RBSEL);if(!t)return;const r=t.getBoundingClientRect();if(getComputedStyle(t).position==='static')t.style.position='relative';
  t.style.setProperty('--bx',(e.clientX-r.left).toFixed(0)+'px');t.style.setProperty('--by',(e.clientY-r.top).toFixed(0)+'px');t.classList.remove('bursting');void t.offsetWidth;t.classList.add('bursting');clearTimeout(t._bt);t._bt=setTimeout(()=>t.classList.remove('bursting'),760)},{passive:true});
+
+// v22: tugma bosilganda "qochib" qaytadi, so'ng amal bajariladi
+document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('.big2,.nxt,.cta button');
+ if(!b||b._go||b.disabled||(window.matchMedia&&matchMedia('(prefers-reduced-motion:reduce)').matches))return;
+ e.preventDefault();e.stopImmediatePropagation();
+ const sg=()=>Math.random()<.5?-1:1;b.style.setProperty('--dx',Math.round(sg()*(30+Math.random()*30))+'px');b.style.setProperty('--dy',Math.round(sg()*(8+Math.random()*16))+'px');b.style.setProperty('--rt',(sg()*(2+Math.random()*4)).toFixed(1)+'deg');
+ b.classList.add('dodge');setTimeout(()=>{b.classList.remove('dodge');b._go=1;try{b.click()}finally{b._go=0}},520)},true);
 </script></body></html>
