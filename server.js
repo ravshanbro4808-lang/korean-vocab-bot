@@ -9,6 +9,7 @@ const chainFor=(first,fast)=>{const all=[...new Set([...(fast?FASTM:[]),first,..
 const friendlyErr=m=>{m=String(m||'');return /quota|exceed|429|rate/i.test(m)?"Gemini kunlik limiti tugadi (bepul tarif). Birozdan keyin urinib ko'ring yoki Google AI Studio'da billing ulang.":/demand|overload|unavailable|503/i.test(m)?"Gemini hozir band. Birozdan keyin urinib ko'ring.":/timeout|aborted|fetch failed/i.test(m)?"Gemini javob bermadi. Qayta urinib ko'ring.":m.slice(0,160)};const USE_GEMINI=!!GEMINI_API_KEY,AI_KEY=GEMINI_API_KEY||ANTHROPIC_API_KEY;
 const addM=(ts,n)=>{const d=new Date(ts);d.setMonth(d.getMonth()+n);return d.getTime()};const DAY=864e5,PERMS=['dicts','import','tasks','payments','trials','users','plans','methods','admins'];
 process.on('uncaughtException',e=>console.error('uncaught',e));process.on('unhandledRejection',e=>console.error('unhandled',e));
+const MAXW_G=+process.env.MAX_WORDS||300000;
 const DATA=process.env.DATA_DIR||'.';fs.mkdirSync(DATA+'/uploads',{recursive:true});fs.mkdirSync(DATA+'/audio',{recursive:true});
 const db=new Database(DATA+'/data.db');
 db.exec(`create table if not exists users(id integer primary key,name text,email text unique,is_admin int default 0,perms text default '',paid_until int default 0,trial text default 'none',created int);
@@ -52,7 +53,7 @@ const has=(u,p)=>u.is_admin==2||(u.is_admin==1&&u.perms.split(',').includes(p));
 const wk=()=>Math.floor(Date.now()/(7*DAY));
 const addScore=(id,name,p)=>{if(p>0)run('insert into scores(user_id,name,week,pts) values(?,?,?,?) on conflict(user_id,week) do update set pts=pts+excluded.pts',id,name,wk(),p)};
 const app=express();app.use(express.json());app.get('/',(r,s)=>s.sendFile(__dirname+'/index.html'));app.use('/shots',express.static(DATA+'/uploads'));app.use('/audio',express.static(DATA+'/audio'));
-const up=multer({dest:DATA+'/uploads/',limits:{fileSize:25*1024*1024}}),gc=GOOGLE_CLIENT_ID&&new OAuth2Client(GOOGLE_CLIENT_ID);
+const up=multer({dest:DATA+'/uploads/',limits:{fileSize:25*1024*1024}}),upBig=multer({dest:DATA+'/uploads/',limits:{fileSize:2*1024*1024*1024}}),gc=GOOGLE_CLIENT_ID&&new OAuth2Client(GOOGLE_CLIENT_ID);
 app.get('/config',(r,s)=>s.json({google:GOOGLE_CLIENT_ID||null,dev:!!DEV,bot:BOT_USERNAME,fox:!!AI_KEY,voice:USE_GEMINI}));
 app.post('/auth/google',async(r,s)=>{try{const t=await gc.verifyIdToken({idToken:r.body.credential,audience:GOOGLE_CLIENT_ID}),p=t.getPayload();
   if(!p.email_verified)return s.status(401).json({e:'email'});const em=p.email.toLowerCase();
@@ -235,12 +236,12 @@ async function geminiRaw(contents,system,cfg,n=0,mdl){const base=mdl||FOXM;let l
   try{return await geminiRaw0(contents,system,c2,2,m)}catch(e){le=e;if(!BUSY.test(String(e&&(e.message||e.name))))throw e;markDown(m,e)}}throw le}
 async function geminiRaw0(contents,system,cfg,n=0,mdl){
   const body={contents,generationConfig:cfg};if(system)body.systemInstruction={parts:[{text:system}]};
-  const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+encodeURIComponent(mdl||FOXM)+':generateContent',{method:'POST',signal:AbortSignal.timeout(cfg.maxOutputTokens<=1500?30000:120000),headers:{'content-type':'application/json','x-goog-api-key':GEMINI_API_KEY},body:JSON.stringify(body)});
+  const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+encodeURIComponent(mdl||FOXM)+':generateContent',{method:'POST',signal:AbortSignal.timeout(cfg.maxOutputTokens<=1500?30000:300000),headers:{'content-type':'application/json','x-goog-api-key':GEMINI_API_KEY},body:JSON.stringify(body)});
   const j=await r.json().catch(()=>({}));
   if(!r.ok){const em=(j.error&&j.error.message)||'api '+r.status;if(/thinking level/i.test(em)&&cfg.thinkingConfig&&cfg.thinkingConfig.thinkingLevel!=='low'){THINK='low';cfg.thinkingConfig.thinkingLevel='low';return geminiRaw(contents,system,cfg)}if(n===0&&r.status===503){await new Promise(z=>setTimeout(z,1500));return geminiRaw0(contents,system,cfg,1,mdl)}throw new Error(em)}
   const c=j.candidates&&j.candidates[0];const t=c&&c.content?(c.content.parts||[]).map(x=>x.text||'').join('').trim():'';
   if(!t)throw new Error("Gemini bo'sh javob qaytardi");return t}
-const geminiFile=(buf,mime,prompt,max)=>geminiRaw([{role:'user',parts:[{inlineData:{mimeType:mime,data:typeof buf==='string'?buf:buf.toString('base64')}},{text:prompt}]}],'',gcfg(FOXM,max));
+const geminiFile=(src,mime,prompt,max)=>geminiRaw([{role:'user',parts:[src&&src.uri?{fileData:{mimeType:src.mimeType||mime,fileUri:src.uri}}:{inlineData:{mimeType:mime,data:typeof src==='string'?src:src.toString('base64')}},{text:prompt}]}],'',gcfg(FOXM,max));
 async function geminiVoice(hist,system,audio){
   const cs=[];for(const m of (hist||[]).slice(-10)){const role=m.role==='assistant'?'model':'user',text=String(m.content||'').slice(0,1500);if(!text)continue;
     if(cs.length&&cs[cs.length-1].role===role)cs[cs.length-1].parts[0].text+='\n'+text;else cs.push({role,parts:[{text}]})}
@@ -255,17 +256,20 @@ async function aiWords(items,txt,vis,defPos,auto,job){
   if(!AI_KEY||(!vis&&(kL===0||good>=kL*.6))){if(!AI_KEY&&vis&&vis.partial&&job)job.warn.push((vis.pageList||[]).length+" ta sahifada matn topilmadi (skan/rasm bo'lishi mumkin): sahifalar "+(vis.pageList||[]).slice(0,30).join(', ')+". Ularni o'qish uchun GEMINI_API_KEY kerak.");return (vis&&!vis.partial)?null:items}
   let got=[],failed=0;
   try{
-    if(vis){if(!USE_GEMINI){if(job)job.aiErr="GEMINI_API_KEY topilmadi";return vis.partial?items:null}if(job)job.stage="AI fayldan so'zlarni qidiryapti...";
+    if(vis){if(!USE_GEMINI){if(job)job.aiErr="GEMINI_API_KEY topilmadi";return vis.partial?items:null}if(!vis.buf){try{if(job)job.stage="Fayl AI'ga yuklanmoqda ("+Math.round(vis.size/1e6)+" MB)...";vis.ref=await geminiUpload(vis.path,vis.mime,'book');
+        if(vis.mime==='application/pdf'&&!vis.pages){vis.pages=parseInt(await geminiFile(vis.ref,vis.mime,"Bu PDF faylda nechta sahifa bor? Faqat bitta butun son yoz.",50))||0;if(job)job.pages=vis.pages}}
+        catch(e){if(job)job.aiErr=friendlyErr(e&&e.message||e);return vis.partial?items:null}}
+      if(job)job.stage="AI fayldan so'zlarni qidiryapti...";
       const rgs=[];
       if(vis.pageList&&vis.pageList.length){for(let i=0;i<vis.pageList.length;i+=8)rgs.push(vis.pageList.slice(i,i+8))}
       else if(vis.mime==='application/pdf'&&vis.pages>8){for(let p=1;p<=vis.pages;p+=8){const g=[];for(let k=p;k<p+8&&k<=vis.pages;k++)g.push(k);rgs.push(g)}}else rgs.push(null);
       let ri=0,dn=0,lastE='';const wv=async()=>{while(ri<rgs.length){const rg=rgs[ri++],pr=wp()+(rg?"\n\nFAQAT PDFning quyidagi sahifalaridagi so'zlarni ol (sahifa raqamlari): "+rg.join(', ')+". Har bir sahifani to'liq o'qi, hech bir so'zni tashlab ketma.":"");let okc=0;
-        for(let a=0;a<3&&!okc;a++){try{const w=parseWords(await geminiFile(vis.b64||(vis.b64=vis.buf.toString('base64')),vis.mime,pr,30000));got.push(...w);okc=1}catch(e){lastE=friendlyErr(e&&e.message||e);await new Promise(z=>setTimeout(z,2000))}}
+        for(let a=0;a<3&&!okc;a++){try{const w=parseWords(await geminiFile(vis.ref||vis.b64||(vis.b64=vis.buf.toString('base64')),vis.mime,pr,30000));got.push(...w);okc=1}catch(e){lastE=friendlyErr(e&&e.message||e);await new Promise(z=>setTimeout(z,2000))}}
         if(!okc){failed++;if(job)job.failedPages.push(...(rg||[]))}
         dn++;if(job)job.stage="AI fayldan so'zlarni qidiryapti ("+dn+"/"+rgs.length+")..."}};
-      await Promise.all(Array.from({length:Math.min(3,rgs.length)},wv));if(!got.length&&job)job.aiErr=lastE||"AI fayldan so'z topa olmadi"}
-    else{const cs=[];for(let i=0;i<txt.length&&i<600000;i+=5000){let e=Math.min(txt.length,i+5000);const nl=txt.indexOf('\n',e);if(nl>0&&nl-e<400)e=nl;cs.push(txt.slice(i,e));i=e-5000}
-      if(txt.length>600000&&job)job.warn.push("Fayl juda katta: faqat dastlabki 600 000 belgi qayta ishlandi.");
+      await Promise.all(Array.from({length:Math.min(2,rgs.length)},wv));if(!got.length&&job)job.aiErr=lastE||"AI fayldan so'z topa olmadi"}
+    else{const cs=[];for(let i=0;i<txt.length&&i<20000000;i+=5000){let e=Math.min(txt.length,i+5000);const nl=txt.indexOf('\n',e);if(nl>0&&nl-e<400)e=nl;cs.push(txt.slice(i,e));i=e-5000}
+      if(txt.length>20000000&&job)job.warn.push("Fayl juda katta: faqat dastlabki 20 000 000 belgi qayta ishlandi.");
       let ci=0,dn=0;const bad=[];
       const w=async()=>{while(ci<cs.length){const c=cs[ci++];if(/[가-힣]/.test(c)){let okc=0;for(let a=0;a<2&&!okc;a++){try{got.push(...parseWords(await callClaude([{role:'user',content:wp()+"\n\n"+c}],"Sen koreys-o'zbek lug'at tuzuvchisan.",12000)));okc=1}catch(e){if(job)job.aiErr=friendlyErr(e&&e.message||e);await new Promise(z=>setTimeout(z,1500))}}if(!okc){failed++;bad.push(c)}}dn++;if(job)job.stage="AI fayldan so'zlarni qidiryapti ("+dn+"/"+cs.length+")..."}};
       await Promise.all(Array.from({length:Math.min(5,cs.length)},w));if(failed&&job)job.warn.push(failed+" ta matn bo'lagi AI tomonidan o'qilmadi; ular oddiy usulda ajratildi (tarjimasi/turi to'liq bo'lmasligi mumkin).")}
@@ -293,35 +297,18 @@ const normPos=x=>{x=String(x||'').trim().replace(/[()\[\]{}.:]/g,'');if(!x)retur
   for(const [re,p] of POSMAP)if(re.test(x)&&has0(p))return p;
   const l=x.toLowerCase();for(const p of ps)if(l===p.key||l===String(p.name).toLowerCase()||(p.ko&&x===p.ko))return p.key;return ''};
 const posKeys=()=>getPoss().map(p=>p.key).join('|')+'|boshqa';
-async function extract(file,defPos,auto,job){
-  const buf=fs.readFileSync(file.path);fs.unlinkSync(file.path);const nm=file.originalname.toLowerCase();let txt='',visual=null,pages=0,vpl=null;const emptyP=[];
-  try{
-    if(/\.pdf$/.test(nm)){try{const pg=[],pr0=await require('pdf-parse')(buf,{pagerender:p=>p.getTextContent().then(tc=>{let t='',ly=null;for(const it of tc.items){if(ly!==null&&Math.abs(it.transform[5]-ly)>2)t+='\n';t+=it.str;ly=it.transform[5]}pg.push(t);return t})});
-      pages=pr0.numpages||pg.length;txt=pg.length?pg.join('\n'):(pr0.text||'');if(job){job.pages=pages}
-      pg.forEach((t,i)=>{if(t.replace(/\s/g,'').length<15)emptyP.push(i+1)});if(job)job.emptyPages=emptyP.slice()}catch{txt=''}
-      if((txt.replace(/\s/g,'').length<40||!/[가-힣]/.test(txt))&&buf.length<14e6)visual='application/pdf';
-      else if(emptyP.length&&buf.length<14e6){visual='application/pdf';vpl=emptyP.slice()}}
-    else if(/\.(xlsx|xls|ods)$/.test(nm)){const X=require('xlsx'),wb=X.read(buf);txt=wb.SheetNames.map(n=>X.utils.sheet_to_csv(wb.Sheets[n])).join('\n')}
-    else if(/\.docx$/.test(nm))txt=(await require('mammoth').extractRawText({buffer:buf})).value;
-    else if(/\.(html?|xml)$/.test(nm))txt=buf.toString('utf8').replace(/<(script|style)[\s\S]*?<\/\1>/gi,'').replace(/<br\s*\/?>|<\/(p|div|li|tr|h\d)>/gi,'\n').replace(/<[^>]+>/g,' ');
-    else if(/\.(pptx|odt|odp|epub)$/.test(nm)){const z=await require('jszip').loadAsync(buf);let o='';for(const n of Object.keys(z.files).sort()){if(!z.files[n].dir&&/^ppt\/slides\/slide\d+\.xml$|^content\.xml$|\.x?html?$/.test(n))o+=(await z.files[n].async('string')).replace(/<\/(a:p|text:p|text:h|p|div|h\d|li|tr)>|<br\s*\/?>/gi,'\n').replace(/<\/(td|th|a:tc|table:table-cell)>/gi,'\t').replace(/<[^>]+>/g,'').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;|&apos;/g,"'")+'\n'}txt=o}
-    else if(/\.rtf$/.test(nm)){const dc=new TextDecoder('euc-kr');txt=buf.toString('latin1').replace(/(?:\\'[0-9a-f]{2})+/gi,m=>dc.decode(Buffer.from(m.replace(/\\'/g,''),'hex'))).replace(/\\u(-?\d+)\??/g,(m,n)=>String.fromCharCode(n<0?+n+65536:+n)).replace(/\\pard?\b/g,'\n').replace(/\\[a-z]+-?\d* ?|[{}]/gi,'')}
-    else if(/\.doc$/.test(nm)){txt=(buf.toString('utf16le').match(/[\u0009\u000d\u0020-\u007e\u00a0-\u052f\u1100-\u11ff\u3130-\u318f\uac00-\ud7af\u2018-\u201f\u2013\u2014]{2,}/g)||[]).map(x=>x.replace(/\r/g,'\n')).join('\n')}
-    else if(/\.(png|jpe?g|webp|heic|heif)$/.test(nm)){if(buf.length<14e6)visual='image/'+(/jpe?g$/.test(nm)?'jpeg':nm.split('.').pop())}
-    else{let t=buf.toString('utf8');if(buf[0]===0xFF&&buf[1]===0xFE)t=buf.toString('utf16le');else if((t.match(/\uFFFD/g)||[]).length>3){try{t=new TextDecoder('euc-kr').decode(buf)}catch{}}txt=t.replace(/^\uFEFF/,'')}
-  }catch(e){if(job)job.readErr=String((e&&e.message)||e).slice(0,200);return null}
-  if(job&&!visual&&!txt.trim()&&buf.length>=14e6)job.readErr="fayl juda katta (skan/rasm PDF 14 MB dan oshmasin) — uni bo'lib yuklang";
-  const items=[],seen=new Set();let cur='';
+function mkParser(defPos,auto,isTab){
+  const items=[],seen=new Set();let cur='',carry=null;
   const hasK=x=>/[가-힣]/.test(x),lat=x=>/\p{L}/u.test(x)&&!hasK(x);
   const add=(ko,uz)=>{ko=ko.trim();uz=uz.trim();let p=cur,px=!!cur;
     const tg=uz.match(/\s*[(\[]\s*([^)\]]+?)\s*[)\]]\s*$/);if(tg&&normPos(tg[1])){p=normPos(tg[1]);px=true;uz=uz.slice(0,tg.index).trim()}
     uz=uz.replace(/^["“”«»]+|["“”«»]+$/g,'').trim();
     const ps=uz.split(/\s*[,;|\t]\s*/);if(ps.length>1&&normPos(ps[ps.length-1])){p=normPos(ps.pop());px=true;uz=ps.join(', ')}
     if(ko&&uz&&!seen.has(ko)){seen.add(ko);items.push({ko,uz,pos:p||defPos,px})}};
-  const isTab=/\.(xlsx|xls|ods|csv|tsv)$/.test(nm);
   const csvSplit=(l,c)=>{const o=[];let b='',q=0;for(let i=0;i<l.length;i++){const ch=l[i];if(ch==='"'){if(q&&l[i+1]==='"'){b+='"';i++}else q=!q}else if(!q&&(ch==='\t'||ch===';'||ch==='|'||(c&&ch===','))){o.push(b);b=''}else b+=ch}o.push(b);return o.map(x=>x.trim())};
-  const lines=txt.split(/\r?\n/).map(l=>l.replace(/^\s*(\d+[.)]?|[•*·])\s+/,'').trim()).filter(Boolean);
-  for(let i=0;i<lines.length;i++){const line=lines[i];
+  const feed=(raw,final)=>{const fresh=raw.map(l=>l.replace(/^\s*(\d+[.)]?|[•*·])\s+/,'').trim()).filter(Boolean);
+    const lines=carry!==null?[carry,...fresh]:fresh;carry=null;const lim=final?lines.length:lines.length-1;let i=0;
+  for(i=0;i<lim;i++){const line=lines[i];
     const hd=normPos(line.replace(/^[^A-Za-z가-힣'’‘`]+|[^A-Za-z가-힣'’‘`]+$/g,''));if(hd&&line.length<30){cur=hd;continue}
     if(/[\t;|]/.test(line)||(isTab&&line.includes(','))){const cells=csvSplit(line,isTab),ki=cells.findIndex(c=>hasK(c));
       if(cells.length>=2&&ki>=0){const rest=cells.filter((c,j)=>j!==ki&&c&&!hasK(c)&&/\p{L}/u.test(c)&&!normPos(c)),ps=cells.map(c=>normPos(c)).find(Boolean);
@@ -334,12 +321,58 @@ async function extract(file,defPos,auto,job){
     if(hasK(line)&&!/[A-Za-z\u0400-\u04FF]/.test(line)&&lines[i+1]&&lat(lines[i+1])&&!normPos(lines[i+1])){add(line,lines[i+1]);i++;continue}
     for(const w of line.match(/[가-힣]{1,20}/g)||[])if(!seen.has(w)){seen.add(w);items.push({ko:w,uz:'',pos:cur||defPos,px:!!cur})}
   }
-  if(auto)for(const it of items)if(!it.px&&/다$/.test(it.ko))it.pos='fel';
-  return await aiWords(items,txt,visual&&{buf,mime:visual,pages,pageList:vpl,partial:!!vpl},defPos,auto,job)}
+  if(!final&&lines.length)carry=(i>lim)?null:lines[lines.length-1]};
+  const finish=()=>{if(auto)for(const it of items)if(!it.px&&/다$/.test(it.ko))it.pos='fel'};
+  return {items,feed,finish}}
+
+const TXTEXT=new Set(['txt','csv','tsv','json','md','srt','vtt','log','html','htm','xml','lst','dic','text','tab','ass','sub']),BINEXT=new Set(['xlsx','xls','ods','docx','doc','rtf','pptx','odt','odp','epub','hwpx','hwp','pdf','zip','rar','7z','tar','gz','exe','iso','db','sqlite']);
+async function looksText(path,ext){if(TXTEXT.has(ext))return true;if(BINEXT.has(ext)||GEMMIME[ext])return false;
+  const fd=await fs.promises.open(path,'r');try{const b=Buffer.alloc(8192),{bytesRead}=await fd.read(b,0,8192,0);if(!bytesRead)return false;const h=b.subarray(0,bytesRead);if((h[0]===0xFF&&h[1]===0xFE)||(h[0]===0xFE&&h[1]===0xFF))return true;return !h.includes(0)}finally{await fd.close()}}
+async function streamExtract(file,defPos,auto,job,size){
+  const MAXW=MAXW_G,nm=file.originalname.toLowerCase();
+  const fd=await fs.promises.open(file.path,'r');const hb=Buffer.alloc(65536);const {bytesRead}=await fd.read(hb,0,65536,0);await fd.close();const head=hb.subarray(0,bytesRead);let enc='utf-8';
+  if(head[0]===0xFF&&head[1]===0xFE)enc='utf-16le';else if(head[0]===0xFE&&head[1]===0xFF)enc='utf-16be';
+  else{try{new TextDecoder('utf-8',{fatal:true}).decode(head)}catch{try{new TextDecoder('utf-8',{fatal:true}).decode(head.subarray(0,Math.max(0,head.length-3)))}catch{enc='euc-kr'}}}
+  const dec=new TextDecoder(enc,{stream:true}),P=mkParser(defPos,auto,/\.(csv|tsv)$/.test(nm));let rest='',read=0,last=0,cut=false;
+  for await(const chunk of fs.createReadStream(file.path,{highWaterMark:+process.env.STREAM_CHUNK||(4<<20)})){
+    read+=chunk.length;const t=rest+dec.decode(chunk,{stream:true}),ls=t.split(/\r?\n/);rest=ls.pop();if(rest.length>2e6){ls.push(rest);rest=''}
+    P.feed(ls,false);
+    if(job&&Date.now()-last>800){last=Date.now();job.stage="Katta fayl o'qilmoqda ("+Math.round(read/size*100)+"%) — "+P.items.length+" ta so'z topildi"}
+    if(P.items.length>=MAXW){cut=true;break}}
+  if(!cut)P.feed([rest+dec.decode()],true);else P.feed([],true);
+  P.finish();if(job){if(cut)job.warn.push("Fayl juda katta: dastlabki "+MAXW+" ta so'z olindi (MAX_WORDS o'zgaruvchisi bilan oshirish mumkin).");job.warn.push("Katta matn fayli bo'lak-bo'lak o'qildi: «koreys - tarjima» juftliklari va koreyscha so'zlar olindi, tarjimasizlari alohida tarjima qilinadi.")}
+  return P.items.slice(0,MAXW)}
+async function extract(file,defPos,auto,job){try{return await extract0(file,defPos,auto,job)}finally{try{fs.unlinkSync(file.path)}catch{}}}
+async function extract0(file,defPos,auto,job){
+  const nm=file.originalname.toLowerCase(),size=fs.statSync(file.path).size,ext=(nm.match(/\.([a-z0-9]+)$/)||[])[1]||'',gm=GEMMIME[ext],bigVis=!!(gm&&USE_GEMINI&&size>6e6);
+  if(ext==='hwp'){if(job)job.readErr="eski .hwp formati o'qilmaydi — Hangul'da «Boshqacha saqlash» orqali PDF, HWPX yoki DOCX qilib saqlang";return null}
+  if(!bigVis&&size>(+process.env.STREAM_MIN||50e6)&&await looksText(file.path,ext))return await streamExtract(file,defPos,auto,job,size);
+  let buf=null;if(!bigVis){if(size>150e6){if(job)job.readErr="fayl juda katta ("+Math.round(size/1e6)+" MB). "+(GEMMIME[ext]?"PDF/rasm/audio/video uchun GEMINI_API_KEY kerak.":"Word/Excel/arxiv kabi fayllar bunchalik katta bo'lsa o'qilmaydi — uni TXT yoki CSV qilib saqlab yuklang (TXT/CSV 8 GB gacha o'qiladi).");return null}buf=fs.readFileSync(file.path)}
+  let txt='',visual=null,pages=0,vpl=null;const emptyP=[];
+  try{
+    if(bigVis){visual=gm;if(ext==='pdf'){pages=countPdfPages(file.path);if(job)job.pages=pages}}
+    else if(/\.pdf$/.test(nm)){try{const pg=[],pr0=await require('pdf-parse')(buf,{pagerender:p=>p.getTextContent().then(tc=>{let t='',ly=null;for(const it of tc.items){if(ly!==null&&Math.abs(it.transform[5]-ly)>2)t+='\n';t+=it.str;ly=it.transform[5]}pg.push(t);return t})});
+      pages=pr0.numpages||pg.length;txt=pg.length?pg.join('\n'):(pr0.text||'');if(job){job.pages=pages}
+      pg.forEach((t,i)=>{if(t.replace(/\s/g,'').length<15)emptyP.push(i+1)});if(job)job.emptyPages=emptyP.slice()}catch{txt='';pages=(buf.toString('latin1').match(/\/Type\s*\/Page[^s]/g)||[]).length;if(job)job.pages=pages}
+      if((txt.replace(/\s/g,'').length<40||!/[가-힣]/.test(txt))&&buf.length<14e6)visual='application/pdf';
+      else if(emptyP.length&&buf.length<14e6){visual='application/pdf';vpl=emptyP.slice()}}
+    else if(/\.(xlsx|xls|ods)$/.test(nm)){const X=require('xlsx'),wb=X.read(buf);txt=wb.SheetNames.map(n=>X.utils.sheet_to_csv(wb.Sheets[n])).join('\n')}
+    else if(/\.docx$/.test(nm))txt=(await require('mammoth').extractRawText({buffer:buf})).value;
+    else if(/\.(html?|xml)$/.test(nm))txt=buf.toString('utf8').replace(/<(script|style)[\s\S]*?<\/\1>/gi,'').replace(/<br\s*\/?>|<\/(p|div|li|tr|h\d)>/gi,'\n').replace(/<[^>]+>/g,' ');
+    else if(/\.(pptx|odt|odp|epub|hwpx)$/.test(nm)){const z=await require('jszip').loadAsync(buf);let o='';for(const n of Object.keys(z.files).sort()){if(!z.files[n].dir&&/^ppt\/slides\/slide\d+\.xml$|^content\.xml$|^Contents\/section\d+\.xml$|\.x?html?$/.test(n))o+=(await z.files[n].async('string')).replace(/<\/(a:p|hp:p|text:p|text:h|p|div|h\d|li|tr)>|<br\s*\/?>/gi,'\n').replace(/<\/(td|th|a:tc|table:table-cell)>/gi,'\t').replace(/<[^>]+>/g,'').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;|&apos;/g,"'")+'\n'}txt=o}
+    else if(/\.rtf$/.test(nm)){const dc=new TextDecoder('euc-kr');txt=buf.toString('latin1').replace(/(?:\\'[0-9a-f]{2})+/gi,m=>dc.decode(Buffer.from(m.replace(/\\'/g,''),'hex'))).replace(/\\u(-?\d+)\??/g,(m,n)=>String.fromCharCode(n<0?+n+65536:+n)).replace(/\\pard?\b/g,'\n').replace(/\\[a-z]+-?\d* ?|[{}]/gi,'')}
+    else if(/\.doc$/.test(nm)){txt=(buf.toString('utf16le').match(/[\u0009\u000d\u0020-\u007e\u00a0-\u052f\u1100-\u11ff\u3130-\u318f\uac00-\ud7af\u2018-\u201f\u2013\u2014]{2,}/g)||[]).map(x=>x.replace(/\r/g,'\n')).join('\n')}
+    else if(/\.(png|jpe?g|webp|heic|heif)$/.test(nm)){if(buf.length<14e6)visual='image/'+(/jpe?g$/.test(nm)?'jpeg':nm.split('.').pop())}
+    else if(gm&&!/^image\//.test(gm)&&gm!=='application/pdf'){if(buf.length<14e6)visual=gm}
+    else{let t=buf.toString('utf8');if(buf[0]===0xFF&&buf[1]===0xFE)t=buf.toString('utf16le');else if((t.match(/\uFFFD/g)||[]).length>3){try{t=new TextDecoder('euc-kr').decode(buf)}catch{}}txt=t.replace(/^\uFEFF/,'')}
+  }catch(e){if(job)job.readErr=String((e&&e.message)||e).slice(0,200);return null}
+  if(job&&!visual&&!txt.trim()&&buf.length>=14e6)job.readErr="fayl juda katta (skan/rasm PDF 14 MB dan oshmasin) — uni bo'lib yuklang";
+  const P=mkParser(defPos,auto,/\.(xlsx|xls|ods|csv|tsv)$/.test(nm));P.feed(txt.split(/\r?\n/),true);P.finish();const items=P.items;
+  const vis=visual&&{buf,path:file.path,size,mime:visual,pages,pageList:vpl,partial:!!vpl};try{return await aiWords(items,txt,vis,defPos,auto,job)}finally{if(vis&&vis.ref)geminiDelete(vis.ref)}}
 async function addWords(job,d,items,levelOf,auto){
   job.stage="Tekshirilmoqda...";
-  const todo=items.slice(0,20000).filter(it=>!one('select 1 from words where dict_id=? and ko=?',d.id,it.ko));
-  job.dups=Math.max(0,Math.min(items.length,20000)-todo.length);todo.forEach((it,i)=>it.idx=i);job.found=items.length;job.total=todo.length;job.done=0;
+  const todo=items.slice(0,MAXW_G).filter(it=>!one('select 1 from words where dict_id=? and ko=?',d.id,it.ko));
+  job.dups=Math.max(0,Math.min(items.length,MAXW_G)-todo.length);todo.forEach((it,i)=>it.idx=i);job.found=items.length;job.total=todo.length;job.done=0;
   const wl=['b','o','y'].includes(job.wlvl)?job.wlvl:(['b','o','y'].includes(d.lvl)?d.lvl:''),ins=db.prepare('insert into words(dict_id,level,pos,section,ko,uz,lvl) values(?,?,?,?,?,?,?)'),cnt={};
   const put=list=>{db.transaction(()=>{for(const it of list){const lv=levelOf(it.idx,todo.length,it),k=lv+'|'+it.pos;
     if(cnt[k]==null)cnt[k]=one('select count(*) n from words where dict_id=? and level=? and pos=?',d.id,lv,it.pos).n;
@@ -374,19 +407,48 @@ async function classifyLevels(items,job){if(!AI_KEY)return;const bs=[];for(let i
     dn++;job.stage="So'zlar darajasi aniqlanmoqda ("+dn+"/"+bs.length+")..."}};
   await Promise.all(Array.from({length:Math.min(4,bs.length)},w));
   if(items.some(x=>!x.dl))job.warn.push("Ba'zi so'zlar darajasi aniqlanmadi — ular teng bo'lib joylandi.")}
+
+const {Readable}=require('stream');
+const GEMMIME={pdf:'application/pdf',png:'image/png',jpg:'image/jpeg',jpeg:'image/jpeg',webp:'image/webp',heic:'image/heic',heif:'image/heif',mp3:'audio/mp3',wav:'audio/wav',m4a:'audio/aac',aac:'audio/aac',ogg:'audio/ogg',flac:'audio/flac',aiff:'audio/aiff',mp4:'video/mp4',mov:'video/quicktime',webm:'video/webm',avi:'video/x-msvideo',mpeg:'video/mpeg',mpg:'video/mpg',wmv:'video/wmv',flv:'video/x-flv','3gp':'video/3gpp'};
+const GAPI='https://generativelanguage.googleapis.com';
+async function geminiUpload(path,mime,name){
+  const size=fs.statSync(path).size;if(size>=2*1024**3)throw new Error("Gemini 2 GB dan katta faylni qabul qilmaydi — faylni bir necha qismga bo'lib yuklang");
+  const st=await fetch(GAPI+'/upload/v1beta/files',{method:'POST',signal:AbortSignal.timeout(30000),headers:{'x-goog-api-key':GEMINI_API_KEY,'x-goog-upload-protocol':'resumable','x-goog-upload-command':'start','x-goog-upload-header-content-length':String(size),'x-goog-upload-header-content-type':mime,'content-type':'application/json'},body:JSON.stringify({file:{display_name:name||'book'}})});
+  const url=st.headers.get('x-goog-upload-url');if(!st.ok||!url){const j=await st.json().catch(()=>({}));throw new Error((j.error&&j.error.message)||('upload '+st.status))}
+  const up=await fetch(url,{method:'POST',duplex:'half',signal:AbortSignal.timeout(60*60000),headers:{'content-length':String(size),'x-goog-upload-offset':'0','x-goog-upload-command':'upload, finalize'},body:Readable.toWeb(fs.createReadStream(path))});
+  const j=await up.json().catch(()=>({}));if(!up.ok||!j.file)throw new Error((j.error&&j.error.message)||('upload '+up.status));
+  let f=j.file;
+  for(let i=0;i<200&&f.state&&f.state!=='ACTIVE';i++){if(f.state==='FAILED')throw new Error("Gemini faylni qayta ishlay olmadi");await new Promise(z=>setTimeout(z,3000));const r=await fetch(GAPI+'/v1beta/'+f.name,{headers:{'x-goog-api-key':GEMINI_API_KEY},signal:AbortSignal.timeout(20000)});f=await r.json()}
+  if(f.state&&f.state!=='ACTIVE')throw new Error("Gemini faylni vaqtida tayyorlamadi");
+  return f}
+function geminiDelete(f){try{fetch(GAPI+'/v1beta/'+f.name,{method:'DELETE',headers:{'x-goog-api-key':GEMINI_API_KEY},signal:AbortSignal.timeout(15000)}).catch(()=>{})}catch{}}
+function countPdfPages(path){let n=0,tail='';const fd=fs.openSync(path,'r'),b=Buffer.alloc(4<<20);let pos=0,r;try{while((r=fs.readSync(fd,b,0,b.length,pos))>0){const t=tail+b.toString('latin1',0,r);n+=(t.match(/\/Type\s*\/Page[^s]/g)||[]).length;tail=t.slice(-8);pos+=r}}finally{fs.closeSync(fd)}return n}
 const jobs={};
-setInterval(()=>{const t=Date.now();for(const k in jobs)if(t-jobs[k].ts>36e5)delete jobs[k]},6e5).unref();
+setInterval(()=>{const t=Date.now();for(const k in jobs)if((jobs[k].fin&&t-jobs[k].ts>36e5)||t-jobs[k].ts>432e5)delete jobs[k]},6e5).unref();
 const newJob=()=>{const id=crypto.randomBytes(6).toString('hex');return jobs[id]={id,stage:"Fayl o'qilmoqda...",found:0,total:0,done:0,added:0,translated:0,skipped:0,perLevel:{},perPos:{},warn:[],failedPages:[],expected:0,dups:0,pages:0,emptyPages:[],fin:false,err:null,ts:Date.now()}};
 app.get('/api/admin/job/:id',adm('import'),(r,s)=>{const j=jobs[r.params.id];if(!j)return s.status(404).json({e:'yoq'});s.json(j)});
-app.post('/api/admin/import',adm('import'),up.single('file'),(r,s)=>{
-  const {dict_id,level=1,pos='ot'}=r.body,d=one('select * from dicts where id=?',dict_id);if(!d||!r.file)return s.status(400).json({e:'bad'});
+
+const MAXUP=8*1024**3,upPath=id=>DATA+'/uploads/up_'+id+'.part',gb=n=>(n/1024**3).toFixed(1);
+app.post('/api/admin/up/start',adm('import'),(r,s)=>{const size=+r.body.size||0;
+  if(!(size>0))return s.json({e:'Fayl bo\'sh'});if(size>MAXUP)return s.json({e:"Fayl hajmi 8 GB dan oshmasin"});
+  try{const st=fs.statfsSync(DATA),free=st.bavail*st.bsize;if(free<size*1.05+2e8)return s.json({e:"Serverda disk joyi yetmaydi: kerak ~"+gb(size)+" GB, bor "+gb(free)+" GB. Railway'da Volume hajmini oshiring."})}catch{}
+  const id=crypto.randomBytes(8).toString('hex');fs.writeFileSync(upPath(id),'');s.json({id})});
+app.post('/api/admin/up/chunk/:id',adm('import'),express.raw({type:()=>true,limit:'20mb'}),async(r,s)=>{
+  const id=String(r.params.id);if(!/^[a-f0-9]{16}$/.test(id)||!fs.existsSync(upPath(id)))return s.json({e:'Yuklash topilmadi, qaytadan boshlang'});
+  const off=Math.max(0,Math.floor(+r.query.off||0)),b=r.body;if(!Buffer.isBuffer(b)||!b.length)return s.json({e:"Bo'sh bo'lak"});if(off+b.length>MAXUP)return s.json({e:'Hajm oshib ketdi'});
+  try{const fh=await fs.promises.open(upPath(id),'r+');try{await fh.write(b,0,b.length,off)}finally{await fh.close()}s.json({ok:1})}catch(e){s.json({e:"Bo'lakni yozib bo'lmadi: "+(e.code||e.message)})}});
+function pickFile(r){if(r.file)return r.file;const id=String(r.body.upload_id||'');if(!/^[a-f0-9]{16}$/.test(id))return null;
+  try{const sz=fs.statSync(upPath(id)).size;if(+r.body.upload_size&&sz!==+r.body.upload_size)return {bad:'Fayl to\'liq yuklanmadi ('+sz+' / '+r.body.upload_size+' bayt) — qayta urinib ko\'ring'};return {path:upPath(id),originalname:String(r.body.upload_name||'file'),size:sz}}catch{return null}}
+setInterval(()=>{try{for(const f of fs.readdirSync(DATA+'/uploads'))if(/^up_[a-f0-9]{16}\.part$/.test(f)&&Date.now()-fs.statSync(DATA+'/uploads/'+f).mtimeMs>864e5)fs.unlinkSync(DATA+'/uploads/'+f)}catch{}},36e5).unref();
+app.post('/api/admin/import',adm('import'),upBig.single('file'),(r,s)=>{
+  const {dict_id,level=1,pos='ot'}=r.body,d=one('select * from dicts where id=?',dict_id);const F=pickFile(r);if(!d||!F||F.bad)return s.status(400).json({e:(F&&F.bad)||'bad'});
   const job=newJob(),auto=r.body.auto==='1';job.wlvl=LVL(r.body.wlvl);s.json({job:job.id});
-  (async()=>{try{const items=await extract(r.file,pos,auto,job);if(!items){job.err=job.readErr?("Faylni o'qib bo'lmadi: "+job.readErr):job.aiErr?("Gemini javob bermadi: "+job.aiErr+" — birozdan keyin qayta urinib ko'ring."):"Faylni o'qib bo'lmadi (.doc bo'lsa, .docx yoki PDF qilib saqlang; rasm/skan faqat Gemini bilan o'qiladi)";return}await addWords(job,d,items,()=>+level,auto)}catch(e){job.err=String(e.message||e)}finally{job.fin=true}})()});
-app.post('/api/admin/book',adm('import'),up.single('file'),(r,s)=>{
+  (async()=>{try{const items=await extract(F,pos,auto,job);if(!items){job.err=job.readErr?("Faylni o'qib bo'lmadi: "+job.readErr):job.aiErr?("Gemini javob bermadi: "+job.aiErr+" — birozdan keyin qayta urinib ko'ring."):"Faylni o'qib bo'lmadi (.doc bo'lsa, .docx yoki PDF qilib saqlang; rasm/skan faqat Gemini bilan o'qiladi)";return}await addWords(job,d,items,()=>+level,auto)}catch(e){job.err=String(e.message||e)}finally{job.fin=true}})()});
+app.post('/api/admin/book',adm('import'),upBig.single('file'),(r,s)=>{
   const b=r.body,name=(b.name||'').trim(),pos=b.pos||'ot',lvl=LVL(b.lvl);let L=Math.max(1,Math.min(+b.levels||1,30));
-  if(!name)return s.json({e:"Kitob nomi kelmadi"});if(!r.file)return s.json({e:"Fayl serverga yetib bormadi (hajmi 25 MB dan oshmasin)"});
+  if(!name)return s.json({e:"Kitob nomi kelmadi"});const F=pickFile(r);if(!F||F.bad)return s.json({e:(F&&F.bad)||"Fayl serverga yetib bormadi"});
   const job=newJob(),auto=b.auto==='1';s.json({job:job.id});
-  (async()=>{try{const items=await extract(r.file,pos,auto,job);if(!items){job.err=job.readErr?("Faylni o'qib bo'lmadi: "+job.readErr):job.aiErr?("Gemini javob bermadi: "+job.aiErr+" — birozdan keyin qayta urinib ko'ring."):"Faylni o'qib bo'lmadi (.doc bo'lsa, .docx yoki PDF qilib saqlang; rasm/skan faqat Gemini bilan o'qiladi)";return}
+  (async()=>{try{const items=await extract(F,pos,auto,job);if(!items){job.err=job.readErr?("Faylni o'qib bo'lmadi: "+job.readErr):job.aiErr?("Gemini javob bermadi: "+job.aiErr+" — birozdan keyin qayta urinib ko'ring."):"Faylni o'qib bo'lmadi (.doc bo'lsa, .docx yoki PDF qilib saqlang; rasm/skan faqat Gemini bilan o'qiladi)";return}
     let levelOf;
     if(lvl==='all'){L=3;job.wlBy={1:'b',2:'o',3:'y'};job.stage="So'zlar darajasi aniqlanmoqda (AI)...";await classifyLevels(items,job);
       levelOf=(i,n,it)=>({b:1,o:2,y:3})[it&&it.dl]||Math.min(3,Math.floor(i*3/n)+1)}// Hammasi: boshlang'ich / o'rta / yuqori
@@ -437,7 +499,7 @@ app.post('/api/admin/pay/:id',adm('payments'),(r,s)=>{const p=one('select * from
   else{const u0=one('select paid_until from users where id=?',p.user_id);end=addM(Math.max(u0?u0.paid_until:0,Date.now()),mo);run('update users set paid_until=? where id=?',end,p.user_id)}}
   tell(p.user_id,ok?"✅ To'lov qabul qilindi. Obuna "+mo+" oyga faollashtirildi"+(end?" ("+new Date(end).toLocaleDateString('ru-RU')+" gacha)":"")+"!":"❌ To'lov rad etildi. Qayta yuboring.");s.json({ok:1})});
 // xonalar
-app.use((err,req,res,next)=>{res.status(200).json({e:err&&err.code==='LIMIT_FILE_SIZE'?"Fayl juda katta (25 MB dan oshmasin)":String((err&&err.message)||err)})});
+app.use((err,req,res,next)=>{res.status(200).json({e:err&&err.code==='LIMIT_FILE_SIZE'?"Fayl juda katta":String((err&&err.message)||err)})});
 const server=http.createServer(app),io=new Server(server),rooms={};
 const shuffle=a=>a.map(x=>[Math.random(),x]).sort((a,b)=>a[0]-b[0]).map(x=>x[1]);
 function buildQs(mode,w,n){
