@@ -708,12 +708,14 @@ if(BOT_TOKEN){bot=new Telegraf(BOT_TOKEN);
   bot.telegram.setChatMenuButton({menuButton:{type:'web_app',text:'Ochish',web_app:{url:WEBAPP_URL}}}).catch(()=>{})}
 
 // ===== TOPIK: serverga qo'shib yuborilgan imtihonlarni ishga tushganda o'zi yuklaydi (seed/topik.json) =====
-async function seedTopik(){try{const dir=process.env.SEED_DIR||require('path').join(__dirname,'seed'),mf=dir+'/topik.json';if(!fs.existsSync(mf))return;
+async function seedTopik(){try{const dir=process.env.SEED_DIR||require('path').join(__dirname,'seed'),mf=dir+'/topik.json';if(!fs.existsSync(mf)){console.log('[seed] topik.json topilmadi: '+mf);return}
   if(!USE_GEMINI){console.log("[seed] GEMINI_API_KEY yo'q — TOPIK seed o'tkazib yuborildi");return}
-  for(const it of JSON.parse(fs.readFileSync(mf,'utf8'))){const level=+it.level===2?2:1,type=String(it.type||''),no=+it.no;if(!(no>0))continue;
+  const list=JSON.parse(fs.readFileSync(mf,'utf8'));console.log('[seed] topik.json topildi, '+list.length+' ta imtihon tekshiriladi');
+  for(const it of list){const level=+it.level===2?2:1,type=String(it.type||''),no=+it.no;if(!(no>0))continue;
     let e=one('select * from topik_exams where no=? and level=? and type=?',no,level,type);
     if(!e){const id=run('insert into topik_exams(no,level,type,title,src,free,ts) values(?,?,?,?,?,?,?)',no,level,type,String(it.title||''),String(it.src||'topik.go.kr'),0,Date.now()).lastInsertRowid;for(const sec of TSECS[level])run('insert into topik_secs(exam_id,sec,minutes) values(?,?,?)',id,sec,TMIN[level][sec]);e=one('select * from topik_exams where id=?',id)}
-    if(one('select count(*) n from topik_q where exam_id=?',e.id).n>0)continue;
+    const have=one('select count(*) n from topik_q where exam_id=?',e.id).n;if(have>0){console.log('[seed] TOPIK',level,no,'allaqachon yuklangan ('+have+' savol)');continue}
+    console.log('[seed] TOPIK',level,no,'yuklanmoqda (bir necha daqiqa)...');
     const rd=f=>fs.readFileSync(dir+'/'+(it.dir?it.dir+'/':'')+f),job={warn:[],stage:'',fin:0};
     await tAutoRun(e,{qBufs:(it.q||[]).map(rd),ab:it.a?rd(it.a):null,auBuf:it.audio?rd(it.audio):null,auName:it.audio,replace:true,words:it.words!==false},job);
     console.log('[seed] TOPIK',level,no,job.err?('XATO: '+job.err):'tayyor',job.warn.join(' | '))}}catch(x){console.log('[seed] xato:',x&&x.message||x)}}
