@@ -9,7 +9,7 @@ const chainFor=(first,fast)=>{const all=[...new Set([...(fast?FASTM:[]),first,..
 const friendlyErr=m=>{m=String(m||'');return /quota|exceed|429|rate/i.test(m)?"Gemini kunlik limiti tugadi (bepul tarif). Birozdan keyin urinib ko'ring yoki Google AI Studio'da billing ulang.":/demand|overload|unavailable|503/i.test(m)?"Gemini hozir band. Birozdan keyin urinib ko'ring.":/timeout|aborted|fetch failed/i.test(m)?"Gemini javob bermadi. Qayta urinib ko'ring.":m.slice(0,160)};const USE_GEMINI=!!GEMINI_API_KEY,AI_KEY=GEMINI_API_KEY||ANTHROPIC_API_KEY;
 const addM=(ts,n)=>{const d=new Date(ts);d.setMonth(d.getMonth()+n);return d.getTime()};const DAY=864e5,PERMS=['dicts','import','tasks','payments','trials','users','plans','methods','admins'];
 process.on('uncaughtException',e=>console.error('uncaught',e));process.on('unhandledRejection',e=>console.error('unhandled',e));
-const MAXW_G=+process.env.MAX_WORDS||300000;
+const MAXW_G=+process.env.MAX_WORDS||2000000;
 const DATA=process.env.DATA_DIR||'.';fs.mkdirSync(DATA+'/uploads',{recursive:true});fs.mkdirSync(DATA+'/audio',{recursive:true});
 const db=new Database(DATA+'/data.db');
 db.exec(`create table if not exists users(id integer primary key,name text,email text unique,is_admin int default 0,perms text default '',paid_until int default 0,trial text default 'none',created int);
@@ -22,7 +22,7 @@ create table if not exists plans(id integer primary key autoincrement,months int
 create table if not exists methods(id integer primary key autoincrement,name text,number text,holder text,on_ int default 1);
 create table if not exists scores(user_id int,name text,week int,pts int default 0,primary key(user_id,week));
 create table if not exists pays(id integer primary key autoincrement,user_id int,plan_id int,method_id int,file text,status text default 'pending',ts int);`);
-for(const m0 of ["alter table dicts add column lvl text default ''","alter table words add column lvl text default ''",'alter table words add column audio text','alter table access add column until int default 0','alter table plans add column dict_id int default 0',"alter table tasks add column pos text default ''",'alter table tasks add column section int default 0','alter table plans add column monthly int default 0','alter table pays add column months int default 0'])try{db.exec(m0)}catch{}
+for(const m0 of ["alter table dicts add column lvl text default ''","alter table words add column lvl text default ''",'alter table words add column audio text','alter table access add column until int default 0','alter table plans add column dict_id int default 0',"alter table tasks add column pos text default ''",'alter table tasks add column section int default 0','alter table plans add column monthly int default 0','alter table pays add column months int default 0','alter table dicts add column deleted int default 0','alter table dicts add column del_ts int default 0','create index if not exists words_dict_ko on words(dict_id,ko)'])try{db.exec(m0)}catch{}
 db.exec(`create table if not exists lvnames(dict_id int,level int,name text,primary key(dict_id,level));
 create table if not exists poss(key text primary key,name text,ko text default '',ord int default 0);`);
 if(!db.prepare('select 1 from poss').get()){const ip=db.prepare('insert into poss(key,name,ko,ord) values(?,?,?,?)');[['ot','Ot','명사'],['fel',"Fe'l (harakat)",'동사'],['sifat','Sifat (holat)','형용사'],['ravish','Ravish','부사'],['olmosh','Olmosh','대명사'],['son','Son','수사'],['yordamchi',"Ko'makchi / yordamchi",'조사']].forEach((p,i)=>ip.run(p[0],p[1],p[2],i))}
@@ -67,15 +67,15 @@ app.get('/api/me',(r,s)=>s.json({id:r.u.id,name:r.u.name,email:r.u.email,is_admi
 app.get('/api/stats',(r,s)=>s.json({learned:one('select count(*) n from learned where user_id=?',r.u.id).n,rank:(one('select pts from scores where user_id=? and week=?',r.u.id,wk())||{}).pts||0}));
 app.post('/api/score',(r,s)=>{addScore(r.u.id,r.u.name,Math.min(+r.body.points||0,500));s.json({ok:1})});
 app.get('/api/rating',(r,s)=>s.json(q('select name,pts from scores where week=? order by pts desc limit 20',wk())));
-app.get('/api/plans',(r,s)=>s.json(q('select p.*,d.name dname from plans p left join dicts d on d.id=p.dict_id order by p.dict_id,p.months')));
+app.get('/api/plans',(r,s)=>s.json(q('select p.*,d.name dname from plans p left join dicts d on d.id=p.dict_id where coalesce(d.deleted,0)=0 order by p.dict_id,p.months')));
 app.get('/api/methods',(r,s)=>s.json(q('select * from methods where on_=1')));
-app.get('/api/dicts',(r,s)=>s.json(q('select * from dicts').map(d=>({...d,free:PAID_ONLY?0:d.free,ok:can(r.u,d)}))));
+app.get('/api/dicts',(r,s)=>s.json(q('select * from dicts where deleted=0').map(d=>({...d,free:PAID_ONLY?0:d.free,ok:can(r.u,d)}))));
 app.get('/api/tree/:id',(r,s)=>{const d=one('select * from dicts where id=?',r.params.id);
-  if(!d||!can(r.u,d))return s.status(402).json({e:'pay'});
+  if(!d||d.deleted||!can(r.u,d))return s.status(402).json({e:'pay'});
   s.json({d,levels:lvList(d),rows:q('select level,pos,section,count(*) n from words where dict_id=? group by 1,2,3',d.id)})});
 app.get('/api/poss',(r,s)=>s.json(getPoss()));
 app.get('/api/words',(r,s)=>{const {dict,level,pos,section,mode}=r.query;
-  const d=one('select * from dicts where id=?',dict);if(!d||!can(r.u,d))return s.status(402).json({e:'pay'});
+  const d=one('select * from dicts where id=?',dict);if(!d||d.deleted||!can(r.u,d))return s.status(402).json({e:'pay'});
   let sql='select w.*,(l.word_id is not null) learned from words w left join learned l on l.word_id=w.id and l.user_id=? where w.dict_id=?';
   const a=[r.u.id,dict];
   for(const [k,v] of [['level',level],['pos',pos],['section',section]])if(v){sql+=` and w.${k}=?`;a.push(v)}
@@ -159,7 +159,7 @@ app.post('/api/fox-voice',up.single('audio'),async(r,s)=>{
     const heard=String(o.heard||'').trim(),reply=String(o.reply||'').trim();
     if(!heard||!reply){foxUse[k]--;return s.json({e:'nohear'})}
     s.json({heard,reply,left:foxLeft(r.u,'voice')})}catch(e){foxUse[k]--;s.json({e:'api',msg:friendlyErr(e.message||e)})}});
-app.get('/api/tasks',(r,s)=>s.json(q('select t.*,d.name dname from tasks t join dicts d on d.id=t.dict_id')));
+app.get('/api/tasks',(r,s)=>s.json(q('select t.*,d.name dname from tasks t join dicts d on d.id=t.dict_id where d.deleted=0')));
 // bepul sinov (1 oy) so'rovi
 app.post('/api/trial',(r,s)=>{if(r.u.trial!=='none')return s.json({trial:r.u.trial});run("update users set trial='pending' where id=?",r.u.id);s.json({trial:'pending'})});
 // to'lov
@@ -205,7 +205,15 @@ app.post('/api/admin/dict/:id',adm('dicts'),(r,s)=>{const b=r.body;
   if(b.name)run('update dicts set name=? where id=?',b.name,r.params.id);
   if('lvl'in b)run('update dicts set lvl=? where id=?',LVL(b.lvl),r.params.id);
   if(b.sec){run('update dicts set sec=? where id=?',+b.sec,r.params.id);resection(+r.params.id)}
-  if(b.del){run('delete from words where dict_id=?',r.params.id);run('delete from dicts where id=?',r.params.id)}s.json({ok:1})});
+  if(b.del)run('update dicts set deleted=1,del_ts=? where id=?',Date.now(),r.params.id);
+  if(b.restore)run('update dicts set deleted=0,del_ts=0 where id=?',r.params.id);
+  if(b.purge){const id=+r.params.id;db.transaction(()=>{
+    for(const w of q('select id,audio from words where dict_id=?',id)){if(w.audio)try{fs.unlinkSync(DATA+'/audio/'+w.audio)}catch{}}
+    run('delete from learned where word_id in (select id from words where dict_id=?)',id);
+    run('delete from words where dict_id=?',id);run('delete from tasks where dict_id=?',id);run('delete from lvnames where dict_id=?',id);
+    run('delete from access where dict_id=?',id);run('delete from plans where dict_id=?',id);run('delete from dicts where id=?',id)})()}
+  s.json({ok:1})});
+app.get('/api/admin/dicts-trash',adm('dicts'),(r,s)=>s.json(q('select d.id,d.name,d.del_ts,(select count(*) from words w where w.dict_id=d.id) n from dicts d where d.deleted=1 order by d.del_ts desc')));
 let FOXM=USE_GEMINI?GEMINI_MODEL:FOX_MODEL;
 async function callGemini(messages,system,max,model,n=0){let le;for(const m of (n>=2?[model]:chainFor(model,max<=1000))){try{return await callGemini0(messages,system,max,m,2)}catch(e){le=e;if(!BUSY.test(String(e&&(e.message||e.name))))throw e;markDown(m,e)}}throw le}
 async function callGemini0(messages,system,max,model,n=0){
@@ -253,7 +261,7 @@ async function geminiVoice(hist,system,audio){
 async function aiWords(items,txt,vis,defPos,auto,job){
   const kL=txt.split(/\n/).filter(l=>/[가-힣]/.test(l)).length,good=items.filter(i=>i.uz).length;
   if(job)job.expected=kL;
-  if(!AI_KEY||(!vis&&(kL===0||good>=kL*.6))){if(!AI_KEY&&vis&&vis.partial&&job)job.warn.push((vis.pageList||[]).length+" ta sahifada matn topilmadi (skan/rasm bo'lishi mumkin): sahifalar "+(vis.pageList||[]).slice(0,30).join(', ')+". Ularni o'qish uchun GEMINI_API_KEY kerak.");return (vis&&!vis.partial)?null:items}
+  if(!AI_KEY||(!vis&&(kL===0||good>=kL*.95))){if(!AI_KEY&&vis&&vis.partial&&job)job.warn.push((vis.pageList||[]).length+" ta sahifada matn topilmadi (skan/rasm bo'lishi mumkin): sahifalar "+(vis.pageList||[]).slice(0,30).join(', ')+". Ularni o'qish uchun GEMINI_API_KEY kerak.");return (vis&&!vis.partial)?null:items}
   let got=[],failed=0;
   try{
     if(vis){if(!USE_GEMINI){if(job)job.aiErr="GEMINI_API_KEY topilmadi";return vis.partial?items:null}if(!vis.buf){try{if(job)job.stage="Fayl AI'ga yuklanmoqda ("+Math.round(vis.size/1e6)+" MB)...";vis.ref=await geminiUpload(vis.path,vis.mime,'book');
@@ -344,7 +352,7 @@ async function streamExtract(file,defPos,auto,job,size){
   return P.items.slice(0,MAXW)}
 async function extract(file,defPos,auto,job){try{return await extract0(file,defPos,auto,job)}finally{try{fs.unlinkSync(file.path)}catch{}}}
 async function extract0(file,defPos,auto,job){
-  const nm=file.originalname.toLowerCase(),size=fs.statSync(file.path).size,ext=(nm.match(/\.([a-z0-9]+)$/)||[])[1]||'',gm=GEMMIME[ext],bigVis=!!(gm&&USE_GEMINI&&size>6e6);
+  const nm=file.originalname.toLowerCase(),size=fs.statSync(file.path).size,ext=(nm.match(/\.([a-z0-9]+)$/)||[])[1]||'',gm=GEMMIME[ext],bigVis=!!(gm&&USE_GEMINI&&size>6e6&&(ext!=='pdf'||size>150e6));
   if(ext==='hwp'){if(job)job.readErr="eski .hwp formati o'qilmaydi — Hangul'da «Boshqacha saqlash» orqali PDF, HWPX yoki DOCX qilib saqlang";return null}
   if(!bigVis&&size>(+process.env.STREAM_MIN||50e6)&&await looksText(file.path,ext))return await streamExtract(file,defPos,auto,job,size);
   let buf=null;if(!bigVis){if(size>150e6){if(job)job.readErr="fayl juda katta ("+Math.round(size/1e6)+" MB). "+(GEMMIME[ext]?"PDF/rasm/audio/video uchun GEMINI_API_KEY kerak.":"Word/Excel/arxiv kabi fayllar bunchalik katta bo'lsa o'qilmaydi — uni TXT yoki CSV qilib saqlab yuklang (TXT/CSV 8 GB gacha o'qiladi).");return null}buf=fs.readFileSync(file.path)}
@@ -354,8 +362,8 @@ async function extract0(file,defPos,auto,job){
     else if(/\.pdf$/.test(nm)){try{const pg=[],pr0=await require('pdf-parse')(buf,{pagerender:p=>p.getTextContent().then(tc=>{let t='',ly=null;for(const it of tc.items){if(ly!==null&&Math.abs(it.transform[5]-ly)>2)t+='\n';t+=it.str;ly=it.transform[5]}pg.push(t);return t})});
       pages=pr0.numpages||pg.length;txt=pg.length?pg.join('\n'):(pr0.text||'');if(job){job.pages=pages}
       pg.forEach((t,i)=>{if(t.replace(/\s/g,'').length<15)emptyP.push(i+1)});if(job)job.emptyPages=emptyP.slice()}catch{txt='';pages=(buf.toString('latin1').match(/\/Type\s*\/Page[^s]/g)||[]).length;if(job)job.pages=pages}
-      if((txt.replace(/\s/g,'').length<40||!/[가-힣]/.test(txt))&&buf.length<14e6)visual='application/pdf';
-      else if(emptyP.length&&buf.length<14e6){visual='application/pdf';vpl=emptyP.slice()}}
+      if((txt.replace(/\s/g,'').length<40||!/[가-힣]/.test(txt))&&(buf.length<14e6||USE_GEMINI))visual='application/pdf';
+      else if(emptyP.length&&(buf.length<14e6||USE_GEMINI)){visual='application/pdf';vpl=emptyP.slice()}}
     else if(/\.(xlsx|xls|ods)$/.test(nm)){const X=require('xlsx'),wb=X.read(buf);txt=wb.SheetNames.map(n=>X.utils.sheet_to_csv(wb.Sheets[n])).join('\n')}
     else if(/\.docx$/.test(nm))txt=(await require('mammoth').extractRawText({buffer:buf})).value;
     else if(/\.(html?|xml)$/.test(nm))txt=buf.toString('utf8').replace(/<(script|style)[\s\S]*?<\/\1>/gi,'').replace(/<br\s*\/?>|<\/(p|div|li|tr|h\d)>/gi,'\n').replace(/<[^>]+>/g,' ');
@@ -368,7 +376,7 @@ async function extract0(file,defPos,auto,job){
   }catch(e){if(job)job.readErr=String((e&&e.message)||e).slice(0,200);return null}
   if(job&&!visual&&!txt.trim()&&buf.length>=14e6)job.readErr="fayl juda katta (skan/rasm PDF 14 MB dan oshmasin) — uni bo'lib yuklang";
   const P=mkParser(defPos,auto,/\.(xlsx|xls|ods|csv|tsv)$/.test(nm));P.feed(txt.split(/\r?\n/),true);P.finish();const items=P.items;
-  const vis=visual&&{buf,path:file.path,size,mime:visual,pages,pageList:vpl,partial:!!vpl};try{return await aiWords(items,txt,vis,defPos,auto,job)}finally{if(vis&&vis.ref)geminiDelete(vis.ref)}}
+  const vis=visual&&{buf:(buf&&buf.length<14e6)?buf:null,path:file.path,size,mime:visual,pages,pageList:vpl,partial:!!vpl};try{return await aiWords(items,txt,vis,defPos,auto,job)}finally{if(vis&&vis.ref)geminiDelete(vis.ref)}}
 async function addWords(job,d,items,levelOf,auto){
   job.stage="Tekshirilmoqda...";
   const todo=items.slice(0,MAXW_G).filter(it=>!one('select 1 from words where dict_id=? and ko=?',d.id,it.ko));
@@ -450,7 +458,7 @@ function pickFile(r){if(r.file)return r.file;const id=String(r.body.upload_id||'
   try{const sz=fs.statSync(upPath(id)).size;if(+r.body.upload_size&&sz!==+r.body.upload_size)return {bad:'Fayl to\'liq yuklanmadi ('+sz+' / '+r.body.upload_size+' bayt) — qayta urinib ko\'ring'};return {path:upPath(id),originalname:String(r.body.upload_name||'file'),size:sz}}catch{return null}}
 setInterval(()=>{try{for(const f of fs.readdirSync(DATA+'/uploads'))if(/^up_[a-f0-9]{16}\.part$/.test(f)&&Date.now()-fs.statSync(DATA+'/uploads/'+f).mtimeMs>864e5)fs.unlinkSync(DATA+'/uploads/'+f)}catch{}},36e5).unref();
 app.post('/api/admin/import',adm('import'),upBig.single('file'),(r,s)=>{
-  const {dict_id,level=1,pos='ot'}=r.body,d=one('select * from dicts where id=?',dict_id);const F=pickFile(r);if(!d||!F||F.bad)return s.status(400).json({e:(F&&F.bad)||'bad'});
+  const {dict_id,level=1,pos='ot'}=r.body,d=one('select * from dicts where id=?',dict_id);const F=pickFile(r);if(!d||d.deleted||!F||F.bad)return s.status(400).json({e:(F&&F.bad)||'bad'});
   const job=newJob(),auto=r.body.auto==='1';job.wlvl=LVL(r.body.wlvl);s.json({job:job.id});
   (async()=>{try{const items=await extract(F,pos,auto,job);if(!items){job.err=job.readErr?("Faylni o'qib bo'lmadi: "+job.readErr):job.aiErr?("Gemini javob bermadi: "+job.aiErr+" — birozdan keyin qayta urinib ko'ring."):"Faylni o'qib bo'lmadi (.doc bo'lsa, .docx yoki PDF qilib saqlang; rasm/skan faqat Gemini bilan o'qiladi)";return}await addWords(job,d,items,()=>+level,auto)}catch(e){job.err=String(e.message||e)}finally{job.fin=true}})()});
 app.post('/api/admin/book',adm('import'),upBig.single('file'),(r,s)=>{
@@ -524,7 +532,7 @@ io.on('connection',sock=>{
   sock.on('create',({dict,level,mode,n,sec},cb)=>{
     n=Math.max(3,Math.min(+n||10,30));sec=Math.max(5,Math.min(+sec||15,60));mode=mode||'speed';
     let w=[],book='Grammatika',lv=0;
-    if(!GRAM[mode]){const d=one('select * from dicts where id=?',dict);if(!d||!can(u,d))return cb({e:"Bu kitob sizga ochiq emas"});book=d.name;lv=+level||0;
+    if(!GRAM[mode]){const d=one('select * from dicts where id=?',dict);if(!d||d.deleted||!can(u,d))return cb({e:"Bu kitob sizga ochiq emas"});book=d.name;lv=+level||0;
       w=q('select * from words where dict_id=?'+(lv?' and level=?':''),...(lv?[dict,lv]:[dict]));if(w.length<4)return cb({e:"Kamida 4 ta so'z kerak"})}
     const qs=buildQs(mode,w,n);let code;do code=String(Math.floor(100000+Math.random()*900000));while(rooms[code]);
     rooms[code]={code,host:u.id,qs,sec,meta:{book,level:lv,n:qs.length,sec,mode},started:false,players:{}};cb({code})});
