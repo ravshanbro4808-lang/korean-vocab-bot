@@ -350,7 +350,8 @@ async function streamExtract(file,defPos,auto,job,size){
   if(!cut)P.feed([rest+dec.decode()],true);else P.feed([],true);
   P.finish();if(job){if(cut)job.warn.push("Fayl juda katta: dastlabki "+MAXW+" ta so'z olindi (MAX_WORDS o'zgaruvchisi bilan oshirish mumkin).");job.warn.push("Katta matn fayli bo'lak-bo'lak o'qildi: «koreys - tarjima» juftliklari va koreyscha so'zlar olindi, tarjimasizlari alohida tarjima qilinadi.")}
   return P.items.slice(0,MAXW)}
-async function extract(file,defPos,auto,job){try{return await extract0(file,defPos,auto,job)}finally{try{fs.unlinkSync(file.path)}catch{}}}
+async function extract(file,defPos,auto,job){return await extract0(file,defPos,auto,job)}
+const rmF=F=>{try{F&&F.path&&fs.unlinkSync(F.path)}catch{}};
 async function extract0(file,defPos,auto,job){
   const nm=file.originalname.toLowerCase(),size=fs.statSync(file.path).size,ext=(nm.match(/\.([a-z0-9]+)$/)||[])[1]||'',gm=GEMMIME[ext],bigVis=!!(gm&&USE_GEMINI&&size>6e6&&(ext!=='pdf'||size>150e6));
   if(ext==='hwp'){if(job)job.readErr="eski .hwp formati o'qilmaydi — Hangul'da «Boshqacha saqlash» orqali PDF, HWPX yoki DOCX qilib saqlang";return null}
@@ -433,16 +434,14 @@ function geminiDelete(f){try{fetch(GAPI+'/v1beta/'+f.name,{method:'DELETE',heade
 function countPdfPages(path){let n=0,tail='';const fd=fs.openSync(path,'r'),b=Buffer.alloc(4<<20);let pos=0,r;try{while((r=fs.readSync(fd,b,0,b.length,pos))>0){const t=tail+b.toString('latin1',0,r);n+=(t.match(/\/Type\s*\/Page[^s]/g)||[]).length;tail=t.slice(-8);pos+=r}}finally{fs.closeSync(fd)}return n}
 const jobs={};
 db.exec("create table if not exists jobs(id text primary key,j text,ts int)");
-const jobJson=j=>JSON.stringify(j,(k,v)=>(k==='ids'||k==='_sf')?undefined:v);
-const saveJob=j=>{try{db.prepare('insert or replace into jobs(id,j,ts) values(?,?,?)').run(j.id,jobJson(j),j.ts)}catch{}};
-// server qayta ishga tushganda tugamagan ishlarni «to'xtatilgan» deb belgilaymiz (qo'shilgan so'zlar bazada qoladi)
-try{for(const r of db.prepare('select * from jobs').all()){let j;try{j=JSON.parse(r.j)}catch{continue}if(!j.fin){j.fin=true;j.err="Server qayta ishga tushdi, jarayon to'xtadi (xotira yetishmagan yoki yangilanish bo'lgan bo'lishi mumkin). Shu vaqtgacha qo'shilgan so'zlar saqlangan — «"+(j.added||0)+" ta». Faylni qayta yuklasangiz, takroriy so'zlar o'tkazib yuboriladi.";db.prepare('update jobs set j=? where id=?').run(JSON.stringify(j),r.id)}}
-  db.prepare('delete from jobs where ts<?').run(Date.now()-3*DAY)}catch{}
+const jobJson=(j,full)=>JSON.stringify(j,(k,v)=>(k==='ids'||k==='_sf'||(!full&&k==='params'))?undefined:v);
+const saveJob=j=>{try{db.prepare('insert or replace into jobs(id,j,ts) values(?,?,?)').run(j.id,jobJson(j,1),j.ts)}catch{}};
+try{db.prepare('delete from jobs where ts<?').run(Date.now()-3*DAY)}catch{}
 setInterval(()=>{for(const k in jobs){const j=jobs[k];if(!j._sf){saveJob(j);if(j.fin)j._sf=true}}},2000).unref();
 setInterval(()=>{const t=Date.now();for(const k in jobs)if((jobs[k].fin&&t-jobs[k].ts>36e5)||t-jobs[k].ts>432e5)delete jobs[k]},6e5).unref();
 const newJob=()=>{const id=crypto.randomBytes(6).toString('hex');return jobs[id]=(j=>(saveJob(j),j))({id,stage:"Fayl o'qilmoqda...",found:0,total:0,done:0,added:0,translated:0,skipped:0,perLevel:{},perPos:{},warn:[],failedPages:[],expected:0,dups:0,pages:0,emptyPages:[],fin:false,err:null,ts:Date.now()})};
 app.get('/api/admin/job/:id',adm('import'),(r,s)=>{let j=jobs[r.params.id];
-  if(!j){const row=one('select j from jobs where id=?',String(r.params.id));if(row)try{j=JSON.parse(row.j)}catch{}}
+  if(!j){const row=one('select j from jobs where id=?',String(r.params.id));if(row)try{j=JSON.parse(row.j);delete j.params}catch{}}
   if(!j)return s.status(404).json({e:'yoq'});s.json(jobs[r.params.id]?JSON.parse(jobJson(j)):j)});
 
 const MAXUP=8*1024**3,upPath=id=>DATA+'/uploads/up_'+id+'.part',gb=n=>(n/1024**3).toFixed(1);
@@ -457,21 +456,35 @@ app.post('/api/admin/up/chunk/:id',adm('import'),express.raw({type:()=>true,limi
 function pickFile(r){if(r.file)return r.file;const id=String(r.body.upload_id||'');if(!/^[a-f0-9]{16}$/.test(id))return null;
   try{const sz=fs.statSync(upPath(id)).size;if(+r.body.upload_size&&sz!==+r.body.upload_size)return {bad:'Fayl to\'liq yuklanmadi ('+sz+' / '+r.body.upload_size+' bayt) — qayta urinib ko\'ring'};return {path:upPath(id),originalname:String(r.body.upload_name||'file'),size:sz}}catch{return null}}
 setInterval(()=>{try{for(const f of fs.readdirSync(DATA+'/uploads'))if(/^up_[a-f0-9]{16}\.part$/.test(f)&&Date.now()-fs.statSync(DATA+'/uploads/'+f).mtimeMs>864e5)fs.unlinkSync(DATA+'/uploads/'+f)}catch{}},36e5).unref();
+const rdErr=job=>job.readErr?("Faylni o'qib bo'lmadi: "+job.readErr):job.aiErr?("Gemini javob bermadi: "+job.aiErr+" — birozdan keyin qayta urinib ko'ring."):"Faylni o'qib bo'lmadi (.doc bo'lsa, .docx yoki PDF qilib saqlang; rasm/skan faqat Gemini bilan o'qiladi)";
+async function runImportJob(job,F,P){try{job.wlvl=P.wlvl;const d=one('select * from dicts where id=?',P.dict_id);if(!d||d.deleted){job.err="Kitob topilmadi";return}
+  const items=await extract(F,P.pos,P.auto,job);if(!items){job.err=rdErr(job);return}
+  await addWords(job,d,items,()=>+P.level,P.auto)}catch(e){job.err=String(e.message||e)}finally{job.fin=true;rmF(F)}}
+async function runBookJob(job,F,P){try{const items=await extract(F,P.pos,P.auto,job);if(!items){job.err=rdErr(job);return}
+  let L=P.L,levelOf;
+  if(P.lvl==='all'){L=3;job.wlBy={1:'b',2:'o',3:'y'};job.stage="So'zlar darajasi aniqlanmoqda (AI)...";await classifyLevels(items,job);
+    levelOf=(i,n,it)=>({b:1,o:2,y:3})[it&&it.dl]||Math.min(3,Math.floor(i*3/n)+1)}// Hammasi: boshlang'ich / o'rta / yuqori
+  else levelOf=(i,n)=>Math.min(L,Math.floor(i*L/n)+1);// daraja soni bo'yicha teng bo'linadi
+  let d=job.dict_id&&one('select * from dicts where id=? and deleted=0',job.dict_id);
+  if(!d){const id=run('insert into dicts(name,levels,sec,lvl) values(?,?,?,?)',P.name,L,30,P.lvl).lastInsertRowid;d=one('select * from dicts where id=?',id);job.dict_id=id}
+  job.wlvl=P.lvl==='all'?'':P.lvl;
+  await addWords(job,d,items,levelOf,P.auto)}catch(e){job.err=String(e.message||e)}finally{job.fin=true;rmF(F)}}
+// ish parametrlari bazaga yoziladi: server qayta ishga tushsa, ish avtomatik davom etadi
+const startJob=(job,F,P)=>{job.params={F:{path:F.path,originalname:F.originalname,size:F.size},P,tries:0};saveJob(job);(P.kind==='book'?runBookJob:runImportJob)(job,F,P)};
 app.post('/api/admin/import',adm('import'),upBig.single('file'),(r,s)=>{
   const {dict_id,level=1,pos='ot'}=r.body,d=one('select * from dicts where id=?',dict_id);const F=pickFile(r);if(!d||d.deleted||!F||F.bad)return s.status(400).json({e:(F&&F.bad)||'bad'});
-  const job=newJob(),auto=r.body.auto==='1';job.wlvl=LVL(r.body.wlvl);s.json({job:job.id});
-  (async()=>{try{const items=await extract(F,pos,auto,job);if(!items){job.err=job.readErr?("Faylni o'qib bo'lmadi: "+job.readErr):job.aiErr?("Gemini javob bermadi: "+job.aiErr+" — birozdan keyin qayta urinib ko'ring."):"Faylni o'qib bo'lmadi (.doc bo'lsa, .docx yoki PDF qilib saqlang; rasm/skan faqat Gemini bilan o'qiladi)";return}await addWords(job,d,items,()=>+level,auto)}catch(e){job.err=String(e.message||e)}finally{job.fin=true}})()});
+  const job=newJob();s.json({job:job.id});startJob(job,F,{kind:'import',dict_id:d.id,level:+level||1,pos,auto:r.body.auto==='1',wlvl:LVL(r.body.wlvl)})});
 app.post('/api/admin/book',adm('import'),upBig.single('file'),(r,s)=>{
-  const b=r.body,name=(b.name||'').trim(),pos=b.pos||'ot',lvl=LVL(b.lvl);let L=Math.max(1,Math.min(+b.levels||1,30));
+  const b=r.body,name=(b.name||'').trim(),pos=b.pos||'ot',lvl=LVL(b.lvl),L=Math.max(1,Math.min(+b.levels||1,30));
   if(!name)return s.json({e:"Kitob nomi kelmadi"});const F=pickFile(r);if(!F||F.bad)return s.json({e:(F&&F.bad)||"Fayl serverga yetib bormadi"});
-  const job=newJob(),auto=b.auto==='1';s.json({job:job.id});
-  (async()=>{try{const items=await extract(F,pos,auto,job);if(!items){job.err=job.readErr?("Faylni o'qib bo'lmadi: "+job.readErr):job.aiErr?("Gemini javob bermadi: "+job.aiErr+" — birozdan keyin qayta urinib ko'ring."):"Faylni o'qib bo'lmadi (.doc bo'lsa, .docx yoki PDF qilib saqlang; rasm/skan faqat Gemini bilan o'qiladi)";return}
-    let levelOf;
-    if(lvl==='all'){L=3;job.wlBy={1:'b',2:'o',3:'y'};job.stage="So'zlar darajasi aniqlanmoqda (AI)...";await classifyLevels(items,job);
-      levelOf=(i,n,it)=>({b:1,o:2,y:3})[it&&it.dl]||Math.min(3,Math.floor(i*3/n)+1)}// Hammasi: boshlang'ich / o'rta / yuqori
-    else levelOf=(i,n)=>Math.min(L,Math.floor(i*L/n)+1);// daraja soni bo'yicha teng bo'linadi
-    const id=run('insert into dicts(name,levels,sec,lvl) values(?,?,?,?)',name,L,30,lvl).lastInsertRowid,d=one('select * from dicts where id=?',id);job.dict_id=id;job.wlvl=lvl==='all'?'':lvl;
-    await addWords(job,d,items,levelOf,auto)}catch(e){job.err=String(e.message||e)}finally{job.fin=true}})()});
+  const job=newJob();s.json({job:job.id});startJob(job,F,{kind:'book',name,pos,lvl,L,auto:b.auto==='1'})});
+function resumeJobs(){try{for(const r of db.prepare('select * from jobs').all()){let j;try{j=JSON.parse(r.j)}catch{continue}if(j.fin||jobs[j.id])continue;
+  const pr=j.params;
+  if(pr&&pr.F&&pr.P&&fs.existsSync(pr.F.path)&&(pr.tries||0)<2){pr.tries=(pr.tries||0)+1;
+    Object.assign(j,{stage:"Server qayta ishga tushdi — ish avtomatik davom ettirilmoqda ("+pr.tries+"/2)...",err:null,fin:false,ts:Date.now()});delete j._sf;jobs[j.id]=j;saveJob(j);
+    (pr.P.kind==='book'?runBookJob:runImportJob)(j,{...pr.F},pr.P)}
+  else{j.fin=true;j.err="Server qayta ishga tushdi va ishni davom ettirib bo'lmadi (fayl topilmadi yoki ikki marta urinildi). Shu vaqtgacha qo'shilgan so'zlar saqlangan: "+(j.added||0)+" ta. Faylni qayta yuklasangiz, takroriy so'zlar o'tkazib yuboriladi.";db.prepare('update jobs set j=? where id=?').run(JSON.stringify(j),r.id)}}}catch(e){console.error('resume',e)}}
+setTimeout(resumeJobs,1500);
 app.get('/api/admin/status',adm('admins'),(r,s)=>s.json({key:!!AI_KEY,keyLen:(AI_KEY||'').length,provider:USE_GEMINI?'Gemini':'Claude',model:FOXM,bot:!!BOT_TOKEN,webapp:WEBAPP_URL||'',data:DATA}));
 app.post('/api/admin/claude-test',adm('admins'),async(r,s)=>{if(!AI_KEY)return s.json({ok:false,error:"GEMINI_API_KEY serverda ko'rinmayapti. Railway → Variables'ga qo'shing va Deploy bosing. Ikkita loyiha bo'lsa, domen bog'langan loyihaga qo'shing."});
   try{const t=await callClaude([{role:'user',content:"Bir so'z bilan javob ber: tayyormisan?"}],"Qisqa javob ber.",50);s.json({ok:true,reply:t,model:FOXM})}catch(e){s.json({ok:false,error:String(e.message||e)})}});
