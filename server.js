@@ -162,7 +162,7 @@ app.get('/api/tasks',(r,s)=>s.json(q('select t.*,d.name dname from tasks t join 
 app.post('/api/trial',(r,s)=>{if(r.u.trial!=='none')return s.json({trial:r.u.trial});run("update users set trial='pending' where id=?",r.u.id);s.json({trial:'pending'})});
 // to'lov
 app.post('/api/pay',up.single('shot'),(r,s)=>{const b=r.body,pl=one('select * from plans where id=?',b.plan_id);if(!r.file||!pl||!one('select 1 from methods where id=?',b.method_id))return s.status(400).json({e:'bad'});
-  const m=pl.monthly?Math.max(1,Math.min(12,+b.months||1)):pl.months;
+  const m=pl.monthly?Math.max(1,Math.min(36,+b.months||1)):pl.months;
   run('insert into pays(user_id,plan_id,method_id,file,ts,months) values(?,?,?,?,?,?)',r.u.id,pl.id,b.method_id,r.file.filename,Date.now(),m);s.json({ok:1})});
 app.get('/api/mypay',(r,s)=>s.json(q('select id,status,ts from pays where user_id=? order by id desc limit 5',r.u.id)));
 // admin
@@ -267,7 +267,7 @@ async function aiWords(items,txt,vis,defPos,auto,job){
       if(txt.length>600000&&job)job.warn.push("Fayl juda katta: faqat dastlabki 600 000 belgi qayta ishlandi.");
       let ci=0,dn=0;const bad=[];
       const w=async()=>{while(ci<cs.length){const c=cs[ci++];if(/[가-힣]/.test(c)){let okc=0;for(let a=0;a<2&&!okc;a++){try{got.push(...parseWords(await callClaude([{role:'user',content:wp()+"\n\n"+c}],"Sen koreys-o'zbek lug'at tuzuvchisan.",12000)));okc=1}catch(e){if(job)job.aiErr=friendlyErr(e&&e.message||e);await new Promise(z=>setTimeout(z,1500))}}if(!okc){failed++;bad.push(c)}}dn++;if(job)job.stage="AI fayldan so'zlarni qidiryapti ("+dn+"/"+cs.length+")..."}};
-      await Promise.all(Array.from({length:Math.min(12,cs.length)},w));if(failed&&job)job.warn.push(failed+" ta matn bo'lagi AI tomonidan o'qilmadi; ular oddiy usulda ajratildi (tarjimasi/turi to'liq bo'lmasligi mumkin).")}
+      await Promise.all(Array.from({length:Math.min(16,cs.length)},w));if(failed&&job)job.warn.push(failed+" ta matn bo'lagi AI tomonidan o'qilmadi; ular oddiy usulda ajratildi (tarjimasi/turi to'liq bo'lmasligi mumkin).")}
   }catch(e){if(job)job.aiErr=friendlyErr(e&&e.message||e)}
   if(failed&&job&&vis)job.warn.push(failed+" ta sahifa guruhi o'qilmadi: "+[...new Set(job.failedPages)].sort((a,b)=>a-b).join(', ')+" sahifalar.");
   if(!got.length)return (vis&&!vis.partial)?null:items;
@@ -347,11 +347,11 @@ async function addWords(job,d,items,levelOf,auto){
   const first=todo.filter(it=>it.uz&&!(aiOn&&needAI(it)));put(first);job.done=first.length;
   const fs0=new Set(first);let rest=todo.filter(it=>!fs0.has(it));
   if(aiOn&&rest.length){job.stage="Tarjima va tur aniqlash (AI)...";
-    const bs=[];for(let i=0;i<rest.length;i+=100)bs.push(rest.slice(i,i+100));let bi=0;
+    const bs=[];for(let i=0;i<rest.length;i+=120)bs.push(rest.slice(i,i+120));let bi=0;
     const worker=async()=>{while(bi<bs.length){const b=bs[bi++];let o={};try{o=await claudeTranslate(b)}catch{}
       const ok=[];for(const it of b){const x=o[it.ko];if(x){if(!it.uz&&x.uz){it.uz=x.uz;job.translated++}if(auto&&!it.px&&x.pos){it.pos=x.pos;it.px=true}}if(it.uz)ok.push(it);else it.left=1}
       put(ok);job.done+=b.length}};
-    await Promise.all(Array.from({length:Math.min(12,bs.length)},worker));rest=rest.filter(it=>it.left)}
+    await Promise.all(Array.from({length:Math.min(16,bs.length)},worker));rest=rest.filter(it=>it.left)}
   if(aiOn&&rest.length){job.stage="Tarjima (qayta urinish)...";const bs2=[];for(let i=0;i<rest.length;i+=20)bs2.push(rest.slice(i,i+20));let bj=0;
     const w3=async()=>{while(bj<bs2.length){const b=bs2[bj++];let o={};for(let a=0;a<3&&!Object.keys(o).length;a++){try{o=await claudeTranslate(b)}catch{await new Promise(z=>setTimeout(z,1500))}}
       const ok=[];for(const it of b){const x=o[it.ko];if(x&&x.uz){it.uz=x.uz;job.translated++;if(auto&&!it.px&&x.pos){it.pos=x.pos;it.px=true}it.left=0;ok.push(it)}}put(ok)}};

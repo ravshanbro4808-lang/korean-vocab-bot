@@ -447,9 +447,31 @@ rp{position:absolute;display:block;width:12px;height:12px;margin:-6px 0 0 -6px;b
 .cdinfo{margin:44px 0 8px}
 .spk2{position:absolute;left:50%;top:50%;margin:-10px 0 0 -10px;font-size:20px;text-decoration:none;pointer-events:none;z-index:6;animation:spk2 .75s ease-out forwards}
 @keyframes spk2{to{transform:translate(var(--tx),var(--ty)) scale(1.5) rotate(140deg);opacity:0}}
+
+/* ===== v27: yorug'liksiz qalin 3D tugmalar, jonli kartochkalar ===== */
+:is(.b,.nxt,.big2,.pill,.lrn,.gold,.cta button,.cb,.bkb,.chp,.lv,.mic2,.send,.backpill,.vcall,.vb):not(#_):not(#_){background-image:none!important;text-shadow:none!important;
+ box-shadow:0 1px 0 var(--e),0 2px 0 var(--e),0 3px 0 var(--e),0 4px 0 var(--e),0 5px 0 var(--e),0 6px 0 var(--e),0 7px 0 var(--e),0 8px 0 var(--e),0 15px 14px #00000038,inset 0 -4px 0 #00000026!important}
+:is(.b,.nxt,.big2,.pill,.lrn,.gold,.cta button,.cb,.bkb,.chp,.lv,.mic2,.send,.backpill,.vcall,.vb):not(#_):not(#_):active{transform:translateY(7px);
+ box-shadow:0 1px 0 var(--e),0 2px 4px #0003,inset 0 -2px 0 #00000026!important}
+:is(.b.g,.backpill,.chp,.lv:not(.all)):not(#_):not(#_){background-image:none!important}
+.lrn.on:not(#_):not(#_),:is(.cb.red,.cb.live,.vb.end):not(#_):not(#_){text-shadow:none!important}
+rp{background:rgba(0,0,0,.18)!important}
+.dock .dk i::after,.dock .dk i::before{display:none!important;content:none!important}
+.dock .dk i{box-shadow:0 1px 0 #0003,0 2px 0 #0003,0 3px 0 #0003,0 4px 0 #0003,0 5px 0 #0003,0 6px 0 #0003,0 12px 14px #0003!important}
+.cdf .bgr::before{background:radial-gradient(#ffffff1f 1.2px,transparent 1.7px) 0 0/15px 15px!important}
+.cdf .bgr{box-shadow:0 1px 0 var(--dk),0 2px 0 var(--dk),0 3px 0 var(--dk),0 4px 0 var(--dk),0 5px 0 var(--dk),0 6px 0 var(--dk),0 7px 0 var(--dk),0 8px 0 var(--dk),0 9px 0 var(--dk),0 10px 0 var(--dk),0 24px 30px #0000004d,inset 0 -22px 34px #0000002e!important}
+.cdw.pop{animation:cdwig .7s ease-out}
+@keyframes cdwig{0%{scale:.93;rotate:0deg}20%{scale:1.06;rotate:-5deg}40%{scale:.98;rotate:4deg}60%{scale:1.02;rotate:-2.5deg}80%{rotate:1deg}100%{scale:1;rotate:0deg}}
+.cdw.hold .cdi{transition:transform .12s linear}
+
+/* ===== v28: 3D aylanish ===== */
+.cdw{perspective:800px}
+.cdi{transition:transform .95s cubic-bezier(.34,1.5,.5,1)}
+.cdw.pop{animation:cdlift .95s cubic-bezier(.3,1.2,.5,1)}
+@keyframes cdlift{0%{scale:1;rotate:0deg}30%{scale:1.16;translate:0 -22px;rotate:-5deg}65%{scale:1.06;translate:0 -8px;rotate:3deg}100%{scale:1;translate:0 0;rotate:0deg}}
 </style></head><body><div id="hd"></div><main id="m"></main>
 <script>
-try{if(localStorage.rm=='1')document.documentElement.classList.add('rm')}catch{}
+try{localStorage.rm='0'}catch{}
 const tg=window.Telegram?.WebApp;tg?.ready();tg?.expand();tg?.BackButton?.hide();
 const dev=new URLSearchParams(location.search).get('dev');let me,S={hist:[],cfg:{}};
 const $=s=>document.querySelector(s),H=h=>($('#m').innerHTML=h);
@@ -491,16 +513,16 @@ const wlOpts=(v)=>[['',"— qiyinlik (ixtiyoriy) —"],['b',"Boshlang'ich"],['o'
 S.bf=S.bf||'';
 const bkOk=x=>!S.bf||x.lvl===S.bf||x.lvl==='all';
 const bkChips=d=>d.some(x=>x.lvl)?`<div class=posch>${[['','Hammasi'],['b',"Boshlang'ich"],['o',"O'rta"],['y','Yuqori']].map(c=>`<button class="b ${S.bf==c[0]?'sel':'g'}" onclick="S.bf='${c[0]}';home()">${c[1]}</button>`).join('')}</div>`:'';
-function book(x,i){const g=GR[i%GR.length];return `<div class=book style="background:linear-gradient(145deg,${g[0]},${g[1]})" onclick="${x.ok?`nav(openDict,${x.id})`:'gate()'}"><h3>${esc(x.name)}</h3><small>${x.free?'Bepul':"Lug'at"}</small><span class=pill2>${x.ok?'✓':'🔒'} ${x.levels} daraja</span>${x.lvl?`<span class=lvb>${LVN[x.lvl]||''}</span>`:''}<i class=gh>${esc([...String(x.name)][0])}</i></div>`}
+function book(x,i){const g=GR[i%GR.length];return `<div class=book style="background:linear-gradient(145deg,${g[0]},${g[1]})" onclick="${x.ok?`nav(openDict,${x.id})`:'sheet()'}"><h3>${esc(x.name)}</h3><small>${x.free?'Bepul':"Lug'at"}</small><span class=pill2>${x.ok?'✓':'🔒'} ${x.levels} daraja</span><i class=gh>${esc([...String(x.name)][0])}</i></div>`}
 async function home(){S.admOpen=null;head('');const [d,st]=await Promise.all([api('/dicts'),api('/stats')]);me=await api('/me');
  const lv=Math.floor(st.learned/50)+1,pr=Math.round((st.learned%50)/50*100);
  const dock=[['🎮',"O'yinlar",'nav(gHub)','#ff8a5c,#e0508a'],['📝','Topshiriq','nav(vTasks)','#2e8a69,#0f8a9d'],['🦊','Tulki',"nav(foxChat)",'#ffb347,#ff7a45'],['🏆','Reyting','nav(rating)','#4a3f93,#7b5cff'],['💎','Obuna','sheet()','#d48a1c,#f5c05a']];
  dock.push(['👤','Profil','nav(vProfile)','#651fff,#d500f9']);if(me.is_admin)dock.push(['⚙️','Sozlamalar','S.admOpen=null;nav(vAdmin)','#5b6577,#2c3340']);
  H(`<div class=hero><i class=kr>안녕</i><small>Annyeong! 안녕하세요</small><h2>Salom, ${esc(me.name)}</h2><div class=xp><i style="width:${pr}%"></i></div><small>${lv}-daraja · keyingisigacha ${50-st.learned%50} so'z · ${st.rank} ball (hafta)</small></div>
  <div class=dock>${dock.map(x=>`<button class=dk onclick="${x[2]}"><i style="background:linear-gradient(145deg,${x[3]})">${x[0]}</i><span>${x[1]}</span></button>`).join('')}</div>
- <h3 class=sec>Kitoblar</h3>${bkChips(d)}<div class=grid>${d.map((x,i)=>bkOk(x)?book(x,i):'').join('')||'<p class=s>Hali lug\'at yo\'q</p>'}</div>
+ <h3 class=sec>Kitoblar</h3><div class=grid>${d.map((x,i)=>bkOk(x)?book(x,i):'').join('')||'<p class=s>Hali lug\'at yo\'q</p>'}</div>
  <div class=card onclick="sheet()"><div><small>${me.active?'OBUNA FAOL':"OBUNA YO'Q"}</small><br><b>${me.active?(me.is_admin?'Admin':D(me.paid_until)+' gacha ('+Math.max(0,Math.ceil((me.paid_until-Date.now())/864e5))+' kun)'):"Hamma narsa obuna bilan ochiladi"}</b></div><i>›</i></div>
- <div class=stats><div><b>${st.learned}</b><small>so'z o'rganildi</small></div><div><b>${d.filter(x=>x.ok).length} / ${d.length}</b><small>kitob ochiq</small></div><div><b>${st.rank}</b><small>haftalik ball</small></div></div><button class="b g rmt" onclick="toggleRm()">${document.documentElement.classList.contains('rm')?'🎞 Animatsiyalar: kamaytirilgan (yoqish)':'🎞 Animatsiyalarni kamaytirish'}</button>`+(me.active?'':'<div class=cta><button onclick="sheet()">💎 Obuna sotib olish</button></div>'))}
+ <div class=stats><div><b>${st.learned}</b><small>so'z o'rganildi</small></div><div><b>${d.filter(x=>x.ok).length} / ${d.length}</b><small>kitob ochiq</small></div><div><b>${st.rank}</b><small>haftalik ball</small></div></div>`+(me.active?'':'<div class=cta><button onclick="sheet()">💎 Obuna sotib olish</button></div>'))}
 function toggleRm(){const on=document.documentElement.classList.toggle('rm');try{localStorage.rm=on?'1':'0'}catch{}home()}
 function gate(){head("Pullik bo'lim",'back()');const t=me.trial;H(`<div class=card style="display:block">`+(t=='none'||t=='rejected'?`<p>Birinchi marta kirdingizmi? 1 oy bepul sinov so'rang — admin tasdiqlaydi.</p><button class=gold onclick="askTrial()">🚀 O'rganishni boshlash</button>`:t=='pending'?'<p>⏳ So\'rovingiz admin tekshiruvida.</p>':'<p>Bepul sinov muddati tugagan.</p>')+`<br><button class="b g" onclick="sheet()">💎 Obuna sotib olish</button></div>`)}
 async function askTrial(){const r=await api('/trial',{body:{}});me.trial=r.trial;gate()}
@@ -791,8 +813,8 @@ function foxMic(){const R=window.SpeechRecognition||window.webkitSpeechRecogniti
 // ---------- obuna oynasi
 async function sheet(note){const [pl,mt]=await Promise.all([api('/plans'),api('/methods')]);document.getElementById('ov')?.remove();const o=document.createElement('div');o.id='ov';
  const gr={};pl.forEach(x=>(gr[x.dict_id||0]=gr[x.dict_id||0]||[]).push(x));
- const chips=x=>x.monthly?[1,2,3,4,5,6,7,8,9,10,11,12].map(m=>`<label class=chip><input type=radio name=pl value="${x.id}:${m}">${m} oy<br><b>${(x.price*m).toLocaleString()}</b></label>`).join(''):`<label class=chip><input type=radio name=pl value="${x.id}:${x.months}">${x.months} oy<br><b>${x.price.toLocaleString()}</b></label>`;
- o.innerHTML=`<div class=bg onclick="document.getElementById('ov').remove()"></div><div class=sh><h2 style="margin:0 0 4px">💎 Obuna sotib olish</h2>${note&&typeof note=='string'?`<div class=meta>${esc(note)}</div>`:''}<div class=s>Kitob va muddatni tanlang · so'm</div>
+ const chips=x=>x.monthly?[1,2,3,4,5,6,7,8,9,10,11,12,24,36].map(m=>`<label class=chip><input type=radio name=pl value="${x.id}:${m}">${fmtMo(m)}<br><b>${(x.price*m).toLocaleString()}</b></label>`).join(''):`<label class=chip><input type=radio name=pl value="${x.id}:${x.months}">${fmtMo(x.months)}<br><b>${x.price.toLocaleString()}</b></label>`;
+ o.innerHTML=`<div class=bg onclick="document.getElementById('ov').remove()"></div><div class=sh><h2 style="margin:0 0 4px">💎 Obuna sotib olish</h2>${note&&typeof note=='string'?`<div class=meta>${esc(note)}</div>`:''}${me.trial=='none'||me.trial=='rejected'?`<button class=gold onclick="document.getElementById('ov').remove();askTrial()">🚀 1 oy bepul sinov so'rash</button>`:''}<div class=s>Kitob va muddatni tanlang · so'm</div>
  ${Object.entries(gr).map(([k,a])=>`<div class=s style="margin-top:12px;font-weight:700">${k==0?'📚 HAMMA KITOBLAR':'📘 '+esc(a[0].dname)}</div><div>`+a.map(chips).join('')+'</div>').join('')||'<p class=s>Admin hali tarif kiritmagan</p>'}
  <div class=s style="margin-top:14px;font-weight:700">💳 TO'LOV USULI</div>${mt.map(x=>`<label class=card><input type=radio name=mt value=${x.id} style="width:auto"><div><b>${esc(x.name)}</b><br>${esc(x.number)||'—'}<div class=s>${esc(x.holder)}</div></div></label>`).join('')}
  <div class=s>To'lovdan so'ng chek (skrinshot) yuboring:</div><input type=file id=sh accept=image/*><button class=nxt onclick="sendPay()">✅ To'lovni qildim, tekshirishga yuborish</button><p class=s>Tekshiruv 24 soat ichida amalga oshiriladi.</p></div>`;document.body.appendChild(o)}
@@ -806,8 +828,8 @@ const posOpts=(sel)=>Object.entries(POS).map(([k,v])=>`<option value=${k} ${sel=
 async function vAdmin(){const sec=[],d=await api('/dicts'),ops=d.map(x=>`<option value=${x.id}>${esc(x.name)}</option>`).join('');
  if(has('trials')){const t=await api('/admin/trials');sec.push(`<div class=card><b>🚀 Bepul sinov so'rovlari (${t.length})</b>${t.map(u=>`<div class=rk><span>${esc(u.name)}<br><small class=s>${esc(u.email||u.id)}</small></span><span><button class=b onclick="adm('/trial/${u.id}',{ok:1})">✅ 1 oy</button><button class="b g" onclick="adm('/trial/${u.id}',{ok:0})">❌</button></span></div>`).join('')}</div>`)}
  if(has('payments')){const p=await api('/admin/pending');sec.push(`<div class=card><b>💰 To'lovlar (${p.length})</b>${p.map(x=>{const m=x.months||x.pm||1,tot=x.monthly?x.price*m:x.price;return `<div class=rk style="display:block"><a href="/shots/${x.file}" target=_blank><img src="/shots/${x.file}" width=120></a><br>${esc(x.name)} · ${x.dname?esc(x.dname):'Hamma kitoblar'} · ${m} oy · ${(tot||0).toLocaleString()} · ${esc(x.mname||'')}<br><select id=pmo${x.id} style="width:auto;display:inline-block">${moOpts(m)}</select><button class=b onclick="adm('/pay/${x.id}',{ok:1,months:+document.getElementById('pmo${x.id}').value})">✅ Qabul</button><button class="b g" onclick="adm('/pay/${x.id}',{ok:0})">❌ Rad</button></div>`}).join('')}</div>`)}
- if(has('plans')){const pl=await api('/plans');sec.push(`<div class=card><b>🏷 Tariflar (har bir kitob uchun)</b>${pl.map(x=>`<div class=rk><span>${x.dict_id?'📘 '+esc(x.dname):'📚 Hamma kitoblar'} · ${x.monthly?'oylik narx':x.months+' oy'}</span><span><b>${x.price.toLocaleString()}</b> <button class="cb red" onclick="adm('/plan',{del:${x.id}})">🗑</button></span></div>`).join('')}
- <select id=pd><option value=0>📚 Hamma kitoblar</option>${ops}</select><div class=edr><input id=pm type=number placeholder="Oy"><input id=pp type=number placeholder="Narx (so'm)"></div><label><input type=checkbox id=pmo style="width:auto"> Oylik narx (foydalanuvchi 1, 2, 3... oy tanlaydi)</label><button class=big2 onclick="adm('/plan',{dict_id:$('#pd').value,months:$('#pm').value,price:$('#pp').value,monthly:$('#pmo').checked})">➕ Tarif qo'shish</button></div>`)}
+ if(has('plans')){const pl=await api('/plans');sec.push(`<div class=card><b>🏷 Tariflar (har bir kitob uchun)</b>${pl.map(x=>`<div class=rk><span>${x.dict_id?'📘 '+esc(x.dname):'📚 Hamma kitoblar'} · ${x.monthly?'oylik narx':fmtMo(x.months)}</span><span><b>${x.price.toLocaleString()}</b> <button class="cb red" onclick="adm('/plan',{del:${x.id}})">🗑</button></span></div>`).join('')}
+ <select id=pd><option value=0>📚 Hamma kitoblar</option>${ops}</select><div class=edr><input id=pm type=number min=1 placeholder="Muddat"><select id=pu style="max-width:90px"><option value=1>oy</option><option value=12>yil</option></select><input id=pp type=number placeholder="Narx (so'm)"></div><label><input type=checkbox id=pmo style="width:auto"> Oylik narx (foydalanuvchi 1, 2, 3... oy tanlaydi)</label><button class=big2 onclick="adm('/plan',{dict_id:$('#pd').value,months:(+$('#pm').value||1)*(+$('#pu').value),price:$('#pp').value,monthly:$('#pmo').checked})">➕ Tarif qo'shish</button></div>`)}
  if(has('methods')){const m=await api('/admin/methods');sec.push(`<div class=card><b>🏦 To'lov usullari</b>${m.map(x=>`<div class=card style="display:block;margin:6px 0"><b>${esc(x.name)}</b><input id=mn${x.id} value="${esc(x.number)}" placeholder="Karta/telefon raqami"><input id=mh${x.id} value="${esc(x.holder)}" placeholder="Ism familiya"><label><input type=checkbox id=mo${x.id} ${x.on_?'checked':''} style="width:auto"> yoqiq</label><div class=row><button class=b onclick="adm('/method',{id:${x.id},name:'${esc(x.name)}',number:$('#mn${x.id}').value,holder:$('#mh${x.id}').value,on:$('#mo${x.id}').checked})">💾 Saqlash</button><button class="cb red" onclick="adm('/method',{del:${x.id}})">🗑</button></div></div>`).join('')}
  <b>➕ Yangi usul / karta</b><input id=nn placeholder="Nomi (Uzcard, Humo, Click...)"><input id=nm placeholder="Karta raqami"><input id=nh placeholder="Ism familiya"><button class=big2 onclick="adm('/method',{name:$('#nn').value,number:$('#nm').value,holder:$('#nh').value})">Qo'shish</button></div>`)}
  if(has('import'))sec.push(voiceCard(d));
@@ -898,6 +920,11 @@ async function claudeTest(){const r=await api('/admin/claude-test',{body:{}});al
 document.addEventListener('click',e=>{const f=e.target.closest&&e.target.closest('.cdw');if(!f||Date.now()-(window._sw||0)<=400)return;
  for(let k=0;k<8;k++){const u=document.createElement('u');u.className='spk2';u.textContent=['✨','⭐','💫','🌟'][k%4];const a=k/8*6.283;u.style.setProperty('--tx',Math.round(Math.cos(a)*(90+Math.random()*30))+'px');u.style.setProperty('--ty',Math.round(Math.sin(a)*(70+Math.random()*30))+'px');f.appendChild(u);setTimeout(()=>u.remove(),750)}});
 document.addEventListener('pointermove',e=>{const f=e.target.closest&&e.target.closest('.cdw');if(!f)return;const r=f.getBoundingClientRect();f.style.setProperty('--mx',((e.clientX-r.left)/r.width*100).toFixed(0)+'%');f.style.setProperty('--my',((e.clientY-r.top)/r.height*100).toFixed(0)+'%')},{passive:true});
+
+(()=>{let c=null;const rs=()=>{if(!c)return;c.classList.remove('hold','tl');c.style.setProperty('--rx','0deg');c.style.setProperty('--ry','0deg');c=null};
+document.addEventListener('pointerdown',e=>{const f=e.target.closest&&e.target.closest('.cdw');if(!f)return;c=f;const r=f.getBoundingClientRect(),px=(e.clientX-r.left)/r.width-.5,py=(e.clientY-r.top)/r.height-.5;f.classList.add('hold','tl');f.style.setProperty('--ry',(px*26).toFixed(1)+'deg');f.style.setProperty('--rx',(-py*22).toFixed(1)+'deg')},{passive:true});
+document.addEventListener('pointermove',e=>{if(!c||e.pointerType==='mouse')return;const r=c.getBoundingClientRect(),px=Math.max(-.6,Math.min(.6,(e.clientX-r.left)/r.width-.5)),py=Math.max(-.6,Math.min(.6,(e.clientY-r.top)/r.height-.5));c.style.setProperty('--ry',(px*26).toFixed(1)+'deg');c.style.setProperty('--rx',(-py*22).toFixed(1)+'deg')},{passive:true});
+['pointerup','pointercancel'].forEach(n=>document.addEventListener(n,rs,{passive:true}))})();
 init();
 
 window.hap=(t='light')=>{try{Telegram.WebApp.HapticFeedback.impactOccurred(t)}catch{try{navigator.vibrate&&navigator.vibrate(8)}catch{}}};
@@ -906,6 +933,7 @@ document.addEventListener('pointerdown',e=>{if(e.target.closest('button,.card,.b
 
 try{const _sc=speechSynthesis.cancel.bind(speechSynthesis);speechSynthesis.cancel=()=>{try{S.fox&&S.fox.audio&&S.fox.audio.pause()}catch{}_sc()}}catch{}
 
+window.fmtMo=m=>m>=12&&m%12==0?(m/12)+' yil':m+' oy';
 window.moOpts=sel=>[1,2,3,4,5,6,7,8,9,10,11,12,18,24,36].map(n=>`<option value=${n} ${n==sel?'selected':''}>${n<12||n==18?n+' oy':n==12?'12 oy (1 yil)':(n/12)+' yil'}</option>`).join('');
 
 window.autoVoice=async()=>{const r=await api('/admin/autovoice',{body:{dict_id:+document.getElementById('vd').value}});alert(r.n+" ta so'zga ovoz fonda qo'shilmoqda (bir necha daqiqa ketishi mumkin).")};
