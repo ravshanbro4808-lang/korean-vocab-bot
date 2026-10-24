@@ -314,14 +314,13 @@ button,.card,.book,.tile,.gl,.dk,.opt2,.lv,.chp{will-change:auto}
 @keyframes rbspin{to{--a:360deg}}
 @keyframes rbburst{0%{clip-path:circle(0% at var(--bx,50%) var(--by,50%));opacity:1}50%{clip-path:circle(150% at var(--bx,50%) var(--by,50%));opacity:1}100%{clip-path:circle(0% at var(--bx,50%) var(--by,50%));opacity:.9}}
 @keyframes rbpop{0%{transform:scale(1)}25%{transform:scale(.93)}60%{transform:scale(1.05)}100%{transform:scale(1)}}
-:is(.b,.nxt,.big2,.pill,.lrn,.gold,.cta button,.cb,.bkb,.chp,.lv,.mic2,.send,.backpill,.vcall,.vb,.dk i){--a:0deg;background:conic-gradient(from var(--a) at 50% 50%,#ff1744,#ff6d00,#ffea00,#00e676,#00e5ff,#2979ff,#651fff,#d500f9,#ff1744)!important;animation:rbspin 7s linear infinite!important;isolation:isolate;overflow:hidden;color:#fff!important;text-shadow:0 1px 3px #000c,0 0 2px #0009;border-color:transparent!important;box-shadow:0 4px 0 #0003,0 8px 16px #0003,inset 0 1px 0 #fff7!important}
-:is(.b,.nxt,.big2,.pill,.lrn,.gold,.cta button,.cb,.bkb,.chp,.lv,.mic2,.send,.backpill,.vcall,.vb,.dk i):active{box-shadow:0 1px 0 #0003,inset 0 1px 0 #fff7!important}
-.b.g,.cb:not(.on):not(.red),.chp,.lv:not(.all),.mic2,.backpill{background:conic-gradient(from var(--a) at 50% 50%,#ff4081,#ff9100,#ffee00,#00e676,#18ffff,#448aff,#7c4dff,#e040fb,#ff4081)!important;color:#fff!important;text-shadow:0 1px 3px #000c,0 0 2px #0009!important}
-:is(.cb,.lrn).on{outline:3px solid #fff;outline-offset:-4px}
+:is(.b,.nxt,.big2,.pill,.lrn,.gold,.cta button,.cb,.bkb,.chp,.lv,.mic2,.send,.backpill,.vcall,.vb,.dk i){background:#2563eb!important;animation:none!important;color:#fff!important;text-shadow:none!important;border-color:transparent!important;box-shadow:0 4px 0 #1b4cb8,0 8px 16px #2563eb33!important}
+:is(.b,.nxt,.big2,.pill,.lrn,.gold,.cta button,.cb,.bkb,.chp,.lv,.mic2,.send,.backpill,.vcall,.vb,.dk i):active{box-shadow:0 1px 0 #1b4cb8!important}
+.b.g,.cb:not(.on):not(.red),.chp,.lv:not(.all),.mic2,.backpill{background:#e9eefb!important;color:#1b3a8a!important;box-shadow:0 3px 0 #c3d0f2!important}
+:is(.cb,.lrn).on{outline:3px solid #1b4cb8;outline-offset:-4px}
 .cb.red{box-shadow:0 0 0 3px #e0405a inset,0 4px 0 #0003!important}
-.lv.all{background:conic-gradient(from var(--a) at 50% 50%,#ff1744,#ff6d00,#ffea00,#00e676,#00e5ff,#2979ff,#651fff,#d500f9,#ff1744)!important;color:#fff!important}
-:is(.b,.nxt,.big2,.pill,.lrn,.gold,.cta button,.cb,.bkb,.chp,.lv,.mic2,.send,.backpill,.vcall,.vb,.dk i).bursting{animation:rbspin 7s linear infinite,rbpop .55s ease!important}
-:is(.b,.nxt,.big2,.pill,.lrn,.gold,.cta button,.cb,.bkb,.chp,.lv,.mic2,.send,.backpill,.vcall,.vb,.dk i).bursting::before{content:""!important;display:block!important;position:absolute;inset:0;z-index:-1;background:conic-gradient(from calc(var(--a) * -2) at var(--bx,50%) var(--by,50%),#ff0040,#ff8a00,#ffe600,#22e05a,#00e5ff,#2a6bff,#9d4dff,#ff3df0,#ff0040)!important;animation:rbburst .7s ease-in-out forwards!important;filter:saturate(1.5) brightness(1.1)}
+:is(.b,.nxt,.big2,.pill,.lrn,.gold,.cta button,.cb,.bkb,.chp,.lv,.mic2,.send,.backpill,.vcall,.vb,.dk i).bursting{animation:rbpop .35s ease!important}
+:is(.b,.nxt,.big2,.pill,.lrn,.gold,.cta button,.cb,.bkb,.chp,.lv,.mic2,.send,.backpill,.vcall,.vb,.dk i).bursting::before{display:none!important}
 .lvg{grid-template-columns:repeat(auto-fill,minmax(112px,1fr))}.lv{white-space:normal;overflow-wrap:anywhere;line-height:1.2}
 html.rm *,html.rm *::before,html.rm *::after{animation-duration:.001s!important;animation-iteration-count:1!important;animation-delay:0s!important;transition-duration:.001s!important}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.001s!important;animation-iteration-count:1!important;animation-delay:0s!important;transition-duration:.001s!important}}
