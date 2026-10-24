@@ -8,6 +8,7 @@ const markDown=(m,e)=>{const t=String(e&&(e.message||e));down[m]=Date.now()+(/40
 const chainFor=(first,fast)=>{const all=[...new Set([...(fast?FASTM:[]),first,...FALLBACKS])].filter(Boolean),ok=all.filter(m=>!(down[m]>Date.now()));return ok.length?ok:[first]};
 const friendlyErr=m=>{m=String(m||'');return /quota|exceed|429|rate/i.test(m)?"Gemini kunlik limiti tugadi (bepul tarif). Birozdan keyin urinib ko'ring yoki Google AI Studio'da billing ulang.":/demand|overload|unavailable|503/i.test(m)?"Gemini hozir band. Birozdan keyin urinib ko'ring.":/timeout|aborted|fetch failed/i.test(m)?"Gemini javob bermadi. Qayta urinib ko'ring.":m.slice(0,160)};const USE_GEMINI=!!GEMINI_API_KEY,AI_KEY=GEMINI_API_KEY||ANTHROPIC_API_KEY;
 const addM=(ts,n)=>{const d=new Date(ts);d.setMonth(d.getMonth()+n);return d.getTime()};const DAY=864e5,PERMS=['dicts','import','tasks','payments','trials','users','plans','methods','admins'];
+process.on('uncaughtException',e=>console.error('uncaught',e));process.on('unhandledRejection',e=>console.error('unhandled',e));
 const DATA=process.env.DATA_DIR||'.';fs.mkdirSync(DATA+'/uploads',{recursive:true});fs.mkdirSync(DATA+'/audio',{recursive:true});
 const db=new Database(DATA+'/data.db');
 db.exec(`create table if not exists users(id integer primary key,name text,email text unique,is_admin int default 0,perms text default '',paid_until int default 0,trial text default 'none',created int);
@@ -128,12 +129,12 @@ async function trFill(){if(trBusy)return;trBusy=1;try{const rows=q("select id,ko
   let tc=0;for(const w of rows){let uz=o[w.ko]&&o[w.ko].uz;if(!uz&&tc<12&&(!AI_KEY||!Object.keys(o).length)){tc++;uz=await tr(w.ko)}if(uz)run('update words set uz=? where id=? and uz=?',uz,w.id,PENDING)}}catch{}finally{trBusy=0}}
 setInterval(trFill,20000).unref();setTimeout(trFill,20000).unref();
 setInterval(()=>{if(ttsQ.length<10){ttsEnqueue(q("select id from words where audio is null or audio='' limit 40").map(x=>x.id).filter(id=>(ttsTry[id]||0)<8))}},120000).unref();
-const ttsQ=[],ttsTry={};let ttsRun=0,ttsPause=0;
-function ttsEnqueue(ids){for(const id of ids)if(!ttsQ.includes(id))ttsQ.push(id);ttsPump()}
+const ttsQ=[],ttsTry={},ttsSet=new Set();let ttsRun=0,ttsPause=0;
+function ttsEnqueue(ids){for(const id of ids)if(!ttsSet.has(id)){ttsSet.add(id);ttsQ.push(id)}ttsPump()}
 async function ttsPump(){
-  if(ttsRun>=6||Date.now()<ttsPause)return;const id=ttsQ.shift();if(!id)return;ttsRun++;
+  if(ttsRun>=6||Date.now()<ttsPause)return;const id=ttsQ.shift();if(!id)return;ttsSet.delete(id);ttsRun++;
   try{const w=one('select ko,audio from words where id=?',id);if(w&&w.ko&&!w.audio){const a=await wordAudio(w.ko);const name='w'+id+'_'+Date.now()+'.'+a.ext;fs.writeFileSync(DATA+'/audio/'+name,a.b);run("update words set audio=? where id=? and (audio is null or audio='')",name,id)}}
-  catch(e){ttsTry[id]=(ttsTry[id]||0)+1;if(ttsTry[id]<8){ttsQ.push(id);const d=/quota|429|demand|503|exceed/i.test(String(e.message))?20000:5000;ttsPause=Date.now()+d;setTimeout(ttsPump,d+100)}}
+  catch(e){ttsTry[id]=(ttsTry[id]||0)+1;if(ttsTry[id]<8){if(!ttsSet.has(id)){ttsSet.add(id);ttsQ.push(id)}const d=/quota|429|demand|503|exceed/i.test(String(e.message))?20000:5000;ttsPause=Date.now()+d;setTimeout(ttsPump,d+100)}}
   finally{ttsRun--;setTimeout(ttsPump,250)}
   ttsPump()}
 app.post('/api/admin/autovoice',adm('import'),(r,s)=>{const d=+r.body.dict_id;const ids=(d?q('select id from words where dict_id=? and (audio is null or audio=\'\')',d):q("select id from words where audio is null or audio=''")).map(x=>x.id);ttsEnqueue(ids);s.json({ok:1,n:ids.length})});
@@ -239,7 +240,7 @@ async function geminiRaw0(contents,system,cfg,n=0,mdl){
   if(!r.ok){const em=(j.error&&j.error.message)||'api '+r.status;if(/thinking level/i.test(em)&&cfg.thinkingConfig&&cfg.thinkingConfig.thinkingLevel!=='low'){THINK='low';cfg.thinkingConfig.thinkingLevel='low';return geminiRaw(contents,system,cfg)}if(n===0&&r.status===503){await new Promise(z=>setTimeout(z,1500));return geminiRaw0(contents,system,cfg,1,mdl)}throw new Error(em)}
   const c=j.candidates&&j.candidates[0];const t=c&&c.content?(c.content.parts||[]).map(x=>x.text||'').join('').trim():'';
   if(!t)throw new Error("Gemini bo'sh javob qaytardi");return t}
-const geminiFile=(buf,mime,prompt,max)=>geminiRaw([{role:'user',parts:[{inlineData:{mimeType:mime,data:buf.toString('base64')}},{text:prompt}]}],'',gcfg(FOXM,max));
+const geminiFile=(buf,mime,prompt,max)=>geminiRaw([{role:'user',parts:[{inlineData:{mimeType:mime,data:typeof buf==='string'?buf:buf.toString('base64')}},{text:prompt}]}],'',gcfg(FOXM,max));
 async function geminiVoice(hist,system,audio){
   const cs=[];for(const m of (hist||[]).slice(-10)){const role=m.role==='assistant'?'model':'user',text=String(m.content||'').slice(0,1500);if(!text)continue;
     if(cs.length&&cs[cs.length-1].role===role)cs[cs.length-1].parts[0].text+='\n'+text;else cs.push({role,parts:[{text}]})}
@@ -259,7 +260,7 @@ async function aiWords(items,txt,vis,defPos,auto,job){
       if(vis.pageList&&vis.pageList.length){for(let i=0;i<vis.pageList.length;i+=8)rgs.push(vis.pageList.slice(i,i+8))}
       else if(vis.mime==='application/pdf'&&vis.pages>8){for(let p=1;p<=vis.pages;p+=8){const g=[];for(let k=p;k<p+8&&k<=vis.pages;k++)g.push(k);rgs.push(g)}}else rgs.push(null);
       let ri=0,dn=0,lastE='';const wv=async()=>{while(ri<rgs.length){const rg=rgs[ri++],pr=wp()+(rg?"\n\nFAQAT PDFning quyidagi sahifalaridagi so'zlarni ol (sahifa raqamlari): "+rg.join(', ')+". Har bir sahifani to'liq o'qi, hech bir so'zni tashlab ketma.":"");let okc=0;
-        for(let a=0;a<3&&!okc;a++){try{const w=parseWords(await geminiFile(vis.buf,vis.mime,pr,30000));got.push(...w);okc=1}catch(e){lastE=friendlyErr(e&&e.message||e);await new Promise(z=>setTimeout(z,2000))}}
+        for(let a=0;a<3&&!okc;a++){try{const w=parseWords(await geminiFile(vis.b64||(vis.b64=vis.buf.toString('base64')),vis.mime,pr,30000));got.push(...w);okc=1}catch(e){lastE=friendlyErr(e&&e.message||e);await new Promise(z=>setTimeout(z,2000))}}
         if(!okc){failed++;if(job)job.failedPages.push(...(rg||[]))}
         dn++;if(job)job.stage="AI fayldan so'zlarni qidiryapti ("+dn+"/"+rgs.length+")..."}};
       await Promise.all(Array.from({length:Math.min(3,rgs.length)},wv));if(!got.length&&job)job.aiErr=lastE||"AI fayldan so'z topa olmadi"}
