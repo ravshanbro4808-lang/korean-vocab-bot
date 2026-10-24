@@ -537,22 +537,14 @@ async function audioFromBuf(buf,fname,job,eid){let ext=(String(fname||'').toLowe
     if(sized.length>1)job.warn.push("Zip ichida "+sized.length+" ta audio bor ("+sized.map(x=>x.n).slice(0,6).join(', ')+"). Eng kattasi ulandi: "+sized[0].n);buf=sized[0].b;ext=sized[0].n.toLowerCase().split('.').pop()}
   if(!/^(mp3|m4a|wav|ogg|aac|mp4|webm)$/.test(ext))throw new Error("Audio formati qo'llab-quvvatlanmaydi: "+ext);return saveAudioBuf(buf,ext,'ts'+eid)}
 app.get('/api/admin/topik/job/:id',adm('topik'),(r,s)=>{const j=jobs[r.params.id];if(!j)return s.status(404).json({e:'yoq'});s.json(j)});
-app.post('/api/admin/topik/auto-import',adm('topik'),upBig.fields([{name:'q',maxCount:4},{name:'a',maxCount:1},{name:'audio',maxCount:1}]),(r,s)=>{
-  const b=r.body,e=one('select * from topik_exams where id=?',+b.exam_id),F=r.files||{};
-  const clean=()=>Object.values(F).flat().forEach(f=>{try{fs.unlinkSync(f.path)}catch{}});
-  if(!e){clean();return s.status(404).json({e:'yoq'})}
-  if(!USE_GEMINI){clean();return s.status(400).json({e:"GEMINI_API_KEY kerak — PDF ni AI o'qiydi. Railway → Variables'ga qo'shing."})}
-  const qUrls=String(b.q_url||'').split(/\s+/).filter(Boolean),aUrl=String(b.a_url||'').trim(),auUrl=String(b.audio_url||'').trim();
-  if(!(F.q||[]).length&&!qUrls.length){clean();return s.status(400).json({e:"Savollar PDF faylini yoki havolasini bering"})}
-  const qBufs=(F.q||[]).map(f=>fs.readFileSync(f.path)),aBuf=F.a&&F.a[0]?fs.readFileSync(F.a[0].path):null,auFile=F.audio&&F.audio[0]?{b:fs.readFileSync(F.audio[0].path),n:F.audio[0].originalname}:null;clean();
-  const job=newJob();s.json({job:job.id});
-  (async()=>{try{
+async function tAutoRun(e,o,job){const qBufs=o.qBufs,qUrls=o.qUrls||[],aUrl=o.aUrl||'',auUrl=o.auUrl||'',replace=!!o.replace,wantWords=!!o.words,auFile=o.auBuf?{b:o.auBuf,n:o.auName||'audio.mp3'}:null;let ab=o.ab||null;
+  try{
     job.stage="Fayllar tayyorlanmoqda...";
-    for(const u of qUrls)qBufs.push(await dlUrl(u,40e6));let ab=aBuf;if(!ab&&aUrl)ab=await dlUrl(aUrl,40e6);
+    for(const u of qUrls)qBufs.push(await dlUrl(u,40e6));if(!ab&&aUrl)ab=await dlUrl(aUrl,40e6);
     let qs=[];for(let i=0;i<qBufs.length;i++){if(qBufs[i].length>19e6){job.warn.push((i+1)+"-savol fayli juda katta (19 MB dan oshiq), o'tkazib yuborildi");continue}qs.push(...await geminiPdfRows(qBufs[i],TQP,job,"Savollar "+(i+1)+"-fayl",6))}
     if(!qs.length)throw new Error("PDF dan savol topilmadi. Fayl skan/rasm bo'lsa ham AI o'qiydi, lekin juda xira bo'lsa o'qiy olmaydi.");
     let as=[];if(ab&&ab.length<19e6)as=await geminiPdfRows(ab,TAP,job,"Javoblar va ballar",0);else job.warn.push("Javoblar jadvali berilmadi — to'g'ri javoblar yo'q, savollar o'tkazib yuboriladi");
-    job.stage="Savollar bazaga yozilmoqda...";const m=tMerge(qs,as,e),res=tQImport(e,m.rows,b.replace==='1');
+    job.stage="Savollar bazaga yozilmoqda...";const m=tMerge(qs,as,e),res=tQImport(e,m.rows,replace);
     const cnt={};for(const sc of TSECS[e.level])cnt[sc]=one('select count(*) n from topik_q where exam_id=? and sec=?',e.id,sc).n;
     for(const sc of TSECS[e.level]){const ex=TEXP[e.level][sc];if(cnt[sc]&&cnt[sc]<ex)job.warn.push(sc+": "+cnt[sc]+" ta savol (rasmiy "+ex+" ta) — yetishmayotganlarini tekshiring");if(!cnt[sc]&&(m.rows.length))job.warn.push(sc+": savol topilmadi (shu bo'lim PDF si berilmadimi?)")}
     if(m.noAns)job.warn.push(m.noAns+" ta savolga to'g'ri javob topilmadi (ular qo'shilmadi)");
@@ -562,9 +554,19 @@ app.post('/api/admin/topik/auto-import',adm('topik'),upBig.fields([{name:'q',max
     if(auFile||auUrl){job.stage="Audio ulanmoqda...";if(!TSECS[e.level].includes('듣기'))throw new Error("Bu imtihonda 듣기 yo'q");
       const buf=auFile?auFile.b:await dlUrl(auUrl,120e6),nm=auFile?auFile.n:auUrl.split('?')[0];const name=await audioFromBuf(buf,nm,job,e.id);
       const old=one('select audio from topik_secs where exam_id=? and sec=?',e.id,'듣기');if(old)tDel(old.audio);run("insert into topik_secs(exam_id,sec,minutes,audio) values(?,?,?,?) on conflict(exam_id,sec) do update set audio=?",e.id,'듣기',TMIN[e.level]['듣기'],name,name);audio=name}
-    let words=null;if(b.words==='1'){job.stage="So'zlar ajratilmoqda (AI)...";try{words=await tExtractWords(e)}catch(x){job.warn.push("So'zlarni ajratib bo'lmadi: "+friendlyErr(x&&x.message||x))}}
+    let words=null;if(wantWords){job.stage="So'zlar ajratilmoqda (AI)...";try{words=await tExtractWords(e)}catch(x){job.warn.push("So'zlarni ajratib bo'lmadi: "+friendlyErr(x&&x.message||x))}}
     job.result={added:res.added,updated:res.updated,counts:cnt,audio:!!audio,words};job.stage="Tayyor";
-  }catch(x){job.err=String(x&&x.message||x)}finally{job.fin=true}})()});
+  }catch(x){job.err=String(x&&x.message||x)}finally{job.fin=true}}
+app.post('/api/admin/topik/auto-import',adm('topik'),upBig.fields([{name:'q',maxCount:4},{name:'a',maxCount:1},{name:'audio',maxCount:1}]),(r,s)=>{
+  const b=r.body,e=one('select * from topik_exams where id=?',+b.exam_id),F=r.files||{};
+  const clean=()=>Object.values(F).flat().forEach(f=>{try{fs.unlinkSync(f.path)}catch{}});
+  if(!e){clean();return s.status(404).json({e:'yoq'})}
+  if(!USE_GEMINI){clean();return s.status(400).json({e:"GEMINI_API_KEY kerak — PDF ni AI o'qiydi. Railway → Variables'ga qo'shing."})}
+  const qUrls=String(b.q_url||'').split(/\s+/).filter(Boolean),aUrl=String(b.a_url||'').trim(),auUrl=String(b.audio_url||'').trim();
+  if(!(F.q||[]).length&&!qUrls.length){clean();return s.status(400).json({e:"Savollar PDF faylini yoki havolasini bering"})}
+  const qBufs=(F.q||[]).map(f=>fs.readFileSync(f.path)),aBuf=F.a&&F.a[0]?fs.readFileSync(F.a[0].path):null,auFile=F.audio&&F.audio[0]?{b:fs.readFileSync(F.audio[0].path),n:F.audio[0].originalname}:null;clean();
+  const job=newJob();s.json({job:job.id});
+  tAutoRun(e,{qBufs,qUrls,ab:aBuf,aUrl,auBuf:auFile&&auFile.b,auName:auFile&&auFile.n,auUrl,replace:b.replace==='1',words:b.words==='1'},job)});
 
 // ===== TOPIK: audiolarni birdan yuklash (havolalar ro'yxati) =====
 app.post('/api/admin/topik/audio-bulk',adm('topik'),(r,s)=>{
@@ -704,4 +706,16 @@ if(BOT_TOKEN){bot=new Telegraf(BOT_TOKEN);
     else{h.pop();c.reply(r.e==='nokey'?"Men hozircha javob bera olmayman. Ilovani oching 👇":"Xatolik yuz berdi, birozdan keyin urinib ko'ring.",Markup.inlineKeyboard([open]))}});
   bot.launch().catch(console.error);
   bot.telegram.setChatMenuButton({menuButton:{type:'web_app',text:'Ochish',web_app:{url:WEBAPP_URL}}}).catch(()=>{})}
+
+// ===== TOPIK: serverga qo'shib yuborilgan imtihonlarni ishga tushganda o'zi yuklaydi (seed/topik.json) =====
+async function seedTopik(){try{const dir=process.env.SEED_DIR||require('path').join(__dirname,'seed'),mf=dir+'/topik.json';if(!fs.existsSync(mf))return;
+  if(!USE_GEMINI){console.log("[seed] GEMINI_API_KEY yo'q — TOPIK seed o'tkazib yuborildi");return}
+  for(const it of JSON.parse(fs.readFileSync(mf,'utf8'))){const level=+it.level===2?2:1,type=String(it.type||''),no=+it.no;if(!(no>0))continue;
+    let e=one('select * from topik_exams where no=? and level=? and type=?',no,level,type);
+    if(!e){const id=run('insert into topik_exams(no,level,type,title,src,free,ts) values(?,?,?,?,?,?,?)',no,level,type,String(it.title||''),String(it.src||'topik.go.kr'),0,Date.now()).lastInsertRowid;for(const sec of TSECS[level])run('insert into topik_secs(exam_id,sec,minutes) values(?,?,?)',id,sec,TMIN[level][sec]);e=one('select * from topik_exams where id=?',id)}
+    if(one('select count(*) n from topik_q where exam_id=?',e.id).n>0)continue;
+    const rd=f=>fs.readFileSync(dir+'/'+(it.dir?it.dir+'/':'')+f),job={warn:[],stage:'',fin:0};
+    await tAutoRun(e,{qBufs:(it.q||[]).map(rd),ab:it.a?rd(it.a):null,auBuf:it.audio?rd(it.audio):null,auName:it.audio,replace:true,words:it.words!==false},job);
+    console.log('[seed] TOPIK',level,no,job.err?('XATO: '+job.err):'tayyor',job.warn.join(' | '))}}catch(x){console.log('[seed] xato:',x&&x.message||x)}}
+setTimeout(seedTopik,8000);
 server.listen(PORT,()=>console.log('http://localhost:'+PORT));
