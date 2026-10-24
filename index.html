@@ -931,7 +931,7 @@ function watchJob(id){document.getElementById('ov')?.remove();const o=document.c
   if(j.fin){document.getElementById('ov').remove();if(j.err)alert('Xatolik: '+j.err);else{confetti();alert((j.dict_id?'Kitob yaratildi.\n':'')+impMsg(j))}vAdmin();return}
   setTimeout(tick,1200)};tick()}
 function upProg(p){let o=document.getElementById('ov');if(!o){o=document.createElement('div');o.id='ov';o.innerHTML=`<div class=bg></div><div class=sh><h2 style="margin:0 0 6px">⬆️ Fayl yuklanmoqda</h2><div class=s id=jst></div><div class=pb><i id=jbar style="width:1%"></i></div><div class=s>Oynani yopmang, yuklash tugaguncha kuting.</div></div>`;document.body.appendChild(o)}$('#jst').textContent=Math.round(p*100)+'%';$('#jbar').style.width=Math.max(1,Math.round(p*100))+'%'}
-async function attach(fd,f){if(f.size<=8e6){if(!(await attach(fd,f)))return;return true}
+async function attach(fd,f){if(f.size<=8e6){fd.append('file',f,f.name);return true}
  try{const st=await api('/admin/up/start',{body:{size:f.size,name:f.name}});if(!st||!st.id){alert('Xato: '+((st&&st.e)||JSON.stringify(st)));return false}
   const hd={'x-init':tg?.initData||'','x-dev':dev||'','content-type':'application/octet-stream'};if(localStorage.tok)hd.authorization='Bearer '+localStorage.tok;
   const CH=8<<20;upProg(0);
@@ -940,9 +940,9 @@ async function attach(fd,f){if(f.size<=8e6){if(!(await attach(fd,f)))return;retu
   document.getElementById('ov')?.remove();fd.append('upload_id',st.id);fd.append('upload_name',f.name);fd.append('upload_size',f.size);return true}
  catch(e){document.getElementById('ov')?.remove();if(e!==0)alert('Xato: '+((e&&e.message)||e));return false}}
 async function createBook(){const f=$('#bf').files[0];if(!f||!$('#bn').value.trim())return alert('Kitob nomi va faylni kiriting');const fd=new FormData();
- fd.append('name',$('#bn').value);fd.append('levels',$('#bl').value||1);fd.append('lvl',$('#bk').value);fd.append('pos',$('#bp').value);fd.append('auto',$('#ba').checked?1:0);if(!(await attach(fd,f)))return;
- const r=await api('/admin/book',{body:fd});if(!r||!r.job)return alert('Xato: '+((r&&r.e)||JSON.stringify(r)));watchJob(r.job)}
-async function imp(){const f=$('#if').files[0];if(!f)return;const fd=new FormData();fd.append('dict_id',$('#id').value);fd.append('level',$('#il').value);fd.append('wlvl',$('#iwl').value);fd.append('pos',$('#ip').value);fd.append('auto',$('#ia').checked?1:0);if(!(await attach(fd,f)))return;const r=await api('/admin/import',{body:fd});if(!r||!r.job)return alert('Xato: '+((r&&r.e)||JSON.stringify(r)));watchJob(r.job)}
+ fd.append('name',$('#bn').value);fd.append('levels',$('#bl').value||1);fd.append('lvl',$('#bk').value);fd.append('pos',$('#bp').value);fd.append('auto',$('#ba').checked?1:0);try{if(!(await attach(fd,f)))return;
+ const r=await api('/admin/book',{body:fd});if(!r||!r.job)return alert('Xato: '+((r&&r.e)||JSON.stringify(r)));watchJob(r.job)}catch(e){if(e!==0)alert('Xato: '+((e&&e.message)||e))}}
+async function imp(){const f=$('#if').files[0];if(!f)return;const fd=new FormData();fd.append('dict_id',$('#id').value);fd.append('level',$('#il').value);fd.append('wlvl',$('#iwl').value);fd.append('pos',$('#ip').value);fd.append('auto',$('#ia').checked?1:0);try{if(!(await attach(fd,f)))return;const r=await api('/admin/import',{body:fd});if(!r||!r.job)return alert('Xato: '+((r&&r.e)||JSON.stringify(r)));watchJob(r.job)}catch(e){if(e!==0)alert('Xato: '+((e&&e.message)||e))}}
 async function claudeTest(){const r=await api('/admin/claude-test',{body:{}});alert(r.ok?`✅ Ishlayapti! Javob: ${r.reply}\nModel: ${r.model}`:'❌ Xato: '+r.error)}
 document.addEventListener('click',e=>{const f=e.target.closest&&e.target.closest('.cdw');if(!f||Date.now()-(window._sw||0)<=400)return;
  for(let k=0;k<8;k++){const u=document.createElement('u');u.className='spk2';u.textContent=['✨','⭐','💫','🌟'][k%4];const a=k/8*6.283;u.style.setProperty('--tx',Math.round(Math.cos(a)*(90+Math.random()*30))+'px');u.style.setProperty('--ty',Math.round(Math.sin(a)*(70+Math.random()*30))+'px');f.appendChild(u);setTimeout(()=>u.remove(),750)}});
