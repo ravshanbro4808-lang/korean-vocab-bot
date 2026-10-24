@@ -924,9 +924,9 @@ const impMsg=r=>{if(r.found==0)return "Faylda koreyscha so'z topilmadi. Fayl o'q
 const ptxt=r=>Object.entries(r.perPos||{}).map(([p,n])=>`${POS[p]||p}: ${n}`).join(', ');
 function watchJob(id){document.getElementById('ov')?.remove();const o=document.createElement('div');o.id='ov';
  o.innerHTML=`<div class=bg></div><div class=sh><h2 style="margin:0 0 6px">⏳ So'zlar qo'shilmoqda</h2><div class=s id=jst>Boshlanmoqda...</div><div class=pb><i id=jbar style="width:5%"></i></div><div id=jtx class=s></div><button class=nxt onclick="document.getElementById('ov').remove()">Yopish (fonda davom etadi)</button></div>`;document.body.appendChild(o);
- const tick=async()=>{let j;try{j=await api('/admin/job/'+id)}catch{return}if(!document.getElementById('ov'))return;
+ let miss=0;const tick=async()=>{let j;try{j=await api('/admin/job/'+id)}catch{if(++miss>40||!document.getElementById('ov'))return;return setTimeout(tick,3000)}if(!document.getElementById('ov'))return;
   if(j&&(j.code>=502&&j.code<=504||/HTTP 50\d/.test(j.e||''))){$('#jst').textContent="Server band yoki qayta ishga tushmoqda, kutilmoqda...";return setTimeout(tick,4000)}
-  if(!j||j.stage===undefined){document.getElementById('ov').remove();return alert('Ish topilmadi (server qayta ishga tushgan bo\'lishi mumkin): '+JSON.stringify(j))}
+  if(!j||j.stage===undefined){if(++miss<=10){$('#jst').textContent="Server javobi kutilmoqda...";return setTimeout(tick,3000)}document.getElementById('ov').remove();return alert('Ish topilmadi (server qayta ishga tushgan bo\'lishi mumkin): '+JSON.stringify(j))}
   $('#jst').textContent=j.stage;$('#jbar').style.width=Math.max(5,j.total?Math.round(j.done/j.total*100):5)+'%';$('#jtx').style.whiteSpace='pre-line';$('#jtx').textContent=`${j.done}/${j.total} · ${j.added} ta qo'shildi`+((j.warn||[]).length?'\n⚠️ '+j.warn[j.warn.length-1]:'');
   if(j.fin){document.getElementById('ov').remove();if(j.err)alert('Xatolik: '+j.err);else{confetti();alert((j.dict_id?'Kitob yaratildi.\n':'')+impMsg(j))}vAdmin();return}
   setTimeout(tick,1200)};tick()}

@@ -424,9 +424,18 @@ async function geminiUpload(path,mime,name){
 function geminiDelete(f){try{fetch(GAPI+'/v1beta/'+f.name,{method:'DELETE',headers:{'x-goog-api-key':GEMINI_API_KEY},signal:AbortSignal.timeout(15000)}).catch(()=>{})}catch{}}
 function countPdfPages(path){let n=0,tail='';const fd=fs.openSync(path,'r'),b=Buffer.alloc(4<<20);let pos=0,r;try{while((r=fs.readSync(fd,b,0,b.length,pos))>0){const t=tail+b.toString('latin1',0,r);n+=(t.match(/\/Type\s*\/Page[^s]/g)||[]).length;tail=t.slice(-8);pos+=r}}finally{fs.closeSync(fd)}return n}
 const jobs={};
+db.exec("create table if not exists jobs(id text primary key,j text,ts int)");
+const jobJson=j=>JSON.stringify(j,(k,v)=>(k==='ids'||k==='_sf')?undefined:v);
+const saveJob=j=>{try{db.prepare('insert or replace into jobs(id,j,ts) values(?,?,?)').run(j.id,jobJson(j),j.ts)}catch{}};
+// server qayta ishga tushganda tugamagan ishlarni «to'xtatilgan» deb belgilaymiz (qo'shilgan so'zlar bazada qoladi)
+try{for(const r of db.prepare('select * from jobs').all()){let j;try{j=JSON.parse(r.j)}catch{continue}if(!j.fin){j.fin=true;j.err="Server qayta ishga tushdi, jarayon to'xtadi (xotira yetishmagan yoki yangilanish bo'lgan bo'lishi mumkin). Shu vaqtgacha qo'shilgan so'zlar saqlangan — «"+(j.added||0)+" ta». Faylni qayta yuklasangiz, takroriy so'zlar o'tkazib yuboriladi.";db.prepare('update jobs set j=? where id=?').run(JSON.stringify(j),r.id)}}
+  db.prepare('delete from jobs where ts<?').run(Date.now()-3*DAY)}catch{}
+setInterval(()=>{for(const k in jobs){const j=jobs[k];if(!j._sf){saveJob(j);if(j.fin)j._sf=true}}},2000).unref();
 setInterval(()=>{const t=Date.now();for(const k in jobs)if((jobs[k].fin&&t-jobs[k].ts>36e5)||t-jobs[k].ts>432e5)delete jobs[k]},6e5).unref();
-const newJob=()=>{const id=crypto.randomBytes(6).toString('hex');return jobs[id]={id,stage:"Fayl o'qilmoqda...",found:0,total:0,done:0,added:0,translated:0,skipped:0,perLevel:{},perPos:{},warn:[],failedPages:[],expected:0,dups:0,pages:0,emptyPages:[],fin:false,err:null,ts:Date.now()}};
-app.get('/api/admin/job/:id',adm('import'),(r,s)=>{const j=jobs[r.params.id];if(!j)return s.status(404).json({e:'yoq'});s.json(j)});
+const newJob=()=>{const id=crypto.randomBytes(6).toString('hex');return jobs[id]=(j=>(saveJob(j),j))({id,stage:"Fayl o'qilmoqda...",found:0,total:0,done:0,added:0,translated:0,skipped:0,perLevel:{},perPos:{},warn:[],failedPages:[],expected:0,dups:0,pages:0,emptyPages:[],fin:false,err:null,ts:Date.now()})};
+app.get('/api/admin/job/:id',adm('import'),(r,s)=>{let j=jobs[r.params.id];
+  if(!j){const row=one('select j from jobs where id=?',String(r.params.id));if(row)try{j=JSON.parse(row.j)}catch{}}
+  if(!j)return s.status(404).json({e:'yoq'});s.json(jobs[r.params.id]?JSON.parse(jobJson(j)):j)});
 
 const MAXUP=8*1024**3,upPath=id=>DATA+'/uploads/up_'+id+'.part',gb=n=>(n/1024**3).toFixed(1);
 app.post('/api/admin/up/start',adm('import'),(r,s)=>{const size=+r.body.size||0;
