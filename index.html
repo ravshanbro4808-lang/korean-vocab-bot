@@ -469,6 +469,7 @@ rp{background:rgba(0,0,0,.18)!important}
 .cdi{transition:transform .95s cubic-bezier(.34,1.5,.5,1)}
 .cdw.pop{animation:cdlift .95s cubic-bezier(.3,1.2,.5,1)}
 @keyframes cdlift{0%{scale:1;rotate:0deg}30%{scale:1.16;translate:0 -22px;rotate:-5deg}65%{scale:1.06;translate:0 -8px;rotate:3deg}100%{scale:1;translate:0 0;rotate:0deg}}
+.row3{display:flex;gap:8px;margin:10px 0 4px}.row3 .b{flex:1;margin:0;padding:13px 4px;font-size:14px;white-space:nowrap}
 </style></head><body><div id="hd"></div><main id="m"></main>
 <script>
 try{localStorage.rm='0'}catch{}
@@ -733,15 +734,15 @@ async function rating(){head('Haftalik reyting','back()');const r=await api('/ra
 function foxChat(words,q){head('Tulki Kori','back()');
  if(!S.fox||words){try{S.fox&&S.fox.st&&S.fox.st.getTracks().forEach(t=>t.stop())}catch{}S.fox={msgs:[{role:'assistant',content:words?"Salom! Men Kori 🦊. Keling, shu so'zlarni mashq qilamiz!":"Salom! Men Kori 🦊 — koreys tili yordamchingizman. Menga xohlagan savol bering: so'z, grammatika, talaffuz yoki oddiy suhbat!"}],words:words||[],lang:'uz-UZ',auto:1}}
  foxV();if(q&&words)setTimeout(()=>foxSend(q),100)}
-function foxV(){const f=S.fox;H(`<div class=fxw><div class=fxh><i>🦊</i><div><b>Kori</b><div class=s>${f.typing?'yozmoqda...':f.talk?'<span id=fst>'+esc(f.status||'🎙 ovozli suhbat')+'</span>':f.lite&&me.is_admin?"⚠️ cheklangan rejim: GEMINI_API_KEY qo'shing":f.lite?"lug'at rejimi":'onlayn'}</div></div>${me.is_admin?'<span class=lim>∞ cheksiz</span>':(f.left!=null?`<span class=lim>💬 ${f.left} qoldi</span>`:'')}<button class="cb stopb ${f.speaking?'on':''}" id=fstop onclick="foxStop()" title="Ovozni to'xtatish">⏹</button><button class="cb ${f.auto?'on':''}" onclick="S.fox.auto=!S.fox.auto;foxV()">${f.auto?'🔊':'🔇'}</button></div>
-<button class=vcall onclick="foxTalk()"><i>🎙</i><span><b>Tulki bilan gaplashish</b><small>Qo'l tegizmasdan, ovoz bilan suhbat${!me.is_admin&&f.vleft!=null?' · '+f.vleft+' ta qoldi':''}</small></span></button>
+function foxV(){const f=S.fox;H(`<div class=fxw><div class=fxh><i>🦊</i><div><b>Kori</b><div class=s>${f.typing?'yozmoqda...':f.talk?'<span id=fst>'+esc(f.status||'🎙 ovozli suhbat')+'</span>':f.lite&&me.is_admin?"⚠️ cheklangan rejim: GEMINI_API_KEY qo'shing":f.lite?"lug'at rejimi":'onlayn'}</div></div>${me.is_admin?'<span class=lim>∞ cheksiz</span>':(f.left!=null?`<span class=lim>💬 ${f.left} qoldi</span>`:'')}</div>
+<div class=row3><button class=b onclick="foxTalk()">🎙 Gaplashish</button><button class=b onclick="foxStop()">⏹ To'xtatish</button><button class="b ${f.auto?'g':'sel'}" onclick="foxWrite()">✍️ Yozma</button></div>${!me.is_admin&&f.vleft!=null?`<div class=s style="text-align:center">Ovozli suhbat: ${f.vleft} ta qoldi</div>`:''}
 <div class=chat id=fch>${f.msgs.map((m,i)=>`<div class="bub ${m.role=='assistant'?'bot':'me'}">${m.role=='assistant'?'<i>🦊</i>':''}<span>${esc(m.content).replace(/\n/g,'<br>')}${m.role=='assistant'?`<button class=sp onclick="foxSpeak(${i})" title="Qayta tinglash">🔊</button><button class=sp onclick="foxStop()" title="To'xtatish">⏹</button><div class=rx>${['👍','❤️','😂','🔥'].map(e=>`<button class="${m.rx==e?'on':''}" onclick="foxRx(${i},'${e}',this)">${e}</button>`).join('')}</div>`:''}</span></div>`).join('')}${f.typing?'<div class="bub bot"><i>🦊</i><span class=dots><s></s><s></s><s></s></span></div>':''}</div>
 <div class=chips>${['Misol keltir','Talaffuzini tushuntir','Meni sina','Grammatika'].map(c=>`<button class=chp onclick="foxSend('${c}')">${c}</button>`).join('')}</div>
 <div class=inp><input id=fin placeholder="Savol yozing..." autocomplete=off onkeydown="if(event.key==='Enter')foxSend()"><button class=mic2 onclick="foxLang()">${f.lang=='ko-KR'?'🇰🇷':'🇺🇿'}</button><button class=mic2 onclick="foxMic()">🎤</button><button class=send onclick="foxSend()">➤</button></div></div>`);
  setTimeout(()=>{const c=$('#fch');c&&(c.scrollTop=c.scrollHeight);window.scrollTo(0,document.body.scrollHeight)},40);vcSync()}
 async function foxSend(t){let sp=0;const f=S.fox;if(f.typing)return;const v=(t??$('#fin').value).trim();if(!v)return;f.msgs.push({role:'user',content:v});f.typing=1;foxV();
  try{const r=await api('/fox',{body:{messages:f.msgs,words:f.words.slice(0,20).map(w=>({ko:w.ko,uz:w.uz}))}});
-  f.lite=!!r.lite;if(r.left!=null)f.left=r.left;f.msgs.push({role:'assistant',content:r.reply||(r.e=='nokey'?"Men hali uyg'onmaganman 😴 Admin GEMINI_API_KEY ni sozlashi kerak.":r.e=='limit'?"Bugungi savollar limiti tugadi. Obuna bo'lsangiz ko'proq yozishingiz mumkin 🦊":(me.is_admin&&r.msg?'Xatolik: '+r.msg:"Xatolik bo'ldi, qayta urinib ko'ring."))});
+  f.lite=!!r.lite;if(r.left!=null)f.left=r.left;f.msgs.push({role:'assistant',content:r.reply||(r.e=='nokey'?"Men hali uyg'onmaganman 😴 Admin GEMINI_API_KEY ni sozlashi kerak.":r.e=='limit'?"Bugungi savollar limiti tugadi. Obuna bo'lsangiz ko'proq yozishingiz mumkin 🦊":(r.msg?'Xatolik: '+r.msg:"Xatolik bo'ldi, qayta urinib ko'ring."))});
   if(r.reply&&f.auto){sp=1;foxSpeak(f.msgs.length-1,f.talk?talkListen:null)}}catch{f.msgs.push({role:'assistant',content:"Aloqa uzildi, qayta urinib ko'ring."})}
  f.typing=0;foxV();if(f.talk&&!sp)setTimeout(talkListen,500)}
 function foxSpeak(i,cb){const f=S.fox,tk=f.spk=(f.spk||0)+1;f.speaking=1;stSet('🦊 gapiryapti...','speak');
@@ -805,9 +806,11 @@ async function talkSend(b){const f=S.fox;let sp=0;f.typing=1;stSet("🦊 o'ylaya
   if(r.heard)f.msgs.push({role:'user',content:r.heard});
   if(r.reply){f.msgs.push({role:'assistant',content:r.reply});sp=1;f.typing=0;foxV();foxSpeak(f.msgs.length-1,talkListen);return}
   if(r.e=='limit'){f.msgs.push({role:'assistant',content:"Bugungi savollar limiti tugadi. Obuna bo'lsangiz ko'proq gaplashishingiz mumkin 🦊"});f.talk=0}
-  else if(r.e=='api'){f.msgs.push({role:'assistant',content:me.is_admin&&r.msg?'Xatolik: '+r.msg:"Xatolik bo'ldi, qayta urinib ko'ring."})}
+  else if(r.e=='nohear'){stSet('🎙 Eshitilmadi, qayta gapiring','listen')}
+  else if(r.e=='api'){f.msgs.push({role:'assistant',content:r.msg?'Xatolik: '+r.msg:"Xatolik bo'ldi, qayta urinib ko'ring."})}
  }catch{f.msgs.push({role:'assistant',content:"Aloqa uzildi, qayta urinib ko'ring."})}
  f.typing=0;if(!f.talk)stopTalk();else foxV();if(f.talk&&!sp)setTimeout(talkListen,700)}
+function foxWrite(){const f=S.fox;if(f.talk)stopTalk();f.auto=0;foxStop();foxV();setTimeout(()=>{const i=$('#fin');i&&i.focus()},60)}
 function foxLang(){S.fox.lang=S.fox.lang=='ko-KR'?'uz-UZ':'ko-KR';foxV()}
 function foxMic(){const R=window.SpeechRecognition||window.webkitSpeechRecognition;if(!R)return alert("Bu qurilmada ovoz tanish ishlamaydi. Yozib yuboring.");const x=new R();x.lang=S.fox.lang;x.onresult=e=>foxSend(e.results[0][0].transcript);x.start()}
 // ---------- obuna oynasi
@@ -909,13 +912,14 @@ const ptxt=r=>Object.entries(r.perPos||{}).map(([p,n])=>`${POS[p]||p}: ${n}`).jo
 function watchJob(id){document.getElementById('ov')?.remove();const o=document.createElement('div');o.id='ov';
  o.innerHTML=`<div class=bg></div><div class=sh><h2 style="margin:0 0 6px">⏳ So'zlar qo'shilmoqda</h2><div class=s id=jst>Boshlanmoqda...</div><div class=pb><i id=jbar style="width:5%"></i></div><div id=jtx class=s></div><button class=nxt onclick="document.getElementById('ov').remove()">Yopish (fonda davom etadi)</button></div>`;document.body.appendChild(o);
  const tick=async()=>{let j;try{j=await api('/admin/job/'+id)}catch{return}if(!document.getElementById('ov'))return;
+  if(!j||j.stage===undefined){document.getElementById('ov').remove();return alert('Ish topilmadi (server qayta ishga tushgan bo\'lishi mumkin): '+JSON.stringify(j))}
   $('#jst').textContent=j.stage;$('#jbar').style.width=Math.max(5,j.total?Math.round(j.done/j.total*100):5)+'%';$('#jtx').style.whiteSpace='pre-line';$('#jtx').textContent=`${j.done}/${j.total} · ${j.added} ta qo'shildi`+((j.warn||[]).length?'\n⚠️ '+j.warn[j.warn.length-1]:'');
   if(j.fin){document.getElementById('ov').remove();if(j.err)alert('Xatolik: '+j.err);else{confetti();alert((j.dict_id?'Kitob yaratildi.\n':'')+impMsg(j))}vAdmin();return}
   setTimeout(tick,1200)};tick()}
 async function createBook(){const f=$('#bf').files[0];if(!f||!$('#bn').value.trim())return alert('Kitob nomi va faylni kiriting');const fd=new FormData();
  fd.append('name',$('#bn').value);fd.append('levels',$('#bl').value||1);fd.append('lvl',$('#bk').value);fd.append('pos',$('#bp').value);fd.append('auto',$('#ba').checked?1:0);fd.append('file',f);
- const r=await api('/admin/book',{body:fd});watchJob(r.job)}
-async function imp(){const f=$('#if').files[0];if(!f)return;const fd=new FormData();fd.append('dict_id',$('#id').value);fd.append('level',$('#il').value);fd.append('wlvl',$('#iwl').value);fd.append('pos',$('#ip').value);fd.append('auto',$('#ia').checked?1:0);fd.append('file',f);const r=await api('/admin/import',{body:fd});watchJob(r.job)}
+ const r=await api('/admin/book',{body:fd});if(!r||!r.job)return alert('Server xatosi: '+JSON.stringify(r));watchJob(r.job)}
+async function imp(){const f=$('#if').files[0];if(!f)return;const fd=new FormData();fd.append('dict_id',$('#id').value);fd.append('level',$('#il').value);fd.append('wlvl',$('#iwl').value);fd.append('pos',$('#ip').value);fd.append('auto',$('#ia').checked?1:0);fd.append('file',f);const r=await api('/admin/import',{body:fd});if(!r||!r.job)return alert('Server xatosi: '+JSON.stringify(r));watchJob(r.job)}
 async function claudeTest(){const r=await api('/admin/claude-test',{body:{}});alert(r.ok?`✅ Ishlayapti! Javob: ${r.reply}\nModel: ${r.model}`:'❌ Xato: '+r.error)}
 document.addEventListener('click',e=>{const f=e.target.closest&&e.target.closest('.cdw');if(!f||Date.now()-(window._sw||0)<=400)return;
  for(let k=0;k<8;k++){const u=document.createElement('u');u.className='spk2';u.textContent=['✨','⭐','💫','🌟'][k%4];const a=k/8*6.283;u.style.setProperty('--tx',Math.round(Math.cos(a)*(90+Math.random()*30))+'px');u.style.setProperty('--ty',Math.round(Math.sin(a)*(70+Math.random()*30))+'px');f.appendChild(u);setTimeout(()=>u.remove(),750)}});
