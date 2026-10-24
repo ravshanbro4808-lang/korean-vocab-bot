@@ -314,13 +314,13 @@ button,.card,.book,.tile,.gl,.dk,.opt2,.lv,.chp{will-change:auto}
 @keyframes rbspin{to{--a:360deg}}
 @keyframes rbburst{0%{clip-path:circle(0% at var(--bx,50%) var(--by,50%));opacity:1}50%{clip-path:circle(150% at var(--bx,50%) var(--by,50%));opacity:1}100%{clip-path:circle(0% at var(--bx,50%) var(--by,50%));opacity:.9}}
 @keyframes rbpop{0%{transform:scale(1)}25%{transform:scale(.93)}60%{transform:scale(1.05)}100%{transform:scale(1)}}
-:is(.b,.nxt,.big2,.pill,.lrn,.gold,.cta button,.cb,.bkb,.chp,.lv,.mic2,.send,.backpill,.vcall,.vb,.dk i){background:#2563eb!important;animation:none!important;color:#fff!important;text-shadow:none!important;border-color:transparent!important;box-shadow:0 4px 0 #1b4cb8,0 8px 16px #2563eb33!important}
-:is(.b,.nxt,.big2,.pill,.lrn,.gold,.cta button,.cb,.bkb,.chp,.lv,.mic2,.send,.backpill,.vcall,.vb,.dk i):active{box-shadow:0 1px 0 #1b4cb8!important}
+:is(.b,.nxt,.big2,.pill,.lrn,.gold,.cta button,.cb,.bkb,.chp,.lv,.mic2,.send,.backpill,.vcall,.vb){background:#2563eb!important;animation:none!important;color:#fff!important;text-shadow:none!important;border-color:transparent!important;box-shadow:0 4px 0 #1b4cb8,0 8px 16px #2563eb33!important}
+:is(.b,.nxt,.big2,.pill,.lrn,.gold,.cta button,.cb,.bkb,.chp,.lv,.mic2,.send,.backpill,.vcall,.vb):active{box-shadow:0 1px 0 #1b4cb8!important}
 .b.g,.cb:not(.on):not(.red),.chp,.lv:not(.all),.mic2,.backpill{background:#e9eefb!important;color:#1b3a8a!important;box-shadow:0 3px 0 #c3d0f2!important}
 :is(.cb,.lrn).on{outline:3px solid #1b4cb8;outline-offset:-4px}
 .cb.red{box-shadow:0 0 0 3px #e0405a inset,0 4px 0 #0003!important}
-:is(.b,.nxt,.big2,.pill,.lrn,.gold,.cta button,.cb,.bkb,.chp,.lv,.mic2,.send,.backpill,.vcall,.vb,.dk i).bursting{animation:rbpop .35s ease!important}
-:is(.b,.nxt,.big2,.pill,.lrn,.gold,.cta button,.cb,.bkb,.chp,.lv,.mic2,.send,.backpill,.vcall,.vb,.dk i).bursting::before{display:none!important}
+:is(.b,.nxt,.big2,.pill,.lrn,.gold,.cta button,.cb,.bkb,.chp,.lv,.mic2,.send,.backpill,.vcall,.vb).bursting{animation:rbpop .35s ease!important}
+:is(.b,.nxt,.big2,.pill,.lrn,.gold,.cta button,.cb,.bkb,.chp,.lv,.mic2,.send,.backpill,.vcall,.vb).bursting::before{display:none!important}
 .lvg{grid-template-columns:repeat(auto-fill,minmax(112px,1fr))}.lv{white-space:normal;overflow-wrap:anywhere;line-height:1.2}
 html.rm *,html.rm *::before,html.rm *::after{animation-duration:.001s!important;animation-iteration-count:1!important;animation-delay:0s!important;transition-duration:.001s!important}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.001s!important;animation-iteration-count:1!important;animation-delay:0s!important;transition-duration:.001s!important}}
@@ -382,6 +382,13 @@ rp{position:absolute;display:block;width:12px;height:12px;margin:-6px 0 0 -6px;b
 .book:hover,.tile:hover,.card[onclick]:hover{transform:translateY(-4px) scale(1.02);box-shadow:0 14px 28px #0003}
 .dk:hover i{transform:translateY(-3px) scale(1.08)}.dk i{transition:transform .2s cubic-bezier(.3,1.5,.5,1)}
 .book.tl,.tile.tl{transition:transform .08s linear}
+
+/* ===== v25: bitta tugmada 2 rang silliq almashadi ===== */
+:is(.b,.nxt,.big2,.pill,.lrn,.gold,.cta button,.cb,.bkb,.chp,.lv,.mic2,.send,.backpill,.vcall,.vb){background:#7b5cff!important;color:#fff!important;animation:swapA 3s ease-in-out infinite alternate!important;box-shadow:0 4px 0 #4a2fd0,0 8px 18px #7b5cff55!important}
+:is(.cta button,.gold){background:#ffb02e!important;animation:swapB 3s ease-in-out infinite alternate!important;box-shadow:0 4px 0 #c47f0a,0 8px 18px #ffb02e55!important}
+@keyframes swapA{from{background-color:#7b5cff;box-shadow:0 4px 0 #4a2fd0,0 8px 18px #7b5cff55}to{background-color:#e0508a;box-shadow:0 4px 0 #a82a5e,0 8px 18px #e0508a55}}
+@keyframes swapB{from{background-color:#ffb02e;box-shadow:0 4px 0 #c47f0a,0 8px 18px #ffb02e55}to{background-color:#ff6b6b;box-shadow:0 4px 0 #b83a3a,0 8px 18px #ff6b6b55}}
+.nxt.dodge,.big2.dodge,.cta button.dodge{animation:dodge .52s cubic-bezier(.3,1.4,.5,1) both!important}
 </style></head><body><div id="hd"></div><main id="m"></main>
 <script>
 try{if(localStorage.rm=='1')document.documentElement.classList.add('rm')}catch{}
