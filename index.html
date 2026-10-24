@@ -470,6 +470,17 @@ rp{background:rgba(0,0,0,.18)!important}
 .cdw.pop{animation:cdlift .95s cubic-bezier(.3,1.2,.5,1)}
 @keyframes cdlift{0%{scale:1;rotate:0deg}30%{scale:1.16;translate:0 -22px;rotate:-5deg}65%{scale:1.06;translate:0 -8px;rotate:3deg}100%{scale:1;translate:0 0;rotate:0deg}}
 .row3{display:flex;gap:8px;margin:10px 0 4px}.row3 .b{flex:1;margin:0;padding:13px 4px;font-size:14px;white-space:nowrap}
+
+/* ===== v29: haqiqiy 3D aylanish va pastki panel ===== */
+.cdw{isolation:auto!important;perspective:900px}
+.cdi{animation:none!important;transition:transform .25s ease-out!important;will-change:transform;transform-style:preserve-3d}
+.cdf.f{transform:translateZ(1px)}.cdf.k{transform:rotateY(180deg) translateZ(1px)}
+.cdf .bg{filter:none!important}
+.cdw.pop{animation:cdfloat 5.5s ease-in-out infinite!important}
+.cdbar{position:fixed;left:0;right:0;bottom:0;z-index:15;display:flex;gap:10px;align-items:center;justify-content:center;padding:14px 14px calc(18px + env(safe-area-inset-bottom));background:linear-gradient(transparent,var(--bg) 35%)}
+.cdbar .nxt{width:auto;flex:1;max-width:280px;margin:0;padding:14px 8px;font-size:17px}
+.cdbar .pill,.cdbar .bkb{flex:none;margin:0;padding:14px 18px;font-size:18px;width:auto}
+.cdinfo{margin:40px 0 8px}
 </style></head><body><div id="hd"></div><main id="m"></main>
 <script>
 try{localStorage.rm='0'}catch{}
@@ -531,15 +542,15 @@ async function askTrial(){const r=await api('/trial',{body:{}});me.trial=r.trial
 async function openDict(id,level,pos,sec){S.hist[S.hist.length-1]=[openDict,[id,level,pos,sec]];const t=await api('/tree/'+id);S.lvn[id]=t.levels||[];head(esc(t.d.name),'back()');
  const R=t.rows,sum=f=>R.filter(f).reduce((a,r)=>a+r.n,0),tot=sum(()=>true),dm=n=>n?'':' style="opacity:.4"';
  const M=[['cards','🃏 Kartochka'],['test','❓ Test'],['listen','🎧 Eshitish'],['speak','🎤 Gapirish'],['chat','💬 Suhbat'],['list',"📖 Ro'yxat"]];
- const pl=level?[...new Set(R.filter(r=>r.level==level).map(r=>r.pos))]:[];
- const scope=(!level?tot:sum(r=>r.level==level&&(!pos||r.pos==pos)&&(!sec||r.section==sec)));
- H(`<div class=hero2><b>${tot}</b> ta so'z · ${(t.levels||[]).length} daraja <button class=pill onclick="nav(wordsView,${id})" style="margin-left:8px">📖 So'zlar</button></div>`+
- (tot?`<div class=s>BUTUN KITOB BO'YICHA</div><div>${M.map(m=>`<button class=b onclick="start('${m[0]}',${id},'','',0)">${m[1]}</button>`).join('')}</div>`:`<div class=card><div>Bu kitobda hali so'z yo'q. Admin paneldan fayl yuklang.</div></div>`)+
- `<hr><div class=s>DARAJANI TANLANG</div>`+(t.levels||[]).map(l=>{const n=sum(r=>r.level==l.level);return `<button class="b ${level==l.level?'':'g'}"${dm(n)} onclick="openDict(${id},${l.level})">${esc(l.name)} (${n})</button>`}).join('')+
- (level?`<div class=s>SO'Z TURI</div><button class="b ${!pos?'':'g'}" onclick="openDict(${id},${level},'')">Barchasi (${sum(r=>r.level==level)})</button>`+pl.map(p=>`<button class="b ${pos==p?'':'g'}" onclick="openDict(${id},${level},'${esc(p)}')">${esc(POS[p]||p)} (${sum(r=>r.level==level&&r.pos==p)})</button>`).join(''):'')+
- (level&&pos!=null?`<div class=s>BO'LIM</div><button class="b ${!sec?'':'g'}" onclick="openDict(${id},${level},'${esc(pos)}',0)">Barchasi</button>`+[...new Set(R.filter(r=>r.level==level&&(!pos||r.pos==pos)).map(r=>r.section))].sort((a,b)=>a-b).map(s=>`<button class="b ${sec==s?'':'g'}" onclick="openDict(${id},${level},'${esc(pos)}',${s})">${s}-bo'lim (${sum(r=>r.level==level&&(!pos||r.pos==pos)&&r.section==s)})</button>`).join('')+
- `<hr><div class=s>TANLANGAN: ${scope} ta so'z · qaysi so'zlar:</div><select id=wm><option value="">Hammasi</option><option value=new>Yangi</option><option value=learned>O'rganilgan (takrorlash)</option></select><div>${M.map(m=>`<button class=b onclick="start('${m[0]}',${id},${level},'${esc(pos)}',${sec||0})">${m[1]}</button>`).join('')}</div>`:'')+
- (tot?`<hr><div class=s>SO'Z TURKUMLARI (butun kitob bo'yicha)</div><div class=posch>${posAll(R).map(p=>`<button class="b g"${p.n?'':' style="opacity:.4"'} onclick="nav(wordsView,${id},'${esc(p.key)}')">${esc(p.name)} (${p.n})</button>`).join('')}<button class="b" onclick="nav(wordsView,${id})">📚 Barchasi (${tot})</button></div>`:''))}
+ const chosen=level!==undefined||pos!==undefined,L=+level||0,P=pos||'',SC=+sec||0,inL=r=>!L||r.level==L,inP=r=>!P||r.pos==P;
+ const scope=sum(r=>inL(r)&&inP(r)&&(!SC||r.section==SC));
+ if(!tot)return H(`<div class=card><div>Bu kitobda hali so'z yo'q. Admin paneldan fayl yuklang.</div></div>`);
+ const lvB=(t.levels||[]).map(l=>{const n=sum(r=>r.level==l.level&&inP(r));return `<button class="b ${chosen&&L==l.level?'':'g'}"${dm(n)} onclick="openDict(${id},${l.level},'${esc(P)}')">${esc(l.name)} (${n})</button>`}).join('')+`<button class="b ${chosen&&!L?'':'g'}" onclick="openDict(${id},0,'${esc(P)}')">Barchasi (${sum(inP)})</button>`;
+ const pk=posAll(R.filter(inL)),pB=pk.map(p=>`<button class="b ${chosen&&P==p.key?'':'g'}"${p.n?'':' style="opacity:.4"'} onclick="openDict(${id},${L},'${esc(p.key)}')">${esc(p.name)} (${p.n})</button>`).join('')+`<button class="b ${chosen&&!P?'':'g'}" onclick="openDict(${id},${L},'')">Barchasi (${sum(inL)})</button>`;
+ const secs=L?[...new Set(R.filter(r=>inL(r)&&inP(r)).map(r=>r.section))].sort((a,b)=>a-b):[];
+ const sB=secs.length>1?`<div class=s>BO'LIM</div><div class=posch><button class="b ${SC?'g':''}" onclick="openDict(${id},${L},'${esc(P)}',0)">Barchasi</button>${secs.map(s=>`<button class="b ${SC==s?'':'g'}" onclick="openDict(${id},${L},'${esc(P)}',${s})">${s}-bo'lim</button>`).join('')}</div>`:'';
+ const games=chosen?`<hr><div class=s>TANLANGAN: ${scope} ta so'z · qaysi so'zlar:</div><select id=wm><option value="">Hammasi</option><option value=new>Yangi</option><option value=learned>O'rganilgan (takrorlash)</option></select><h3 class=sec style="font-size:18px">🎮 O'yinlar</h3><button class=nxt onclick="start('cards',${id},${L},'${esc(P)}',${SC})">🃏 Kartochka</button><div>${M.slice(1).map(m=>`<button class=b onclick="start('${m[0]}',${id},${L},'${esc(P)}',${SC})">${m[1]}</button>`).join('')}</div>`:`<p class=s style="text-align:center;margin-top:18px">Daraja yoki so'z turini (yoki «Barchasi»ni) tanlang — o'yinlar shu yerda chiqadi 👇</p>`;
+ H(`<div class=hero2><b>${tot}</b> ta so'z · ${(t.levels||[]).length} daraja <button class=pill onclick="nav(wordsView,${id})" style="margin-left:8px">📖 So'zlar</button></div><div class=s>DARAJA</div><div class=posch>${lvB}</div><div class=s>SO'Z TURI</div><div class=posch>${pB}</div>${sB}${games}`)}
 function posAll(R){const cnt={};R.forEach(r=>cnt[r.pos]=(cnt[r.pos]||0)+r.n);const keys=POSL.map(x=>x.key);Object.keys(cnt).forEach(k=>{if(!keys.includes(k))keys.push(k)});return keys.map(k=>({key:k,name:POS[k]||k,n:cnt[k]||0}))}
 
 // ---------- kartochkalar: ikki bo'lim
@@ -569,8 +580,10 @@ function cardFace(i,side,txt,kind){const p=CPAL[(i+(side=='k'?4:0))%CPAL.length]
  const svg=sh.svg.replace(/FILL/g,fill).replace(/MID/g,'m'+id);
  return `<div class="cdf ${side}" style="${sty}"><svg class=bg viewBox="${sh.vb}" preserveAspectRatio="none"><defs><linearGradient id="${id}" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="100" y2="100"><stop offset="0" stop-color="${mixc(p[0],'w',.38)}"/><stop offset=".45" stop-color="${p[0]}"/><stop offset="1" stop-color="${p[1]}"/></linearGradient></defs>${ext}${svg}</svg><div class=ct style="left:${sh.box[0]}%;top:${sh.box[1]}%;width:${sh.box[2]}%;height:${sh.box[3]}%"><b class=tx2>${esc(txt)}</b></div></div>`}
 function cardHTML(r,w){const kind=r.shape,sh=kind=='rect'?{ar:'3/2'}:SH[SHK[r.i%SHK.length]];
- return `<div class=cdw id=cdw style="--ar:${sh.ar}" onclick="if(Date.now()-(window._sw||0)>400)this.classList.toggle('on')"><div class=cdi>${cardFace(r.i,'f',w.ko,kind)}${cardFace(r.i,'k',w.uz,kind)}</div></div>`}
-function cdRepeat(){const e=$('#cdw');if(e)e.classList.remove('on');playWord(cur())}
+ return `<div class=cdw id=cdw style="--ar:${sh.ar}" onclick="cdFlip(this)"><div class=cdi>${cardFace(r.i,'f',w.ko,kind)}${cardFace(r.i,'k',w.uz,kind)}</div></div>`}
+function cdRepeat(){const e=$('#cdw');if(e&&e.classList.contains('on'))cdFlip(e);playWord(cur())}
+function cdFlip(f){if(Date.now()-(window._sw||0)<400||f._fl)return;const i=f.querySelector('.cdi');if(!i)return;const on=f.classList.contains('on'),a=on?180:0,b=on?0:180,m=(a+b)/2;f.classList.toggle('on');
+ if(!i.animate)return;f._fl=1;const an=i.animate([{transform:`rotateY(${a}deg) translateZ(0) scale(1)`},{transform:`rotateY(${m}deg) rotateX(-16deg) translateZ(110px) scale(1.16)`,offset:.5},{transform:`rotateY(${b}deg) translateZ(0) scale(1)`}],{duration:850,easing:'cubic-bezier(.4,.1,.3,1)'});an.onfinish=an.oncancel=()=>{f._fl=0}}
 function fitCd(){document.querySelectorAll('.cdf .ct').forEach(ct=>{const el=ct.firstElementChild;if(!el||!ct.clientWidth)return;const bad=()=>el.scrollHeight>ct.clientHeight+1||el.scrollWidth>ct.clientWidth+1;let fs=46;el.style.overflowWrap='normal';el.style.fontSize=fs+'px';while(bad()&&fs>11){fs-=1;el.style.fontSize=fs+'px'}
  if(bad()){el.style.overflowWrap='anywhere';fs=30;el.style.fontSize=fs+'px';while(bad()&&fs>9){fs-=1;el.style.fontSize=fs+'px'}}})}
 const WD={};
@@ -584,7 +597,7 @@ async function wordsView(id,pf){head("Barcha so'zlar",'back()');const [w,t]=awai
 function editWord(id){const x=WD[id];$('#wr'+id).innerHTML=`<div class=ed style="width:100%"><input id=ek value="${esc(x.ko)}"><input id=eu value="${esc(x.uz)}"><div class=edr><select id=ep>${Object.entries(POS).map(([k,v])=>`<option value=${k} ${x.pos==k?'selected':''}>${v}</option>`).join('')}</select><select id=elv>${(S.lvn[S.wvd]||[]).map(l=>`<option value=${l.level} ${x.level==l.level?'selected':''}>${esc(l.name)}</option>`).join('')}</select><button class=cb onclick="saveWord(${id})">💾</button><button class="cb red" onclick="delWord(${id})">🗑</button></div></div>`}
 async function saveWord(id){const x=WD[id],ko=$('#ek').value,uz=$('#eu').value,pos=$('#ep').value,level=+($('#elv')?.value||x.level);await api('/admin/word/'+id,{body:{ko,uz,pos,level}});Object.assign(x,{ko,uz,pos,level});$('#wr'+id).outerHTML=wrow(x)}
 async function delWord(id){if(!confirm("So'z o'chirilsinmi?"))return;await api('/admin/word/'+id,{body:{del:1}});$('#wr'+id).remove()}
-async function start(mode,dict,level,pos,sec){const p=new URLSearchParams({dict,level,pos,section:sec||'',mode:$('#wm')?.value||''});const w=await api('/words?'+p);if(mode=='chat'){if(!w.length)return alert("So'z yo'q");return nav(foxChat,shuf(w).slice(0,20))}run(mode,w)}
+async function start(mode,dict,level,pos,sec){const p=new URLSearchParams({dict,level:level||'',pos,section:sec||'',mode:$('#wm')?.value||''});const w=await api('/words?'+p);if(mode=='chat'){if(!w.length)return alert("So'z yo'q");return nav(foxChat,shuf(w).slice(0,20))}run(mode,w)}
 function run(mode,w){if(!w.length)return alert("Tanlangan bo'limda so'z topilmadi. «Butun kitob bo'yicha» tugmalarini sinab ko'ring yoki boshqa daraja/turni tanlang.");
  if(mode=='cards'&&!S.cardGo){S.cw=w;return cardChoose()}S.cardGo=0;
  if(!S.hist.length||S.hist[S.hist.length-1][0]!==resumeRun)S.hist.push([resumeRun,[]]);
@@ -606,7 +619,7 @@ function step(keep){const r=S.run;head('Mashq','leave()');r.ans=null;if(r.mode==
  if(!w||(r.mode=='life'&&r.lives<=0)){clearInterval(S.ti);if(!r.sent){r.sent=1;api('/score',{body:{points:r.score}}).catch(()=>{});confetti()}return H(`${mas("Zo'r natija! 🎉")}<div class=sticker>🏆 ${r.score}${r.mode=='speed'?' ball':' / '+r.w.length}</div><button class=nxt onclick="leave()">Davom etish ➜</button>`)}
  const pr=r.mode=='speed'?`<div class=sp2><b id=tm>⏱ 60</b><span>⭐ ${r.score}</span></div>`:r.mode=='life'?`<div class=sp2><b>${'❤️'.repeat(r.lives)}${'🖤'.repeat(3-r.lives)}</b><span>⭐ ${r.score}</span></div>`:`<div class=pb><i style="width:${Math.round(r.i/r.w.length*100)}%"></i></div>`;
  const nx=`<div class=navr>${r.i>0?'<button class=bkb onclick="S.run.i--;step()">⬅ Orqaga</button>':''}<button class=nxt onclick="S.run.i++;step()">Keyingi ➜</button></div>`;
- if(r.mode=='cards'){const nx2=`<div class=cdrow>${r.i>0?'<button class=bkb onclick="S.run.i--;step()">⬅ Orqaga</button>':''}<button class=pill onclick="playWord(cur())">🔊 Eshitish</button><button class=pill onclick="cdRepeat()">🔁 Takrorlash</button><button class=nxt onclick="S.run.i++;step()">Keyingi ➜</button></div>`;
+ if(r.mode=='cards'){const nx2=`<div class=cdbar>${r.i>0?'<button class=bkb onclick="S.run.i--;step()">⬅</button>':''}<button class=pill onclick="playWord(cur())">🔊</button><button class=pill onclick="cdRepeat()">🔁</button><button class=nxt onclick="S.run.i++;step()">Keyingi ➜</button></div>`;
   return H(pr+mas(r.shape=='rect'?"Kartani bosing — tarjimasi ochiladi!":"Shaklni bosing — tarjimasi ochiladi!")+cardHTML(r,w)+`<div class=cdinfo>${r.i+1} / ${r.w.length} · ${esc(POS[w.pos]||"So'z")} · 👆 bosing · ⬅ ➡ suring</div>${nx2}<div class=row>${lrn(w)}${foxBtn}</div>`)}
 
  if(r.mode=='rev'||r.mode=='mix'){r.dirs=r.dirs||{};if(r.dirs[r.i]===undefined)r.dirs[r.i]=r.mode=='rev'?1:(Math.random()<.5?1:0);const d=r.dirs[r.i],key=d?'ko':'uz',qk=d?'uz':'ko';r.ans=w[key];
@@ -766,12 +779,12 @@ function vcReplay(){const f=S.fox;if(!f)return;let i=f.msgs.length-1;while(i>=0&
 function stSet(t,st){const f=S.fox;if(!f)return;spkUi();f.status=t;const e=$('#fst');if(e)e.textContent=t;
  const v=$('#vc');if(v){if(st){v.dataset.s=f.muted?'mute':st;v.style.setProperty('--lv',0)}const s=$('#vcs');if(s)s.textContent=VT[v.dataset.s]||t}}
 function vcOpen(){if($('#vc'))return;const d=document.createElement('div');d.id='vc';d.dataset.s='listen';
- d.innerHTML='<div class=vct><b>Kori 🦊</b><span id=vcs>Ulanmoqda...</span></div><div class=vco onclick="vcTap()"><b></b><b></b><b></b><u></u><i>🦊</i></div><div class=vcc><div class=vcu id=vcu></div><div class=vcf id=vcf></div></div><div class=vcb><div class=vw><button class=vb id=vmu onclick="vcMute()">🎙</button><small>Mikrofon</small></div><div class=vw><button class=vb onclick="foxStop()">⏹</button><small>To\'xtatish</small></div><div class=vw><button class=vb onclick="vcReplay()">🔁</button><small>Qayta</small></div><div class=vw><button class="vb end" onclick="stopTalk()">📞</button><small>Tugatish</small></div><div class=vw><button class=vb onclick="stopTalk()">⌨️</button><small>Yozish</small></div></div>';
+ d.innerHTML='<div class=vct><b>Kori 🦊</b><span id=vcs>Ulanmoqda...</span></div><div class=vco onclick="vcTap()"><b></b><b></b><b></b><u></u><i>🦊</i></div><div class=vcc><div class=vcu id=vcu></div><div class=vcf id=vcf></div></div><div class=vcb><div class=vw><button class=vb id=vmu onclick="vcMute()">🎙</button><small>Diktofon</small></div><div class=vw><button class="vb end" onclick="stopTalk()">📞</button><small>Tugatish</small></div><div class=vw><button class=vb onclick="stopTalk()">⌨️</button><small>Yozish</small></div></div>';
  document.body.appendChild(d);stSet('','listen');vcSync()}
 function vcSync(){const f=S.fox,u=$('#vcu'),a=$('#vcf');if(!f||!u||!a)return;let lu='',la='';for(let i=f.msgs.length-1;i>=0&&(!lu||!la);i--){const m=f.msgs[i];if(m.role=='user'){if(!lu)lu=m.content}else if(!la)la=m.content}
  u.textContent=lu?'«'+lu+'»':'';a.textContent=la}
 function vcMute(){const f=S.fox;if(!f)return;f.muted=!f.muted;const b=$('#vmu');if(b){b.classList.toggle('off',!!f.muted);b.textContent=f.muted?'🔇':'🎙'}
- if(f.muted){if(f.cur)f.cur();stSet('','mute')}else{stSet('','listen');talkListen()}}
+ if(f.muted){if(f.rec&&f.sendNow)f.sendNow();else if(f.cur)f.cur();if(f.rec||f.typing||f.speaking)f.endAfter=1;stSet('','mute')}else{f.endAfter=0;stSet('','listen');talkListen()}}
 function vcTap(){const f=S.fox;if(f&&f.speaking){f.spk=(f.spk||0)+1;f.speaking=0;try{speechSynthesis.cancel()}catch{}stSet('','listen');talkListen()}}
 function wav16(ch,sr){let n=0;ch.forEach(c=>n+=c.length);const a=new Float32Array(n);let o=0;ch.forEach(c=>{a.set(c,o);o+=c.length});
  const r=sr/16000,m=Math.floor(n/r),d=new DataView(new ArrayBuffer(44+m*2)),w=(p,t)=>{for(let i=0;i<t.length;i++)d.setUint8(p+i,t.charCodeAt(i))};
@@ -780,9 +793,9 @@ function wav16(ch,sr){let n=0;ch.forEach(c=>n+=c.length);const a=new Float32Arra
  return new Blob([d],{type:'audio/wav'})}
 function foxTalk(){const f=S.fox;if(f.talk)return stopTalk();
  if(!(S.cfg&&S.cfg.voice)&&!(window.SpeechRecognition||window.webkitSpeechRecognition))return alert("Bu qurilmada ovozli suhbat ishlamaydi. Yozib yuboring.");
- f.talk=1;f.auto=1;f.muted=0;vcOpen();foxV();talkListen()}
-function stopTalk(){const v=$('#vc');if(v)v.remove();const f=S.fox;if(!f)return;f.talk=0;f.muted=0;f.status='';f.speaking=0;f.spk=(f.spk||0)+1;if(f.cur)f.cur();try{speechSynthesis.cancel()}catch{}if(f.st){f.st.getTracks().forEach(t=>t.stop());f.st=null}if($('#fch'))foxV()}
-async function talkListen(){const f=S.fox;if(!f||!f.talk||f.muted)return;if(!$('#fch'))return stopTalk();if(f.typing||f.speaking||f.rec)return;
+ f.talk=1;f.auto=1;f.muted=0;f.endAfter=0;vcOpen();foxV();talkListen()}
+function stopTalk(){const v=$('#vc');if(v)v.remove();const f=S.fox;if(!f)return;f.talk=0;f.muted=0;f.endAfter=0;f.status='';f.speaking=0;f.spk=(f.spk||0)+1;if(f.cur)f.cur();try{speechSynthesis.cancel()}catch{}if(f.st){f.st.getTracks().forEach(t=>t.stop());f.st=null}if($('#fch'))foxV()}
+async function talkListen(){const f=S.fox;if(f&&f.talk&&f.endAfter&&!f.typing&&!f.speaking&&!f.rec)return stopTalk();if(!f||!f.talk||f.muted)return;if(!$('#fch'))return stopTalk();if(f.typing||f.speaking||f.rec)return;
  if(!(S.cfg&&S.cfg.voice)){const R=window.SpeechRecognition||window.webkitSpeechRecognition;if(!R){stopTalk();return alert("Bu qurilmada ovoz tanish ishlamaydi.")}
   const x=new R();let got=0;x.lang=f.lang;f.rec=1;stSet('🎙 Tinglayapman...','listen');
   x.onresult=e=>{got=1;f.rec=0;foxSend(e.results[0][0].transcript)};
@@ -794,12 +807,12 @@ async function talkListen(){const f=S.fox;if(!f||!f.talk||f.muted)return;if(!$('
  if(!f.talk||f.rec)return;
  const src=ac.createMediaStreamSource(f.st),pr=ac.createScriptProcessor(4096,1,1),g=ac.createGain(),ch=[];g.gain.value=0;
  let vc=0,talked=0,done=0,t0=Date.now(),last=t0;f.rec=1;stSet('🎙 Tinglayapman...','listen');
- const fin=send=>{if(done)return;done=1;f.rec=0;f.cur=null;pr.onaudioprocess=null;try{pr.disconnect();src.disconnect();g.disconnect()}catch{}
+ const fin=send=>{if(done)return;done=1;f.rec=0;f.cur=null;f.sendNow=null;pr.onaudioprocess=null;try{pr.disconnect();src.disconnect();g.disconnect()}catch{}
   if(send)talkSend(wav16(ch,ac.sampleRate));else if(f.talk)setTimeout(talkListen,300)};
  pr.onaudioprocess=e=>{if(done)return;const x=new Float32Array(e.inputBuffer.getChannelData(0));ch.push(x);let s=0;for(let i=0;i<x.length;i++)s+=x[i]*x[i];const n=Date.now();
   const rm=Math.sqrt(s/x.length),v0=$('#vc');if(v0)v0.style.setProperty('--lv',Math.min(1,rm*10));if(rm>.02){vc++;talked=1;last=n}
   if(!f.talk||!$('#fch'))fin(0);else if(talked&&(n-last>1300||n-t0>30000))fin(vc>=4);else if(!talked&&n-t0>12000)fin(0)};
- f.cur=()=>fin(0);src.connect(pr);pr.connect(g);g.connect(ac.destination)}
+ f.cur=()=>fin(0);f.sendNow=()=>fin(vc>=4);src.connect(pr);pr.connect(g);g.connect(ac.destination)}
 async function talkSend(b){const f=S.fox;let sp=0;f.typing=1;stSet("🦊 o'ylayapti...",'think');foxV();
  try{const fd=new FormData();fd.append('audio',b,'v.wav');fd.append('messages',JSON.stringify(f.msgs.slice(-10)));fd.append('words',JSON.stringify(f.words.slice(0,20).map(w=>({ko:w.ko,uz:w.uz}))));
   const r=await api('/fox-voice',{body:fd});if(r.left!=null)f.vleft=r.left;
@@ -967,7 +980,7 @@ document.addEventListener('pointermove',e=>{if(e.pointerType!=='mouse')return;co
 
 // v22: tugma bosilganda "qochib" qaytadi, so'ng amal bajariladi
 document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('.big2,.nxt,.cta button');
- if(!b||b._go||b.disabled||(window.matchMedia&&matchMedia('(prefers-reduced-motion:reduce)').matches))return;
+ if(!b||b._go||b.disabled||b.closest('.cdbar')||(window.matchMedia&&matchMedia('(prefers-reduced-motion:reduce)').matches))return;
  e.preventDefault();e.stopImmediatePropagation();
  const sg=()=>Math.random()<.5?-1:1;b.style.setProperty('--dx',Math.round(sg()*(30+Math.random()*30))+'px');b.style.setProperty('--dy',Math.round(sg()*(8+Math.random()*16))+'px');b.style.setProperty('--rt',(sg()*(2+Math.random()*4)).toFixed(1)+'deg');
  b.classList.add('dodge');setTimeout(()=>{b.classList.remove('dodge');b._go=1;try{b.click()}finally{b._go=0}},520)},true);
