@@ -389,6 +389,64 @@ rp{position:absolute;display:block;width:12px;height:12px;margin:-6px 0 0 -6px;b
 @keyframes swapA{from{background-color:#7b5cff;box-shadow:0 4px 0 #4a2fd0,0 8px 18px #7b5cff55}to{background-color:#e0508a;box-shadow:0 4px 0 #a82a5e,0 8px 18px #e0508a55}}
 @keyframes swapB{from{background-color:#ffb02e;box-shadow:0 4px 0 #c47f0a,0 8px 18px #ffb02e55}to{background-color:#ff6b6b;box-shadow:0 4px 0 #b83a3a,0 8px 18px #ff6b6b55}}
 .nxt.dodge,.big2.dodge,.cta button.dodge{animation:dodge .52s cubic-bezier(.3,1.4,.5,1) both!important}
+
+/* ===== v26: rang-barang, chuqur 3D tugmalar va HD kartochkalar ===== */
+@property --e{syntax:'<color>';inherits:true;initial-value:#4a2fd0}
+@keyframes bA{from{background-color:#7b5cff;--e:#4a2fd0}to{background-color:#e0508a;--e:#a82a5e}}
+@keyframes bB{from{background-color:#3b82f6;--e:#1d4ed8}to{background-color:#06b6d4;--e:#0e7490}}
+@keyframes bC{from{background-color:#ff9a1f;--e:#c2610a}to{background-color:#ff5a5f;--e:#b3262c}}
+@keyframes bD{from{background-color:#22c55e;--e:#15803d}to{background-color:#14b8a6;--e:#0f766e}}
+@keyframes bE{from{background-color:#ffc83d;--e:#c78a00}to{background-color:#ff8a3d;--e:#c24e0a}}
+@keyframes bF{from{background-color:#d946ef;--e:#86198f}to{background-color:#8b5cf6;--e:#5b21b6}}
+@keyframes bG{from{background-color:#64748b;--e:#334155}to{background-color:#6366f1;--e:#3730a3}}
+@keyframes bH{from{background-color:#ff6b6b;--e:#b02a3a}to{background-color:#f43f5e;--e:#9f1239}}
+:is(.b,.nxt,.big2,.pill,.lrn,.gold,.cta button,.cb,.bkb,.chp,.lv,.mic2,.send,.backpill,.vcall,.vb):not(#_){--e:#4a2fd0;background-color:#7b5cff!important;background-image:linear-gradient(180deg,#ffffff55 0,#ffffff12 48%,#00000026 100%)!important;color:#fff!important;text-shadow:0 1px 0 #0003!important;border:0!important;animation:bA 3s ease-in-out infinite alternate!important;
+ box-shadow:0 1px 0 var(--e),0 2px 0 var(--e),0 3px 0 var(--e),0 4px 0 var(--e),0 5px 0 var(--e),0 6px 0 var(--e),0 13px 16px #0000003d,inset 0 2px 0 #ffffff8c,inset 0 -3px 0 #0000001f!important;transition:transform .14s cubic-bezier(.3,1.6,.5,1),box-shadow .14s,filter .14s}
+@media(hover:hover){:is(.b,.nxt,.big2,.pill,.lrn,.gold,.cta button,.cb,.bkb,.chp,.lv,.mic2,.send,.backpill,.vcall,.vb):not(#_):hover{transform:translateY(-3px);filter:brightness(1.1) saturate(1.15)}}
+:is(.b,.nxt,.big2,.pill,.lrn,.gold,.cta button,.cb,.bkb,.chp,.lv,.mic2,.send,.backpill,.vcall,.vb):not(#_):active{transform:translateY(5px);filter:brightness(.97);
+ box-shadow:0 1px 0 var(--e),0 2px 5px #0003,inset 0 2px 0 #ffffff66,inset 0 -2px 0 #0000001f!important}
+/* ranglar */
+:is(.nxt,.big2,.mic2,.cb):not(#_):not(#_){animation-name:bB!important}
+.b:not(#_):not(#_){animation-name:bA!important}
+.pill:not(#_):not(#_){animation-name:bC!important}.pill.fx:not(#_):not(#_){animation-name:bF!important}
+:is(.lrn,.gold,.cta button,.send,.lv.all,.cb.on):not(#_):not(#_){animation-name:bE!important;color:#4a2a00!important;text-shadow:0 1px 0 #ffffff66!important}
+.lrn.on:not(#_):not(#_){animation:none!important;background-color:#22c55e!important;--e:#15803d;color:#fff!important;text-shadow:0 1px 0 #0003!important}
+:is(.cb.play):not(#_):not(#_){animation-name:bD!important}
+:is(.cb.mic):not(#_):not(#_){animation-name:bC!important}
+:is(.cb.done,.bkb):not(#_):not(#_){animation-name:bG!important}
+:is(.cb.red,.cb.live,.vb.end):not(#_):not(#_){animation-name:bH!important;color:#fff!important}
+:is(.vcall):not(#_):not(#_){animation-name:bF!important}
+:is(.vb):not(#_):not(#_){animation:none!important;background-color:#ffffff29!important;--e:#00000055}
+.vb.off:not(#_):not(#_){background-color:#fff!important;color:#2f2386!important;text-shadow:none!important}
+.vb.end:not(#_):not(#_){animation:bH 2s ease-in-out infinite alternate!important}
+/* ikkinchi darajali (och) tugmalar */
+:is(.b.g,.backpill,.chp,.lv:not(.all)):not(#_):not(#_){animation:none!important;background-color:#fff!important;background-image:linear-gradient(180deg,#fff,#ffffff00 60%,#0000000d)!important;color:#26327a!important;--e:#c5d0ee;text-shadow:none!important}
+@media(prefers-color-scheme:dark){:is(.b.g,.backpill,.chp,.lv:not(.all)):not(#_):not(#_){background-color:#252d5c!important;background-image:linear-gradient(180deg,#ffffff1a,#ffffff00 60%)!important;color:#e8ecff!important;--e:#0a0e26}}
+:is(.chp,.lv:not(.all)):nth-child(4n+1):not(#_):not(#_){--e:#a9c3f7;background-color:#eaf2ff!important;color:#1d4ed8!important}
+:is(.chp,.lv:not(.all)):nth-child(4n+2):not(#_):not(#_){--e:#a6dcbd;background-color:#e6f9ee!important;color:#15803d!important}
+:is(.chp,.lv:not(.all)):nth-child(4n+3):not(#_):not(#_){--e:#f2cd98;background-color:#fff2e0!important;color:#b45309!important}
+:is(.chp,.lv:not(.all)):nth-child(4n+4):not(#_):not(#_){--e:#cdb8f4;background-color:#f3ebff!important;color:#6d28d9!important}
+.b.sel:not(#_):not(#_){outline:3px solid #fff;outline-offset:-7px;transform:translateY(2px)}
+:is(.nxt,.big2,.cta button).dodge:not(#_):not(#_):not(#_){animation:dodge .52s cubic-bezier(.3,1.4,.5,1) both!important}
+/* javob variantlari va kartalar */
+@media(hover:hover){.opt2:hover{transform:translateY(-2px);border-color:#7b5cff}.dk:hover i{transform:translateY(-4px) scale(1.1)}}
+.dock .dk i::after{display:block!important;content:""!important;background:radial-gradient(circle at 30% 20%,#ffffff88,transparent 55%)!important}
+/* kartochka */
+.cdw{width:min(92vw,360px);margin:20px auto 18px;isolation:isolate}
+.cdw::before{content:"";position:absolute;left:10%;right:10%;bottom:-20px;height:24px;border-radius:50%;background:radial-gradient(#00000055,transparent 70%);filter:blur(5px);animation:cdsh 5.5s ease-in-out infinite;z-index:-1;pointer-events:none}
+@keyframes cdsh{50%{transform:scale(.84);opacity:.55}}
+.cdi{animation:cdin2 .5s cubic-bezier(.3,1.4,.5,1) backwards}
+@keyframes cdin2{from{opacity:0;transform:translateY(34px) rotateX(24deg) scale(.88)}}
+.cdf .bg{overflow:visible;shape-rendering:geometricPrecision;filter:drop-shadow(0 16px 14px #0000004d)}
+.cdf .bgr{background:linear-gradient(150deg,var(--c1),var(--c2));border-radius:28px;overflow:hidden;
+ box-shadow:0 1px 0 var(--dk),0 2px 0 var(--dk),0 3px 0 var(--dk),0 4px 0 var(--dk),0 5px 0 var(--dk),0 6px 0 var(--dk),0 7px 0 var(--dk),0 8px 0 var(--dk),0 9px 0 var(--dk),0 10px 0 var(--dk),0 24px 30px #0000004d,inset 0 2px 0 #ffffff99,inset 0 -22px 34px #0000002e}
+.cdf .bgr::before{content:"";position:absolute;inset:0;background:radial-gradient(circle at var(--mx,28%) var(--my,10%),#ffffff77,transparent 52%),radial-gradient(#ffffff26 1.2px,transparent 1.7px) 0 0/15px 15px}
+.cdf .bgr::after{content:"";position:absolute;inset:10px;border:2px dashed #ffffff55;border-radius:20px}
+.cdtag{position:absolute;top:12px;left:16px;font-style:normal;font-size:19px;z-index:3;filter:drop-shadow(0 2px 2px #0004)}
+.cdf .tx2{font-weight:800;letter-spacing:-.2px;-webkit-font-smoothing:antialiased;text-rendering:geometricPrecision;text-shadow:0 2px 0 #0004,0 4px 10px #0004}
+.cdinfo{margin:44px 0 8px}
+.spk2{position:absolute;left:50%;top:50%;margin:-10px 0 0 -10px;font-size:20px;text-decoration:none;pointer-events:none;z-index:6;animation:spk2 .75s ease-out forwards}
+@keyframes spk2{to{transform:translate(var(--tx),var(--ty)) scale(1.5) rotate(140deg);opacity:0}}
 </style></head><body><div id="hd"></div><main id="m"></main>
 <script>
 try{if(localStorage.rm=='1')document.documentElement.classList.add('rm')}catch{}
@@ -458,7 +516,7 @@ async function openDict(id,level,pos,sec){S.hist[S.hist.length-1]=[openDict,[id,
  (level?`<div class=s>SO'Z TURI</div><button class="b ${!pos?'':'g'}" onclick="openDict(${id},${level},'')">Barchasi (${sum(r=>r.level==level)})</button>`+pl.map(p=>`<button class="b ${pos==p?'':'g'}" onclick="openDict(${id},${level},'${esc(p)}')">${esc(POS[p]||p)} (${sum(r=>r.level==level&&r.pos==p)})</button>`).join(''):'')+
  (level&&pos!=null?`<div class=s>BO'LIM</div><button class="b ${!sec?'':'g'}" onclick="openDict(${id},${level},'${esc(pos)}',0)">Barchasi</button>`+[...new Set(R.filter(r=>r.level==level&&(!pos||r.pos==pos)).map(r=>r.section))].sort((a,b)=>a-b).map(s=>`<button class="b ${sec==s?'':'g'}" onclick="openDict(${id},${level},'${esc(pos)}',${s})">${s}-bo'lim (${sum(r=>r.level==level&&(!pos||r.pos==pos)&&r.section==s)})</button>`).join('')+
  `<hr><div class=s>TANLANGAN: ${scope} ta so'z · qaysi so'zlar:</div><select id=wm><option value="">Hammasi</option><option value=new>Yangi</option><option value=learned>O'rganilgan (takrorlash)</option></select><div>${M.map(m=>`<button class=b onclick="start('${m[0]}',${id},${level},'${esc(pos)}',${sec||0})">${m[1]}</button>`).join('')}</div>`:'')+
- (tot?`<hr><div class=s>SO'Z TURKUMLARI (butun kitob bo'yicha)</div><div class=posch>${posAll(R).map(p=>`<button class="b g"${p.n?'':' style="opacity:.4"'} onclick="nav(wordsView,${id},'${esc(p.key)}')">${esc(p.name)} (${p.n})</button>`).join('')}</div>`:''))}
+ (tot?`<hr><div class=s>SO'Z TURKUMLARI (butun kitob bo'yicha)</div><div class=posch>${posAll(R).map(p=>`<button class="b g"${p.n?'':' style="opacity:.4"'} onclick="nav(wordsView,${id},'${esc(p.key)}')">${esc(p.name)} (${p.n})</button>`).join('')}<button class="b" onclick="nav(wordsView,${id})">📚 Barchasi (${tot})</button></div>`:''))}
 function posAll(R){const cnt={};R.forEach(r=>cnt[r.pos]=(cnt[r.pos]||0)+r.n);const keys=POSL.map(x=>x.key);Object.keys(cnt).forEach(k=>{if(!keys.includes(k))keys.push(k)});return keys.map(k=>({key:k,name:POS[k]||k,n:cnt[k]||0}))}
 
 // ---------- kartochkalar: ikki bo'lim
@@ -480,11 +538,13 @@ const SH=(()=>{const st='fill="FILL" stroke="#ffffff99" stroke-width="1.4"';
  hexagon:{vb:'0 0 100 100',ar:'1/1',box:[17,24,66,52],svg:`<polygon points="50,2 93,26 93,74 50,98 7,74 7,26" ${st}/>`},
  cloud:{vb:'0 14 100 76',ar:'100/76',box:[24,34,62,53],svg:`<g fill="FILL"><circle cx="27" cy="62" r="19"/><circle cx="46" cy="44" r="24"/><circle cx="70" cy="50" r="22"/><circle cx="80" cy="64" r="16"/><rect x="18" y="60" width="70" height="22" rx="11"/></g>`}}})();
 const SHK=['moon','flower','circle','oval','heart','burst','hexagon','cloud'];
-function cardFace(i,side,txt,kind){const p=CPAL[(i+(side=='k'?4:0))%CPAL.length],sty=`--c1:${p[0]};--c2:${p[1]}`;
- if(kind=='rect')return `<div class="cdf ${side}" style="${sty}"><div class=bgr></div><div class=ct style="left:6%;top:8%;width:88%;height:84%"><b class=tx2>${esc(txt)}</b></div></div>`;
+const mixc=(h,t,a)=>{const n=parseInt(h.slice(1),16),m=t=='w'?255:0,f=c=>Math.round(c+(m-c)*a).toString(16).padStart(2,'0');return '#'+f(n>>16)+f(n>>8&255)+f(n&255)};
+function cardFace(i,side,txt,kind){const p=CPAL[(i+(side=='k'?4:0))%CPAL.length],dk=mixc(p[1],'k',.42),sty=`--c1:${p[0]};--c2:${p[1]};--dk:${dk}`,tag=side=='f'?'🇰🇷':'🇺🇿';
+ if(kind=='rect')return `<div class="cdf ${side}" style="${sty}"><div class=bgr></div><i class=cdtag>${tag}</i><div class=ct style="left:6%;top:8%;width:88%;height:84%"><b class=tx2>${esc(txt)}</b></div></div>`;
  const sh=SH[SHK[i%SHK.length]],id='g'+i+side,fill=`url(#${id})`;
+ let ext='';for(let k=5;k>=1;k--)ext+=`<g transform="translate(0 ${(k*.8).toFixed(1)})">${sh.svg.replace(/stroke="[^"]*"/g,'stroke="none"').replace(/FILL/g,dk).replace(/MID/g,'m'+id+k)}</g>`;
  const svg=sh.svg.replace(/FILL/g,fill).replace(/MID/g,'m'+id);
- return `<div class="cdf ${side}"><svg class=bg viewBox="${sh.vb}" preserveAspectRatio="none"><defs><linearGradient id="${id}" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="100" y2="100"><stop offset="0" stop-color="${p[0]}"/><stop offset="1" stop-color="${p[1]}"/></linearGradient></defs>${svg}</svg><div class=ct style="left:${sh.box[0]}%;top:${sh.box[1]}%;width:${sh.box[2]}%;height:${sh.box[3]}%"><b class=tx2>${esc(txt)}</b></div></div>`}
+ return `<div class="cdf ${side}" style="${sty}"><svg class=bg viewBox="${sh.vb}" preserveAspectRatio="none"><defs><linearGradient id="${id}" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="100" y2="100"><stop offset="0" stop-color="${mixc(p[0],'w',.38)}"/><stop offset=".45" stop-color="${p[0]}"/><stop offset="1" stop-color="${p[1]}"/></linearGradient></defs>${ext}${svg}</svg><div class=ct style="left:${sh.box[0]}%;top:${sh.box[1]}%;width:${sh.box[2]}%;height:${sh.box[3]}%"><b class=tx2>${esc(txt)}</b></div></div>`}
 function cardHTML(r,w){const kind=r.shape,sh=kind=='rect'?{ar:'3/2'}:SH[SHK[r.i%SHK.length]];
  return `<div class=cdw id=cdw style="--ar:${sh.ar}" onclick="if(Date.now()-(window._sw||0)>400)this.classList.toggle('on')"><div class=cdi>${cardFace(r.i,'f',w.ko,kind)}${cardFace(r.i,'k',w.uz,kind)}</div></div>`}
 function cdRepeat(){const e=$('#cdw');if(e)e.classList.remove('on');playWord(cur())}
@@ -751,8 +811,7 @@ async function vAdmin(){const sec=[],d=await api('/dicts'),ops=d.map(x=>`<option
  if(has('methods')){const m=await api('/admin/methods');sec.push(`<div class=card><b>🏦 To'lov usullari</b>${m.map(x=>`<div class=card style="display:block;margin:6px 0"><b>${esc(x.name)}</b><input id=mn${x.id} value="${esc(x.number)}" placeholder="Karta/telefon raqami"><input id=mh${x.id} value="${esc(x.holder)}" placeholder="Ism familiya"><label><input type=checkbox id=mo${x.id} ${x.on_?'checked':''} style="width:auto"> yoqiq</label><div class=row><button class=b onclick="adm('/method',{id:${x.id},name:'${esc(x.name)}',number:$('#mn${x.id}').value,holder:$('#mh${x.id}').value,on:$('#mo${x.id}').checked})">💾 Saqlash</button><button class="cb red" onclick="adm('/method',{del:${x.id}})">🗑</button></div></div>`).join('')}
  <b>➕ Yangi usul / karta</b><input id=nn placeholder="Nomi (Uzcard, Humo, Click...)"><input id=nm placeholder="Karta raqami"><input id=nh placeholder="Ism familiya"><button class=big2 onclick="adm('/method',{name:$('#nn').value,number:$('#nm').value,holder:$('#nh').value})">Qo'shish</button></div>`)}
  if(has('import'))sec.push(voiceCard(d));
- if(has('import'))sec.push(`<div class=card><b>📚 Kitob yaratish (fayldan)</b><div class=s>Bitta fayl yuklang — so'zlar kitobga joylanadi, tur (ot/fel/sifat/ravish) va darajalarga bo'linadi.</div><input id=bn placeholder="Kitob nomi"><div class=s>KITOB DARAJASI</div><select id=bk>${lvOpts('')}</select><div class=s>SO'ZLAR QIYINLIGI (ixtiyoriy — kitob darajasidan olinadi)</div><select id=bwl>${wlOpts('')}</select><div class=edr><input id=bl type=number placeholder="Daraja soni (ixtiyoriy)"><input id=bsc type=number placeholder="Bo'limda so'z (30)"></div>
- <select id=bs><option value=equal>Darajalarga teng bo'lish</option><option value=custom>Har daraja uchun so'z sonini o'zim yozaman</option><option value=level>Hammasi bitta darajaga</option></select><input id=bc placeholder="So'z soni: 200,300,300"><input id=bv type=number placeholder="Qaysi daraja (faqat «bitta daraja» uchun)"><select id=bp>${posOpts('ot')}</select>
+ if(has('import'))sec.push(`<div class=card><b>📚 Kitob yaratish (fayldan)</b><div class=s>Bitta fayl yuklang — undagi barcha so'zlar (tarjimasi bor yoki yo'q) kitobga joylanadi, tarjimasizlari avtomatik tarjima qilinadi.</div><input id=bn placeholder="Kitob nomi"><div class=s>KITOB DARAJASI</div><select id=bk>${lvOpts('')}</select><div class=wnote>Daraja tanlansa — so'zlar shu darajaga yoziladi. «Hammasi» — har bir so'z o'z qiyinligiga qarab Boshlang'ich, O'rta yoki Yuqori darajaga joylanadi (AI aniqlaydi). Tanlanmasa — so'zlar quyidagi daraja soniga teng bo'linadi.</div><input id=bl type=number min=1 placeholder="Daraja soni (ixtiyoriy)"><select id=bp>${posOpts('ot')}</select>
  <label><input type=checkbox id=ba style="width:auto"> So'z turini avto-aniqlash (faylda tur yozilmagan bo'lsa)</label><input type=file id=bf accept=".txt,.csv,.tsv,.json,.xlsx,.xls,.ods,.docx,.rtf,.pptx,.odt,.odp,.epub,.pdf,.html,.htm,.xml,.png,.jpg,.jpeg,.webp"><button class=big2 onclick="createBook()">📚 Kitob yaratish</button></div>`);
  if(has('dicts'))sec.push(`<div class=card><b>📖 Kitoblarni boshqarish</b><div class=s>Nomi · daraja soni · bo'limdagi so'z soni</div>${d.map(x=>`<div class=card style="display:block;margin:6px 0"><input id=dn${x.id} value="${esc(x.name)}"><div class=edr><input id=dl${x.id} type=number value=${x.levels} placeholder="Daraja soni"><input id=ds${x.id} type=number value=${x.sec||30}></div><div class=edr><select id=dk${x.id}>${lvOpts(x.lvl)}</select><button class=cb onclick="adm('/dict/${x.id}',{name:$('#dn${x.id}').value,levels:$('#dl${x.id}').value,sec:$('#ds${x.id}').value,lvl:$('#dk${x.id}').value})">💾</button><button class="cb ${x.free?'on':''}" onclick="adm('/dict/${x.id}',{free:${x.free?0:1}})">${x.free?'🆓':'💰'}</button><button class="cb red" onclick="delDict(${x.id})">🗑</button></div></div>`).join('')}
  <b>➕ Bo'sh kitob</b><input id=dn0 placeholder="Nomi"><div class=edr><input id=dl0 type=number placeholder="Daraja soni (ixtiyoriy)"><input id=ds0 type=number placeholder="Bo'limda so'z (30)"></div><select id=dk0>${lvOpts('')}</select><button class=big2 onclick="adm('/dict',{name:$('#dn0').value,levels:$('#dl0').value,sec:$('#ds0').value,lvl:$('#dk0').value})">Qo'shish</button></div>`);
@@ -832,10 +891,13 @@ function watchJob(id){document.getElementById('ov')?.remove();const o=document.c
   if(j.fin){document.getElementById('ov').remove();if(j.err)alert('Xatolik: '+j.err);else{confetti();alert((j.dict_id?'Kitob yaratildi.\n':'')+impMsg(j))}vAdmin();return}
   setTimeout(tick,1200)};tick()}
 async function createBook(){const f=$('#bf').files[0];if(!f||!$('#bn').value.trim())return alert('Kitob nomi va faylni kiriting');const fd=new FormData();
- fd.append('name',$('#bn').value);fd.append('levels',$('#bl').value||1);fd.append('sec',$('#bsc').value||30);fd.append('split',$('#bs').value);fd.append('counts',$('#bc').value);fd.append('level',$('#bv').value);fd.append('lvl',$('#bk').value);fd.append('wlvl',$('#bwl').value);fd.append('pos',$('#bp').value);fd.append('auto',$('#ba').checked?1:0);fd.append('file',f);
+ fd.append('name',$('#bn').value);fd.append('levels',$('#bl').value||1);fd.append('lvl',$('#bk').value);fd.append('pos',$('#bp').value);fd.append('auto',$('#ba').checked?1:0);fd.append('file',f);
  const r=await api('/admin/book',{body:fd});watchJob(r.job)}
 async function imp(){const f=$('#if').files[0];if(!f)return;const fd=new FormData();fd.append('dict_id',$('#id').value);fd.append('level',$('#il').value);fd.append('wlvl',$('#iwl').value);fd.append('pos',$('#ip').value);fd.append('auto',$('#ia').checked?1:0);fd.append('file',f);const r=await api('/admin/import',{body:fd});watchJob(r.job)}
 async function claudeTest(){const r=await api('/admin/claude-test',{body:{}});alert(r.ok?`✅ Ishlayapti! Javob: ${r.reply}\nModel: ${r.model}`:'❌ Xato: '+r.error)}
+document.addEventListener('click',e=>{const f=e.target.closest&&e.target.closest('.cdw');if(!f||Date.now()-(window._sw||0)<=400)return;
+ for(let k=0;k<8;k++){const u=document.createElement('u');u.className='spk2';u.textContent=['✨','⭐','💫','🌟'][k%4];const a=k/8*6.283;u.style.setProperty('--tx',Math.round(Math.cos(a)*(90+Math.random()*30))+'px');u.style.setProperty('--ty',Math.round(Math.sin(a)*(70+Math.random()*30))+'px');f.appendChild(u);setTimeout(()=>u.remove(),750)}});
+document.addEventListener('pointermove',e=>{const f=e.target.closest&&e.target.closest('.cdw');if(!f)return;const r=f.getBoundingClientRect();f.style.setProperty('--mx',((e.clientX-r.left)/r.width*100).toFixed(0)+'%');f.style.setProperty('--my',((e.clientY-r.top)/r.height*100).toFixed(0)+'%')},{passive:true});
 init();
 
 window.hap=(t='light')=>{try{Telegram.WebApp.HapticFeedback.impactOccurred(t)}catch{try{navigator.vibrate&&navigator.vibrate(8)}catch{}}};

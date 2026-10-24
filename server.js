@@ -262,18 +262,18 @@ async function aiWords(items,txt,vis,defPos,auto,job){
         for(let a=0;a<3&&!okc;a++){try{const w=parseWords(await geminiFile(vis.buf,vis.mime,pr,30000));got.push(...w);okc=1}catch(e){lastE=friendlyErr(e&&e.message||e);await new Promise(z=>setTimeout(z,2000))}}
         if(!okc){failed++;if(job)job.failedPages.push(...(rg||[]))}
         dn++;if(job)job.stage="AI fayldan so'zlarni qidiryapti ("+dn+"/"+rgs.length+")..."}};
-      await Promise.all(Array.from({length:Math.min(4,rgs.length)},wv));if(!got.length&&job)job.aiErr=lastE||"AI fayldan so'z topa olmadi"}
-    else{const cs=[];for(let i=0;i<txt.length&&i<600000;i+=3500){let e=Math.min(txt.length,i+3500);const nl=txt.indexOf('\n',e);if(nl>0&&nl-e<400)e=nl;cs.push(txt.slice(i,e));i=e-3500}
+      await Promise.all(Array.from({length:Math.min(6,rgs.length)},wv));if(!got.length&&job)job.aiErr=lastE||"AI fayldan so'z topa olmadi"}
+    else{const cs=[];for(let i=0;i<txt.length&&i<600000;i+=5000){let e=Math.min(txt.length,i+5000);const nl=txt.indexOf('\n',e);if(nl>0&&nl-e<400)e=nl;cs.push(txt.slice(i,e));i=e-5000}
       if(txt.length>600000&&job)job.warn.push("Fayl juda katta: faqat dastlabki 600 000 belgi qayta ishlandi.");
       let ci=0,dn=0;const bad=[];
-      const w=async()=>{while(ci<cs.length){const c=cs[ci++];if(/[가-힣]/.test(c)){let okc=0;for(let a=0;a<2&&!okc;a++){try{got.push(...parseWords(await callClaude([{role:'user',content:wp()+"\n\n"+c}],"Sen koreys-o'zbek lug'at tuzuvchisan.",8000)));okc=1}catch(e){if(job)job.aiErr=friendlyErr(e&&e.message||e);await new Promise(z=>setTimeout(z,1500))}}if(!okc){failed++;bad.push(c)}}dn++;if(job)job.stage="AI fayldan so'zlarni qidiryapti ("+dn+"/"+cs.length+")..."}};
-      await Promise.all(Array.from({length:Math.min(8,cs.length)},w));if(failed&&job)job.warn.push(failed+" ta matn bo'lagi AI tomonidan o'qilmadi; ular oddiy usulda ajratildi (tarjimasi/turi to'liq bo'lmasligi mumkin).")}
+      const w=async()=>{while(ci<cs.length){const c=cs[ci++];if(/[가-힣]/.test(c)){let okc=0;for(let a=0;a<2&&!okc;a++){try{got.push(...parseWords(await callClaude([{role:'user',content:wp()+"\n\n"+c}],"Sen koreys-o'zbek lug'at tuzuvchisan.",12000)));okc=1}catch(e){if(job)job.aiErr=friendlyErr(e&&e.message||e);await new Promise(z=>setTimeout(z,1500))}}if(!okc){failed++;bad.push(c)}}dn++;if(job)job.stage="AI fayldan so'zlarni qidiryapti ("+dn+"/"+cs.length+")..."}};
+      await Promise.all(Array.from({length:Math.min(12,cs.length)},w));if(failed&&job)job.warn.push(failed+" ta matn bo'lagi AI tomonidan o'qilmadi; ular oddiy usulda ajratildi (tarjimasi/turi to'liq bo'lmasligi mumkin).")}
   }catch(e){if(job)job.aiErr=friendlyErr(e&&e.message||e)}
   if(failed&&job&&vis)job.warn.push(failed+" ta sahifa guruhi o'qilmadi: "+[...new Set(job.failedPages)].sort((a,b)=>a-b).join(', ')+" sahifalar.");
   if(!got.length)return (vis&&!vis.partial)?null:items;
   const seen=new Set(),out=[];
   for(const g of got)if(!seen.has(g.ko)){seen.add(g.ko);out.push({ko:g.ko,uz:g.uz,pos:(auto&&g.pos)||defPos,px:!!(auto&&g.pos)})}
-  for(const it of items)if(!seen.has(it.ko)&&(it.uz||failed||vis)){seen.add(it.ko);out.push(it)}
+  for(const it of items)if(!seen.has(it.ko)){seen.add(it.ko);out.push(it)}
   return out}
 async function tr(t){
   const tryit=async f=>{try{const v=await f();return v&&v!==t?v:''}catch{return ''}},sg=()=>AbortSignal.timeout(7000);
@@ -283,7 +283,7 @@ async function tr(t){
   if(!r)r=await tryit(async()=>{const x=await fetch('https://api.mymemory.translated.net/get?q='+encodeURIComponent(t)+'&langpair=ko|'+TRANSLATE_TARGET,{signal:sg()});const j=await x.json();const v=j.responseData&&j.responseData.translatedText;return v&&!/MYMEMORY WARNING|QUERY LENGTH/i.test(v)?v:''});
   return r}
 async function claudeTranslate(part){
-  const txt=await callClaude([{role:'user',content:"Quyidagi koreys so'zlarini o'zbek tiliga (lotin yozuvi) tarjima qil va so'z turini aniqla (ot, fel=harakat 동사, sifat=holat 형용사, ravish, olmosh, son, yordamchi yoki boshqa; sifat va fe'lni aralashtirma). Har bir so'zning eng keng tarqalgan ma'nosini 1-3 ta qisqa o'zbekcha ekvivalent bilan ber (vergul bilan). Fe'llarni bosh shaklda (-moq) yoz. Ruscha yoki inglizcha so'z ishlatma. Ma'nosiga ishonching komil bo'lmasa, uz ni bo'sh qoldir, taxmin qilma. FAQAT JSON massiv qaytar: [{\"ko\":\"...\",\"uz\":\"...\",\"pos\":\""+posKeys()+"\"}]\n\n"+part.map(x=>x.ko).join('\n')}],"Sen tajribali koreys-o'zbek lug'at tuzuvchisan. Tarjimalar aniq, qisqa va to'g'ri o'zbek tilida bo'lsin.",4000);
+  const txt=await callClaude([{role:'user',content:"Quyidagi koreys so'zlarini o'zbek tiliga (lotin yozuvi) tarjima qil va so'z turini aniqla (ot, fel=harakat 동사, sifat=holat 형용사, ravish, olmosh, son, yordamchi yoki boshqa; sifat va fe'lni aralashtirma). Har bir so'zning eng keng tarqalgan ma'nosini 1-3 ta qisqa o'zbekcha ekvivalent bilan ber (vergul bilan). Fe'llarni bosh shaklda (-moq) yoz. Ruscha yoki inglizcha so'z ishlatma. Ma'nosiga ishonching komil bo'lmasa, uz ni bo'sh qoldir, taxmin qilma. FAQAT JSON massiv qaytar: [{\"ko\":\"...\",\"uz\":\"...\",\"pos\":\""+posKeys()+"\"}]\n\n"+part.map(x=>x.ko).join('\n')}],"Sen tajribali koreys-o'zbek lug'at tuzuvchisan. Tarjimalar aniq, qisqa va to'g'ri o'zbek tilida bo'lsin.",6000);
   const out={};try{JSON.parse(txt.match(/\[[\s\S]*\]/)[0]).forEach(o=>{if(o&&o.ko)out[o.ko]={uz:String(o.uz||'').trim(),pos:normPos(o.pos)}})}catch{}
   return out}
 const POSMAP=[[/^(ot|otlar|noun|nouns|명사|isim)$/i,'ot'],[/^(fe['’‘`]?l|fe['’‘`]?llar|verb|verbs|동사)$/i,'fel'],[/^(sifat|sifatlar|adjective|adjectives|형용사)$/i,'sifat'],[/^(ravish|ravishlar|adverb|adverbs|부사)$/i,'ravish']];
@@ -339,19 +339,19 @@ async function addWords(job,d,items,levelOf,auto){
   const todo=items.slice(0,20000).filter(it=>!one('select 1 from words where dict_id=? and ko=?',d.id,it.ko));
   job.dups=Math.max(0,Math.min(items.length,20000)-todo.length);todo.forEach((it,i)=>it.idx=i);job.found=items.length;job.total=todo.length;job.done=0;
   const wl=['b','o','y'].includes(job.wlvl)?job.wlvl:(['b','o','y'].includes(d.lvl)?d.lvl:''),ins=db.prepare('insert into words(dict_id,level,pos,section,ko,uz,lvl) values(?,?,?,?,?,?,?)'),cnt={};
-  const put=list=>{db.transaction(()=>{for(const it of list){const lv=levelOf(it.idx,todo.length),k=lv+'|'+it.pos;
+  const put=list=>{db.transaction(()=>{for(const it of list){const lv=levelOf(it.idx,todo.length,it),k=lv+'|'+it.pos;
     if(cnt[k]==null)cnt[k]=one('select count(*) n from words where dict_id=? and level=? and pos=?',d.id,lv,it.pos).n;
-    const rr=ins.run(d.id,lv,it.pos,Math.floor(cnt[k]/d.sec)+1,it.ko,it.uz,wl);(job.ids=job.ids||[]).push(rr.lastInsertRowid);cnt[k]++;
+    const rr=ins.run(d.id,lv,it.pos,Math.floor(cnt[k]/d.sec)+1,it.ko,it.uz,(job.wlBy&&job.wlBy[lv])||wl);(job.ids=job.ids||[]).push(rr.lastInsertRowid);cnt[k]++;
     job.perLevel[lv]=(job.perLevel[lv]||0)+1;job.perPos[it.pos]=(job.perPos[it.pos]||0)+1;job.added++}})()};
   const aiOn=!!AI_KEY,needAI=it=>!it.uz||(auto&&!it.px);
   const first=todo.filter(it=>it.uz&&!(aiOn&&needAI(it)));put(first);job.done=first.length;
   const fs0=new Set(first);let rest=todo.filter(it=>!fs0.has(it));
   if(aiOn&&rest.length){job.stage="Tarjima va tur aniqlash (AI)...";
-    const bs=[];for(let i=0;i<rest.length;i+=80)bs.push(rest.slice(i,i+80));let bi=0;
+    const bs=[];for(let i=0;i<rest.length;i+=100)bs.push(rest.slice(i,i+100));let bi=0;
     const worker=async()=>{while(bi<bs.length){const b=bs[bi++];let o={};try{o=await claudeTranslate(b)}catch{}
       const ok=[];for(const it of b){const x=o[it.ko];if(x){if(!it.uz&&x.uz){it.uz=x.uz;job.translated++}if(auto&&!it.px&&x.pos){it.pos=x.pos;it.px=true}}if(it.uz)ok.push(it);else it.left=1}
       put(ok);job.done+=b.length}};
-    await Promise.all(Array.from({length:Math.min(8,bs.length)},worker));rest=rest.filter(it=>it.left)}
+    await Promise.all(Array.from({length:Math.min(12,bs.length)},worker));rest=rest.filter(it=>it.left)}
   if(aiOn&&rest.length){job.stage="Tarjima (qayta urinish)...";const bs2=[];for(let i=0;i<rest.length;i+=20)bs2.push(rest.slice(i,i+20));let bj=0;
     const w3=async()=>{while(bj<bs2.length){const b=bs2[bj++];let o={};for(let a=0;a<3&&!Object.keys(o).length;a++){try{o=await claudeTranslate(b)}catch{await new Promise(z=>setTimeout(z,1500))}}
       const ok=[];for(const it of b){const x=o[it.ko];if(x&&x.uz){it.uz=x.uz;job.translated++;if(auto&&!it.px&&x.pos){it.pos=x.pos;it.px=true}it.left=0;ok.push(it)}}put(ok)}};
@@ -365,6 +365,13 @@ async function addWords(job,d,items,levelOf,auto){
   if(job.pending)job.warn.push(job.pending+" ta so'z tarjimasi kutilmoqda (fonda tarjima qilinadi).");
   job.incomplete=job.warn.some(w=>/o'qilmadi|to'liq o'qilmagan|topilmadi/.test(w));
   job.done=job.total;job.stage="Tayyor (ovozlar fonda avtomatik qo'shilmoqda)";return job}
+async function classifyLevels(items,job){if(!AI_KEY)return;const bs=[];for(let i=0;i<items.length;i+=150)bs.push(items.slice(i,i+150));let bi=0,dn=0;
+  const w=async()=>{while(bi<bs.length){const b=bs[bi++];
+    for(let a=0;a<3;a++){try{const t=await callClaude([{role:'user',content:"Quyidagi koreys so'zlarining qiyinlik darajasini aniqla: b = boshlang'ich (TOPIK 1-2, kundalik oddiy so'zlar), o = o'rta (TOPIK 3-4), y = yuqori (TOPIK 5-6, murakkab/rasmiy/kam uchraydigan). FAQAT JSON massiv qaytar: [{\"ko\":\"...\",\"l\":\"b|o|y\"}]\n\n"+b.map(x=>x.ko).join('\n')}],"Sen koreys tili o'qituvchisisan.",8000);
+      const m={};JSON.parse(t.match(/\[[\s\S]*\]/)[0]).forEach(o=>{if(o&&o.ko&&/^[boy]$/.test(o.l))m[o.ko]=o.l});b.forEach(x=>{if(m[x.ko])x.dl=m[x.ko]});break}catch{await new Promise(z=>setTimeout(z,1500))}}
+    dn++;job.stage="So'zlar darajasi aniqlanmoqda ("+dn+"/"+bs.length+")..."}};
+  await Promise.all(Array.from({length:Math.min(8,bs.length)},w));
+  if(items.some(x=>!x.dl))job.warn.push("Ba'zi so'zlar darajasi aniqlanmadi — ular teng bo'lib joylandi.")}
 const jobs={};
 setInterval(()=>{const t=Date.now();for(const k in jobs)if(t-jobs[k].ts>36e5)delete jobs[k]},6e5).unref();
 const newJob=()=>{const id=crypto.randomBytes(6).toString('hex');return jobs[id]={id,stage:"Fayl o'qilmoqda...",found:0,total:0,done:0,added:0,translated:0,skipped:0,perLevel:{},perPos:{},warn:[],failedPages:[],expected:0,dups:0,pages:0,emptyPages:[],fin:false,err:null,ts:Date.now()}};
@@ -374,16 +381,15 @@ app.post('/api/admin/import',adm('import'),up.single('file'),(r,s)=>{
   const job=newJob(),auto=r.body.auto==='1';job.wlvl=LVL(r.body.wlvl);s.json({job:job.id});
   (async()=>{try{const items=await extract(r.file,pos,auto,job);if(!items){job.err=job.aiErr?("Gemini javob bermadi: "+job.aiErr+" — birozdan keyin qayta urinib ko'ring."):"Faylni o'qib bo'lmadi (.doc bo'lsa, .docx yoki PDF qilib saqlang; rasm/skan faqat Gemini bilan o'qiladi)";return}await addWords(job,d,items,()=>+level,auto)}catch(e){job.err=String(e.message||e)}finally{job.fin=true}})()});
 app.post('/api/admin/book',adm('import'),up.single('file'),(r,s)=>{
-  const b=r.body,name=(b.name||'').trim(),pos=b.pos||'ot';let L=Math.max(1,Math.min(+b.levels||1,30));
+  const b=r.body,name=(b.name||'').trim(),pos=b.pos||'ot',lvl=LVL(b.lvl);let L=Math.max(1,Math.min(+b.levels||1,30));
   if(!name||!r.file)return s.status(400).json({e:'bad'});
-  const cs=String(b.counts||'').split(/[,;\s]+/).map(Number).filter(n=>n>0);if(b.split==='custom'&&!cs.length)return s.status(400).json({e:'counts'});
   const job=newJob(),auto=b.auto==='1';s.json({job:job.id});
   (async()=>{try{const items=await extract(r.file,pos,auto,job);if(!items){job.err=job.aiErr?("Gemini javob bermadi: "+job.aiErr+" — birozdan keyin qayta urinib ko'ring."):"Faylni o'qib bo'lmadi (.doc bo'lsa, .docx yoki PDF qilib saqlang; rasm/skan faqat Gemini bilan o'qiladi)";return}
     let levelOf;
-    if(b.split==='level'){const lv=Math.max(1,+b.level||1);L=Math.max(L,lv);levelOf=()=>lv}
-    else if(b.split==='custom'){L=Math.max(L,cs.length);const cum=[];cs.reduce((a,n,i)=>(cum[i]=a+n),0);levelOf=i=>{const k=cum.findIndex(c=>i<c);return k<0?cs.length:k+1}}
-    else levelOf=(i,n)=>Math.min(L,Math.floor(i*L/n)+1);
-    const id=run('insert into dicts(name,levels,sec,lvl) values(?,?,?,?)',name,L,+b.sec||30,LVL(b.lvl)).lastInsertRowid,d=one('select * from dicts where id=?',id);job.dict_id=id;job.wlvl=LVL(b.wlvl);
+    if(lvl==='all'){L=3;job.wlBy={1:'b',2:'o',3:'y'};job.stage="So'zlar darajasi aniqlanmoqda (AI)...";await classifyLevels(items,job);
+      levelOf=(i,n,it)=>({b:1,o:2,y:3})[it&&it.dl]||Math.min(3,Math.floor(i*3/n)+1)}// Hammasi: boshlang'ich / o'rta / yuqori
+    else levelOf=(i,n)=>Math.min(L,Math.floor(i*L/n)+1);// daraja soni bo'yicha teng bo'linadi
+    const id=run('insert into dicts(name,levels,sec,lvl) values(?,?,?,?)',name,L,30,lvl).lastInsertRowid,d=one('select * from dicts where id=?',id);job.dict_id=id;job.wlvl=lvl==='all'?'':lvl;
     await addWords(job,d,items,levelOf,auto)}catch(e){job.err=String(e.message||e)}finally{job.fin=true}})()});
 app.get('/api/admin/status',adm('admins'),(r,s)=>s.json({key:!!AI_KEY,keyLen:(AI_KEY||'').length,provider:USE_GEMINI?'Gemini':'Claude',model:FOXM,bot:!!BOT_TOKEN,webapp:WEBAPP_URL||'',data:DATA}));
 app.post('/api/admin/claude-test',adm('admins'),async(r,s)=>{if(!AI_KEY)return s.json({ok:false,error:"GEMINI_API_KEY serverda ko'rinmayapti. Railway → Variables'ga qo'shing va Deploy bosing. Ikkita loyiha bo'lsa, domen bog'langan loyihaga qo'shing."});
