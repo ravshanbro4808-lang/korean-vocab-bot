@@ -488,6 +488,17 @@ rp{background:rgba(0,0,0,.18)!important}
 .cdinfo{position:relative;z-index:1;margin-bottom:24px}
 .cdbar{position:fixed!important;left:0;right:0;bottom:0;z-index:1000!important;transform:translate3d(0,0,0);will-change:transform}
 .cdbar .nxt:hover,.cdbar .pill:hover,.cdbar .bkb:hover{transform:none}
+/* tugmalar bir-birining ustiga chiqmasin */
+.cb.txt{width:auto;min-width:44px;padding:0 14px;border-radius:22px;font-size:14px;white-space:nowrap}
+.row>*,.navr>*,.edr>*,.lvrow>*,.cdbar>*{min-width:0;max-width:100%}
+.row3{flex-wrap:wrap}.row3 .b{white-space:normal;min-width:0;flex:1 1 90px;overflow-wrap:anywhere}
+.edr,.lvrow{flex-wrap:wrap}
+.edr>.cb,.lvrow>.cb{flex:none}
+.cdbar{flex-wrap:nowrap;gap:8px}
+.cdbar .nxt{flex:1 1 0;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cdbar .pill,.cdbar .bkb{flex:none;padding:14px 14px}
+@media (max-width:360px){.cdbar{gap:6px;padding-left:8px;padding-right:8px}.cdbar .pill,.cdbar .bkb{padding:12px 11px;font-size:16px}.cdbar .nxt{font-size:15px;padding:12px 6px}}
+.nxt.dodge,.big2.dodge,.cta button.dodge{z-index:0}
 </style></head><body><div id="hd"></div><main id="m"></main>
 <script>
 try{localStorage.rm='0'}catch{}
@@ -869,7 +880,7 @@ async function vAdmin(){const sec=[],d=await api('/dicts'),trash=has('dicts')?aw
  <label><input type=checkbox id=ba style="width:auto"> So'z turini avto-aniqlash (faylda tur yozilmagan bo'lsa)</label><input type=file id=bf><button class=big2 onclick="createBook()">📚 Kitob yaratish</button></div>`);
  if(has('dicts'))sec.push(`<div class=card><b>📖 Kitoblarni boshqarish</b><div class=s>Nomi · daraja soni · bo'limdagi so'z soni</div>${d.map(x=>`<div class=card style="display:block;margin:6px 0"><input id=dn${x.id} value="${esc(x.name)}"><div class=edr><input id=dl${x.id} type=number value=${x.levels} placeholder="Daraja soni"><input id=ds${x.id} type=number value=${x.sec||30}></div><div class=edr><select id=dk${x.id}>${lvOpts(x.lvl)}</select><button class=cb onclick="adm('/dict/${x.id}',{name:$('#dn${x.id}').value,levels:$('#dl${x.id}').value,sec:$('#ds${x.id}').value,lvl:$('#dk${x.id}').value})">💾</button><button class="cb ${x.free?'on':''}" onclick="adm('/dict/${x.id}',{free:${x.free?0:1}})">${x.free?'🆓':'💰'}</button><button class="cb red" onclick="delDict(${x.id})">🗑</button></div></div>`).join('')}
  <b>➕ Bo'sh kitob</b><input id=dn0 placeholder="Nomi"><div class=edr><input id=dl0 type=number placeholder="Daraja soni (ixtiyoriy)"><input id=ds0 type=number placeholder="Bo'limda so'z (30)"></div><select id=dk0>${lvOpts('')}</select><button class=big2 onclick="adm('/dict',{name:$('#dn0').value,levels:$('#dl0').value,sec:$('#ds0').value,lvl:$('#dk0').value})">Qo'shish</button></div>`);
- if(has('dicts')&&Array.isArray(trash)&&trash.length)sec.push(`<div class=card style="display:block"><b>🗑 O'chirilgan kitoblar</b><div class=s>Tiklasangiz, kitob va undagi barcha so'zlar qaytadi.</div>${trash.map(x=>`<div class=lvrow><span style="flex:1;min-width:0">${esc(x.name)}<br><small>${x.n} ta so'z · ${new Date(x.del_ts).toLocaleDateString('ru-RU')}</small></span><button class=cb onclick="adm('/dict/${x.id}',{restore:1})">♻️ Tiklash</button><button class="cb red" onclick="purgeDict(${x.id})">❌</button></div>`).join('')}</div>`);
+ if(has('dicts')&&Array.isArray(trash)&&trash.length)sec.push(`<div class=card style="display:block"><b>🗑 O'chirilgan kitoblar</b><div class=s>Tiklasangiz, kitob va undagi barcha so'zlar qaytadi.</div>${trash.map(x=>`<div class=lvrow><span style="flex:1;min-width:0">${esc(x.name)}<br><small>${x.n} ta so'z · ${new Date(x.del_ts).toLocaleDateString('ru-RU')}</small></span><button class="cb txt" onclick="adm('/dict/${x.id}',{restore:1})">♻️ Tiklash</button><button class="cb red" onclick="purgeDict(${x.id})">❌</button></div>`).join('')}</div>`);
  if(has('import'))sec.push(`<div class=card><b>📥 Faylni kitobga qo'shish</b><div class=s>Har qanday fayl: .txt .csv .xlsx .docx .pdf .html — «koreys - tarjima» qatorlari olinadi, tarjimasizlari avtomatik tarjima qilinadi.</div><select id=id>${ops}</select><div class=s>DARAJA RAQAMI yoki QIYINLIK — ikkalasidan bittasini tanlang</div><div class=edr><input id=il type=number value=1 placeholder="Daraja raqami"><select id=iwl>${wlOpts('')}</select></div><select id=ip>${posOpts('ot')}</select><label><input type=checkbox id=ia style="width:auto"> So'z turini avto-aniqlash</label><input type=file id=if><button class=big2 onclick="imp()">📥 Yuklash</button></div>`);
  if(has('dicts'))sec.push(`<div class=card><b>📶 Darajalar</b><div class=s>Darajani yarating, nomini o'zgartiring yoki o'chiring (soni cheklanmagan) va so'zlarni kerakli darajaga biriktiring. O'quvchi darajani nomi bilan tanlaydi.</div><select id=lvd onchange="lvAdm()">${ops}</select><div id=lvbox></div></div>`);
  if(has('dicts'))sec.push(`<div class=card><b>🏷 So'z turkumlari</b><div class=s>Ot (명사), fe'l (동사), sifat (형용사), ravish (부사), olmosh (대명사), son (수사) va boshqalar. Yangi turkum qo'shing, nomini tahrir qiling yoki bo'sh turkumni o'chiring.</div><div id=posbox>${posAdmHTML()}</div></div>`);
@@ -1009,7 +1020,7 @@ document.addEventListener('pointermove',e=>{if(e.pointerType!=='mouse')return;co
 document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('.big2,.nxt,.cta button');
  if(!b||b._go||b.disabled||b.closest('.cdbar')||(window.matchMedia&&matchMedia('(prefers-reduced-motion:reduce)').matches))return;
  e.preventDefault();e.stopImmediatePropagation();
- const sg=()=>Math.random()<.5?-1:1;b.style.setProperty('--dx',Math.round(sg()*(30+Math.random()*30))+'px');b.style.setProperty('--dy',Math.round(sg()*(8+Math.random()*16))+'px');b.style.setProperty('--rt',(sg()*(2+Math.random()*4)).toFixed(1)+'deg');
+ const sg=()=>Math.random()<.5?-1:1;b.style.setProperty('--dx',Math.round(sg()*(3+Math.random()*4))+'px');b.style.setProperty('--dy',Math.round(sg()*(3+Math.random()*4))+'px');b.style.setProperty('--rt',(sg()*(2+Math.random()*4)).toFixed(1)+'deg');
  b.classList.add('dodge');setTimeout(()=>{b.classList.remove('dodge');b._go=1;try{b.click()}finally{b._go=0}},520)},true);
 
 // v23: kartochka — sichqoncha bilan qiyshayish va sudrash, klaviatura, flip animatsiyasi
