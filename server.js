@@ -382,7 +382,7 @@ app.post('/api/admin/import',adm('import'),up.single('file'),(r,s)=>{
   (async()=>{try{const items=await extract(r.file,pos,auto,job);if(!items){job.err=job.aiErr?("Gemini javob bermadi: "+job.aiErr+" — birozdan keyin qayta urinib ko'ring."):"Faylni o'qib bo'lmadi (.doc bo'lsa, .docx yoki PDF qilib saqlang; rasm/skan faqat Gemini bilan o'qiladi)";return}await addWords(job,d,items,()=>+level,auto)}catch(e){job.err=String(e.message||e)}finally{job.fin=true}})()});
 app.post('/api/admin/book',adm('import'),up.single('file'),(r,s)=>{
   const b=r.body,name=(b.name||'').trim(),pos=b.pos||'ot',lvl=LVL(b.lvl);let L=Math.max(1,Math.min(+b.levels||1,30));
-  if(!name||!r.file)return s.status(400).json({e:'bad'});
+  if(!name)return s.json({e:"Kitob nomi kelmadi"});if(!r.file)return s.json({e:"Fayl serverga yetib bormadi (hajmi 25 MB dan oshmasin)"});
   const job=newJob(),auto=b.auto==='1';s.json({job:job.id});
   (async()=>{try{const items=await extract(r.file,pos,auto,job);if(!items){job.err=job.aiErr?("Gemini javob bermadi: "+job.aiErr+" — birozdan keyin qayta urinib ko'ring."):"Faylni o'qib bo'lmadi (.doc bo'lsa, .docx yoki PDF qilib saqlang; rasm/skan faqat Gemini bilan o'qiladi)";return}
     let levelOf;
@@ -435,6 +435,7 @@ app.post('/api/admin/pay/:id',adm('payments'),(r,s)=>{const p=one('select * from
   else{const u0=one('select paid_until from users where id=?',p.user_id);end=addM(Math.max(u0?u0.paid_until:0,Date.now()),mo);run('update users set paid_until=? where id=?',end,p.user_id)}}
   tell(p.user_id,ok?"✅ To'lov qabul qilindi. Obuna "+mo+" oyga faollashtirildi"+(end?" ("+new Date(end).toLocaleDateString('ru-RU')+" gacha)":"")+"!":"❌ To'lov rad etildi. Qayta yuboring.");s.json({ok:1})});
 // xonalar
+app.use((err,req,res,next)=>{res.status(200).json({e:err&&err.code==='LIMIT_FILE_SIZE'?"Fayl juda katta (25 MB dan oshmasin)":String((err&&err.message)||err)})});
 const server=http.createServer(app),io=new Server(server),rooms={};
 const shuffle=a=>a.map(x=>[Math.random(),x]).sort((a,b)=>a[0]-b[0]).map(x=>x[1]);
 function buildQs(mode,w,n){

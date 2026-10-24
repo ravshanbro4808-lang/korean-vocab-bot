@@ -490,7 +490,7 @@ const $=s=>document.querySelector(s),H=h=>($('#m').innerHTML=h);
 async function api(p,o={}){const h={'x-init':tg?.initData||'','x-dev':dev||''},t=localStorage.tok;if(t)h.authorization='Bearer '+t;let b=o.body;
   if(b&&!(b instanceof FormData)){h['content-type']='application/json';b=JSON.stringify(b)}
   const r=await fetch('/api'+p,{method:o.body?'POST':'GET',headers:h,body:b});
-  if(r.status==401){login();throw 0}if(r.status==402){gate();throw 0}if(r.status==403){alert("Bu funksiya sizga o'chirilgan");throw 0}return r.json()}
+  if(r.status==401){login();throw 0}if(r.status==402){gate();throw 0}if(r.status==403){alert("Bu funksiya sizga o'chirilgan");throw 0}const tx=await r.text();try{return JSON.parse(tx)}catch{return {e:'Server javobi xato (HTTP '+r.status+'): '+tx.replace(/<[^>]+>/g,' ').trim().slice(0,150)}}}
 const esc=t=>String(t??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 let POS={ot:'Ot (명사)',fel:"Fe'l (동사)",sifat:'Sifat (형용사)',ravish:'Ravish (부사)',olmosh:'Olmosh (대명사)',son:'Son (수사)',yordamchi:'Yordamchi (조사)'},POSL=[];
 const posName=p=>POS[p]||p;
@@ -931,8 +931,8 @@ function watchJob(id){document.getElementById('ov')?.remove();const o=document.c
   setTimeout(tick,1200)};tick()}
 async function createBook(){const f=$('#bf').files[0];if(!f||!$('#bn').value.trim())return alert('Kitob nomi va faylni kiriting');const fd=new FormData();
  fd.append('name',$('#bn').value);fd.append('levels',$('#bl').value||1);fd.append('lvl',$('#bk').value);fd.append('pos',$('#bp').value);fd.append('auto',$('#ba').checked?1:0);fd.append('file',f);
- const r=await api('/admin/book',{body:fd});if(!r||!r.job)return alert('Server xatosi: '+JSON.stringify(r));watchJob(r.job)}
-async function imp(){const f=$('#if').files[0];if(!f)return;const fd=new FormData();fd.append('dict_id',$('#id').value);fd.append('level',$('#il').value);fd.append('wlvl',$('#iwl').value);fd.append('pos',$('#ip').value);fd.append('auto',$('#ia').checked?1:0);fd.append('file',f);const r=await api('/admin/import',{body:fd});if(!r||!r.job)return alert('Server xatosi: '+JSON.stringify(r));watchJob(r.job)}
+ const r=await api('/admin/book',{body:fd});if(!r||!r.job)return alert('Xato: '+((r&&r.e)||JSON.stringify(r)));watchJob(r.job)}
+async function imp(){const f=$('#if').files[0];if(!f)return;const fd=new FormData();fd.append('dict_id',$('#id').value);fd.append('level',$('#il').value);fd.append('wlvl',$('#iwl').value);fd.append('pos',$('#ip').value);fd.append('auto',$('#ia').checked?1:0);fd.append('file',f);const r=await api('/admin/import',{body:fd});if(!r||!r.job)return alert('Xato: '+((r&&r.e)||JSON.stringify(r)));watchJob(r.job)}
 async function claudeTest(){const r=await api('/admin/claude-test',{body:{}});alert(r.ok?`✅ Ishlayapti! Javob: ${r.reply}\nModel: ${r.model}`:'❌ Xato: '+r.error)}
 document.addEventListener('click',e=>{const f=e.target.closest&&e.target.closest('.cdw');if(!f||Date.now()-(window._sw||0)<=400)return;
  for(let k=0;k<8;k++){const u=document.createElement('u');u.className='spk2';u.textContent=['✨','⭐','💫','🌟'][k%4];const a=k/8*6.283;u.style.setProperty('--tx',Math.round(Math.cos(a)*(90+Math.random()*30))+'px');u.style.setProperty('--ty',Math.round(Math.sin(a)*(70+Math.random()*30))+'px');f.appendChild(u);setTimeout(()=>u.remove(),750)}});
