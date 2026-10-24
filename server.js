@@ -145,7 +145,7 @@ app.post('/api/word-voice/:id',async(r,s)=>{const w=one('select id,ko,audio from
     s.json({audio:await p})}catch(e){s.json({e:'tts'})}});
 app.post('/api/fox-tts',async(r,s)=>{if(!USE_GEMINI)return s.json({e:'tts'});const k=foxKey(r.u,'tts'),cap=r.u.is_admin?1e9:active(r.u)?400:60;
   if((foxUse[k]||0)>=cap)return s.json({e:'tts'});const t=String(r.body.text||'').replace(/[*_#`]/g,'').trim().slice(0,600);if(!t)return s.json({e:'tts'});
-  foxUse[k]=(foxUse[k]||0)+1;try{s.json({a:await geminiTTSany(t)})}catch(e){foxUse[k]--;s.json({e:'tts',msg:String(e.message||e).slice(0,200)})}});
+  foxUse[k]=(foxUse[k]||0)+1;try{s.json({a:await geminiTTSany(t)})}catch(e){foxUse[k]--;console.error('fox-tts xato:',String(e.message||e).slice(0,300));s.json({e:'tts',msg:String(e.message||e).slice(0,200)})}});
 app.post('/api/fox',async(r,s)=>{const k=foxKey(r.u,'chat');if((foxUse[k]||0)>=foxLimit(r.u,'chat'))return s.json({e:'limit',left:0});foxUse[k]=(foxUse[k]||0)+1;
   const ms=(r.body.messages||[]).filter(m=>m&&m.content);const o=await askFox(ms,Array.isArray(r.body.words)?r.body.words:[]);if(o.e==='api')foxUse[k]--;o.left=foxLeft(r.u,'chat');s.json(o)});
 const VOICESYS="\nFoydalanuvchi ovozli xabar yubordi (o'zbek yoki koreys tilida). Avval u nima deganini aniq yozib ol, keyin unga javob ber. FAQAT JSON qaytar: {\"heard\":\"foydalanuvchi aytgan gap (o'z tilida)\",\"reply\":\"javobing\"}. Javob ovoz bilan o'qiladi: 1-3 qisqa gap yoz, *, #, emoji ishlatma, koreys so'zining lotincha o'qilishini qavs ichida yozma. Agar hech narsa eshitilmasa yoki faqat shovqin bo'lsa, heard ni bo'sh qoldir.";

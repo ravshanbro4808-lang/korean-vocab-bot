@@ -75,7 +75,7 @@ input,select{padding:11px 14px;border-radius:14px;border:1px solid var(--bd);bac
 .pb{height:9px;border-radius:8px;background:var(--bd);overflow:hidden;margin:6px 0 10px}.pb i{display:block;height:100%;background:linear-gradient(90deg,#7b5cff,#e0508a);border-radius:8px}.sp2{display:flex;justify-content:space-between;font-weight:800;font-size:18px;margin:6px 4px 10px}
 .hero2{font-size:15px;color:var(--mu);margin:4px 0 10px}.hero2 b{font-size:28px;color:var(--fg)}.rk{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:12px 14px;background:var(--c);border:1px solid var(--bd);border-radius:16px;margin:8px 0}
 .memg{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.mc{height:84px;perspective:600px}.mc>div{position:relative;height:100%;transition:transform .35s;transform-style:preserve-3d}.mc.on>div{transform:rotateY(180deg)}.mc span{position:absolute;inset:0;display:grid;place-items:center;border-radius:18px;backface-visibility:hidden;-webkit-backface-visibility:hidden;font-weight:800;text-align:center;padding:4px;font-size:17px}.mf{background:linear-gradient(135deg,#7b5cff,#e0508a);color:#fff;font-size:26px!important}.mb{background:var(--c);border:2px solid var(--bd);transform:rotateY(180deg)}.mc.ok .mb{background:#d7f7e6;border-color:#17b26a;color:#0b6b3b}
-.slots,.tilesrow{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin:12px 0}.slot{min-width:46px;height:52px;border-radius:14px;border:2px dashed var(--bd);display:grid;place-items:center;font-size:24px;font-weight:800;padding:0 6px}.slot.f{border:2px solid #7b5cff;background:#efeaff;color:#4a3fa0}.tl{min-width:46px;height:52px;border-radius:14px;border:0;font-size:22px;font-weight:800;padding:0 10px;background:linear-gradient(180deg,#ffe58a,#ffb830);color:#4a3000;box-shadow:0 4px 8px #ffb83066}.tl.used{opacity:.25}
+.slots,.tilesrow{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin:12px 0}.slot{min-width:46px;height:52px;border-radius:14px;border:2px dashed var(--bd);display:grid;place-items:center;font-size:24px;font-weight:800;padding:0 6px}.slot.f{border:2px solid #7b5cff;background:#efeaff;color:#4a3fa0}.tilesrow .tl{min-width:46px;height:52px;border-radius:14px;border:0;font-size:22px;font-weight:800;padding:0 10px;background:linear-gradient(180deg,#ffe58a,#ffb830);color:#4a3000;box-shadow:0 4px 8px #ffb83066}.tilesrow .tl.used{opacity:.25}
 .tfb{width:110px;height:84px;border-radius:24px;border:0;font-size:38px;box-shadow:0 8px 16px #0002}.ok2{background:linear-gradient(135deg,#5be39a,#17b26a)}.no2{background:linear-gradient(135deg,#ff8a8a,#e0405a)}
 .grp{background:var(--c);border:1px solid var(--bd);border-radius:18px;margin:8px 0;overflow:hidden}.grp summary{padding:12px 14px;font-weight:700;list-style:none}.grp summary b{float:right;background:#fff1d6;color:#7a5200;border-radius:10px;padding:1px 9px}.wr{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 14px;border-top:1px solid var(--bd)}.wr small{color:var(--mu)}
 .cb{width:44px;height:44px;border-radius:50%;border:0;font-size:19px;color:#fff;background:linear-gradient(145deg,#6b7bff,#4a55e8);box-shadow:0 4px 10px #4a55e84d;flex:none;margin:2px}.cb.play{background:linear-gradient(145deg,#5be39a,#17b26a)}.cb.mic{background:linear-gradient(145deg,#ff9a5c,#e0508a)}.cb.done{background:linear-gradient(145deg,#8a94a6,#5b6577)}.cb.live{background:linear-gradient(145deg,#ff6b6b,#e0405a);animation:pulse 1s infinite}.cb.red{background:linear-gradient(145deg,#ff8a8a,#e0405a)}.cb.on{background:linear-gradient(145deg,#ffd36b,#f5a623)}
@@ -362,7 +362,7 @@ textarea{border:1px solid var(--bd);border-radius:14px;padding:10px;font-size:16
 @keyframes cdfloat{50%{translate:0 -7px}}
 .cdi{transform:rotateX(var(--rx)) rotateY(var(--ry))}
 .cdw.on .cdi{transform:rotateX(var(--rx)) rotateY(calc(180deg + var(--ry)))}
-.cdw.tl .cdi{transition:transform .12s linear}.cdw.tl{animation-play-state:paused}
+.cdw.cdtilt .cdi{transition:transform .12s linear}.cdw.cdtilt{animation-play-state:paused}
 .cdw.pop{animation:cdpop .45s cubic-bezier(.3,1.6,.5,1)}
 @keyframes cdpop{40%{scale:1.07}}
 .cdw{touch-action:pan-y;user-select:none;-webkit-user-select:none}
@@ -468,7 +468,7 @@ rp{background:rgba(0,0,0,.18)!important}
 .cdw{perspective:800px}
 .cdi{transition:transform .95s cubic-bezier(.34,1.5,.5,1)}
 .cdw.pop{animation:cdlift .95s cubic-bezier(.3,1.2,.5,1)}
-@keyframes cdlift{0%{scale:1;rotate:0deg}30%{scale:1.16;translate:0 -22px;rotate:-5deg}65%{scale:1.06;translate:0 -8px;rotate:3deg}100%{scale:1;translate:0 0;rotate:0deg}}
+@keyframes cdlift{0%{scale:1}30%{scale:.97}100%{scale:1}}
 .row3{display:flex;gap:8px;margin:10px 0 4px}.row3 .b{flex:1;margin:0;padding:13px 4px;font-size:14px;white-space:nowrap}
 
 /* ===== v29: haqiqiy 3D aylanish va pastki panel ===== */
@@ -481,6 +481,13 @@ rp{background:rgba(0,0,0,.18)!important}
 .cdbar .nxt{width:auto;flex:1;max-width:280px;margin:0;padding:14px 8px;font-size:17px}
 .cdbar .pill,.cdbar .bkb{flex:none;margin:0;padding:14px 18px;font-size:18px;width:auto}
 .cdinfo{margin:40px 0 8px}
+/* kartochka o'z sahnasida aylanadi; hech narsa uning tashqarisiga chiqmaydi, tugmalar joyida turadi */
+.cdw{perspective:1800px!important;overflow:hidden;box-sizing:border-box;padding:16px 0;height:auto!important;min-height:0;z-index:0;isolation:isolate;transform-style:flat}
+.cdw::before{display:none!important}
+.cdi{width:84%!important;margin:0 auto}
+.cdinfo{position:relative;z-index:1;margin-bottom:24px}
+.cdbar{position:fixed!important;left:0;right:0;bottom:0;z-index:1000!important;transform:translate3d(0,0,0);will-change:transform}
+.cdbar .nxt:hover,.cdbar .pill:hover,.cdbar .bkb:hover{transform:none}
 </style></head><body><div id="hd"></div><main id="m"></main>
 <script>
 try{localStorage.rm='0'}catch{}
@@ -583,7 +590,7 @@ function cardHTML(r,w){const kind=r.shape,sh=kind=='rect'?{ar:'3/2'}:SH[SHK[r.i%
  return `<div class=cdw id=cdw style="--ar:${sh.ar}" onclick="cdFlip(this)"><div class=cdi>${cardFace(r.i,'f',w.ko,kind)}${cardFace(r.i,'k',w.uz,kind)}</div></div>`}
 function cdRepeat(){const e=$('#cdw');if(e&&e.classList.contains('on'))cdFlip(e);playWord(cur())}
 function cdFlip(f){if(Date.now()-(window._sw||0)<400||f._fl)return;const i=f.querySelector('.cdi');if(!i)return;const on=f.classList.contains('on'),a=on?180:0,b=on?0:180,m=(a+b)/2;f.classList.toggle('on');
- if(!i.animate)return;f._fl=1;const an=i.animate([{transform:`rotateY(${a}deg) translateZ(0) scale(1)`},{transform:`rotateY(${m}deg) rotateX(-16deg) translateZ(110px) scale(1.16)`,offset:.5},{transform:`rotateY(${b}deg) translateZ(0) scale(1)`}],{duration:850,easing:'cubic-bezier(.4,.1,.3,1)'});an.onfinish=an.oncancel=()=>{f._fl=0}}
+ if(!i.animate)return;f._fl=1;const an=i.animate([{transform:`rotateY(${a}deg) translateZ(0) scale(1)`},{transform:`rotateY(${m}deg) rotateX(-10deg) translateZ(0) scale(.94)`,offset:.5},{transform:`rotateY(${b}deg) translateZ(0) scale(1)`}],{duration:850,easing:'cubic-bezier(.4,.1,.3,1)'});an.onfinish=an.oncancel=()=>{f._fl=0}}
 function fitCd(){document.querySelectorAll('.cdf .ct').forEach(ct=>{const el=ct.firstElementChild;if(!el||!ct.clientWidth)return;const bad=()=>el.scrollHeight>ct.clientHeight+1||el.scrollWidth>ct.clientWidth+1;let fs=46;el.style.overflowWrap='normal';el.style.fontSize=fs+'px';while(bad()&&fs>11){fs-=1;el.style.fontSize=fs+'px'}
  if(bad()){el.style.overflowWrap='anywhere';fs=30;el.style.fontSize=fs+'px';while(bad()&&fs>9){fs-=1;el.style.fontSize=fs+'px'}}})}
 const WD={};
@@ -758,19 +765,27 @@ async function foxSend(t){let sp=0;const f=S.fox;if(f.typing)return;const v=(t??
   f.lite=!!r.lite;if(r.left!=null)f.left=r.left;f.msgs.push({role:'assistant',content:r.reply||(r.e=='nokey'?"Men hali uyg'onmaganman 😴 Admin GEMINI_API_KEY ni sozlashi kerak.":r.e=='limit'?"Bugungi savollar limiti tugadi. Obuna bo'lsangiz ko'proq yozishingiz mumkin 🦊":(r.msg?'Xatolik: '+r.msg:"Xatolik bo'ldi, qayta urinib ko'ring."))});
   if(r.reply&&f.auto){sp=1;foxSpeak(f.msgs.length-1,f.talk?talkListen:null)}}catch{f.msgs.push({role:'assistant',content:"Aloqa uzildi, qayta urinib ko'ring."})}
  f.typing=0;foxV();if(f.talk&&!sp)setTimeout(talkListen,500)}
+async function playB64(f,b64,onEnd,onErr){
+ const bin=atob(b64),u8=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u8[i]=bin.charCodeAt(i);
+ const AC=window.AudioContext||window.webkitAudioContext;
+ if(AC){try{const ac=f.ac=f.ac||new AC();if(ac.state!=='running')await ac.resume();
+  if(ac.state==='running'){const buf=await new Promise((ok,no)=>{const p=ac.decodeAudioData(u8.buffer.slice(0),ok,no);if(p&&p.catch)p.catch(no)});
+   const sn=ac.createBufferSource();sn.buffer=buf;sn.connect(ac.destination);f.audio={pause(){try{sn.onended=null;sn.stop()}catch{}}};sn.onended=onEnd;sn.start();return}}catch{}}
+ const a=f.audio=new Audio('data:audio/wav;base64,'+b64);a.onended=onEnd;a.onerror=onErr;await a.play()}
 function foxSpeak(i,cb){const f=S.fox,tk=f.spk=(f.spk||0)+1;f.speaking=1;stSet('🦊 gapiryapti...','speak');
  const t=String(f.msgs[i].content||'').replace(/[*_#`]/g,'').trim(),local=()=>{if(f.spk===tk)foxSpeakLocal(i,cb,tk)};
- if(f.noTts||!t)return local();
- (async()=>{try{const r=await api('/fox-tts',{body:{text:t}});if(f.spk!==tk)return;if(!r.a)throw 0;
-  try{f.audio&&f.audio.pause()}catch{}const a=f.audio=new Audio('data:audio/wav;base64,'+r.a);let d=0;
+ if((f.noTts&&Date.now()<f.noTts)||!t)return local();
+ (async()=>{try{const r=await api('/fox-tts',{body:{text:t}});if(f.spk!==tk)return;if(!r.a){console.warn('fox-tts:',r.msg||r.e);throw 0}
+  try{f.audio&&f.audio.pause()}catch{}let d=0;
   const go=()=>{if(d)return;d=1;if(f.spk!==tk)return;f.speaking=0;spkUi();if(f.talk)stSet('🎙 ovozli suhbat','listen');if(cb)cb()};
-  a.onended=go;a.onerror=()=>{if(!d){d=1;local()}};await a.play();f.ttsFail=0}
- catch{if(f.spk!==tk)return;f.ttsFail=(f.ttsFail||0)+1;if(f.ttsFail>=2)f.noTts=1;local()}})()}
+  await playB64(f,r.a,go,()=>{if(!d){d=1;local()}});f.ttsFail=0}
+ catch(e){if(f.spk!==tk)return;console.warn('fox ovoz:',e);f.ttsFail=(f.ttsFail||0)+1;if(f.ttsFail>=3){f.noTts=Date.now()+60000;f.ttsFail=0}local()}})()}
 function foxSpeakLocal(i,cb,tk){const f=S.fox;let d=0,tm;
  const go=()=>{if(d)return;d=1;clearTimeout(tm);if(f.spk!==tk)return;f.speaking=0;spkUi();if(f.talk)stSet('🎙 ovozli suhbat','listen');if(cb)cb()};
  try{const t=f.msgs[i].content.replace(/[*_#`]/g,''),ps=t.split(/([가-힣][가-힣\s]*)/).filter(x=>x.trim());speechSynthesis.cancel();
   if(!ps.length)return go();
-  ps.forEach((p,k)=>{const u=new SpeechSynthesisUtterance(p);u.lang=/[가-힣]/.test(p)?'ko-KR':'uz-UZ';u.rate=.95;if(k==ps.length-1){u.onend=go;u.onerror=go}speechSynthesis.speak(u)});
+  const vs=(speechSynthesis.getVoices&&speechSynthesis.getVoices())||[],pk=l=>vs.find(v=>String(v.lang).toLowerCase().replace('_','-').startsWith(l));
+  ps.forEach((p,k)=>{const u=new SpeechSynthesisUtterance(p),ko=/[가-힣]/.test(p),vo=ko?pk('ko'):(pk('uz')||pk('tr')||pk('ru'));u.lang=vo?vo.lang:(ko?'ko-KR':'uz-UZ');if(vo)u.voice=vo;u.rate=.95;if(k==ps.length-1){u.onend=go;u.onerror=go}speechSynthesis.speak(u)});
   tm=setTimeout(go,Math.min(45000,t.length*130+4000))}catch{go()}}
 const VT={listen:"🎙 Tinglayapman, gapiring",think:"💭 O'ylayapman...",speak:"🔊 Kori gapiryapti · to'xtatish uchun bosing",mute:"🔇 Mikrofon o'chiq"};
 function foxStop(){const f=S.fox;if(!f)return;f.spk=(f.spk||0)+1;f.speaking=0;try{f.audio&&f.audio.pause()}catch{}try{speechSynthesis.cancel()}catch{}spkUi();if(f.talk){stSet('🎙 ovozli suhbat','listen');talkListen()}}
@@ -948,8 +963,8 @@ document.addEventListener('click',e=>{const f=e.target.closest&&e.target.closest
  for(let k=0;k<8;k++){const u=document.createElement('u');u.className='spk2';u.textContent=['✨','⭐','💫','🌟'][k%4];const a=k/8*6.283;u.style.setProperty('--tx',Math.round(Math.cos(a)*(90+Math.random()*30))+'px');u.style.setProperty('--ty',Math.round(Math.sin(a)*(70+Math.random()*30))+'px');f.appendChild(u);setTimeout(()=>u.remove(),750)}});
 document.addEventListener('pointermove',e=>{const f=e.target.closest&&e.target.closest('.cdw');if(!f)return;const r=f.getBoundingClientRect();f.style.setProperty('--mx',((e.clientX-r.left)/r.width*100).toFixed(0)+'%');f.style.setProperty('--my',((e.clientY-r.top)/r.height*100).toFixed(0)+'%')},{passive:true});
 
-(()=>{let c=null;const rs=()=>{if(!c)return;c.classList.remove('hold','tl');c.style.setProperty('--rx','0deg');c.style.setProperty('--ry','0deg');c=null};
-document.addEventListener('pointerdown',e=>{const f=e.target.closest&&e.target.closest('.cdw');if(!f)return;c=f;const r=f.getBoundingClientRect(),px=(e.clientX-r.left)/r.width-.5,py=(e.clientY-r.top)/r.height-.5;f.classList.add('hold','tl');f.style.setProperty('--ry',(px*26).toFixed(1)+'deg');f.style.setProperty('--rx',(-py*22).toFixed(1)+'deg')},{passive:true});
+(()=>{let c=null;const rs=()=>{if(!c)return;c.classList.remove('hold','cdtilt');c.style.setProperty('--rx','0deg');c.style.setProperty('--ry','0deg');c=null};
+document.addEventListener('pointerdown',e=>{const f=e.target.closest&&e.target.closest('.cdw');if(!f)return;c=f;const r=f.getBoundingClientRect(),px=(e.clientX-r.left)/r.width-.5,py=(e.clientY-r.top)/r.height-.5;f.classList.add('hold','cdtilt');f.style.setProperty('--ry',(px*26).toFixed(1)+'deg');f.style.setProperty('--rx',(-py*22).toFixed(1)+'deg')},{passive:true});
 document.addEventListener('pointermove',e=>{if(!c||e.pointerType==='mouse')return;const r=c.getBoundingClientRect(),px=Math.max(-.6,Math.min(.6,(e.clientX-r.left)/r.width-.5)),py=Math.max(-.6,Math.min(.6,(e.clientY-r.top)/r.height-.5));c.style.setProperty('--ry',(px*26).toFixed(1)+'deg');c.style.setProperty('--rx',(-py*22).toFixed(1)+'deg')},{passive:true});
 ['pointerup','pointercancel'].forEach(n=>document.addEventListener(n,rs,{passive:true}))})();
 init();
@@ -998,12 +1013,12 @@ document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest
 // v23: kartochka — sichqoncha bilan qiyshayish va sudrash, klaviatura, flip animatsiyasi
 (()=>{let c=null,x0=0,dx=0,drag=0;const run=()=>typeof S!=='undefined'&&S.run;
  const go=nx=>{if(!run()||(!nx&&S.run.i<=0))return false;const f=$('#cdw');if(f){f.style.transition='transform .2s cubic-bezier(.3,1.2,.5,1),opacity .18s';f.style.transform=`translateX(${nx?-440:440}px) rotate(${nx?-18:18}deg)`;f.style.opacity='0'}try{hap('medium')}catch{}setTimeout(()=>{S.run.i+=nx?1:-1;step()},150);return true};
- const rst=f=>{f.classList.remove('tl');f.style.setProperty('--rx','0deg');f.style.setProperty('--ry','0deg')};
+ const rst=f=>{f.classList.remove('cdtilt');f.style.setProperty('--rx','0deg');f.style.setProperty('--ry','0deg')};
  document.addEventListener('pointerdown',e=>{if(e.pointerType!=='mouse')return;c=e.target.closest&&e.target.closest('.cdw');if(c){x0=e.clientX;dx=0;drag=0}},{passive:true});
  document.addEventListener('pointermove',e=>{if(e.pointerType!=='mouse')return;
   if(c&&(e.buttons&1)){dx=e.clientX-x0;if(Math.abs(dx)>8)drag=1;if(drag){rst(c);c.style.transition='none';c.style.transform=`translateX(${dx*.7}px) rotate(${dx/22}deg)`;return}}
-  const f=e.target.closest&&e.target.closest('.cdw');document.querySelectorAll('.cdw.tl').forEach(x=>{if(x!==f)rst(x)});if(!f)return;
-  const r=f.getBoundingClientRect(),px=(e.clientX-r.left)/r.width-.5,py=(e.clientY-r.top)/r.height-.5;f.classList.add('tl');f.style.setProperty('--ry',(px*16).toFixed(1)+'deg');f.style.setProperty('--rx',(-py*14).toFixed(1)+'deg')},{passive:true});
+  const f=e.target.closest&&e.target.closest('.cdw');document.querySelectorAll('.cdw.cdtilt').forEach(x=>{if(x!==f)rst(x)});if(!f)return;
+  const r=f.getBoundingClientRect(),px=(e.clientX-r.left)/r.width-.5,py=(e.clientY-r.top)/r.height-.5;f.classList.add('cdtilt');f.style.setProperty('--ry',(px*16).toFixed(1)+'deg');f.style.setProperty('--rx',(-py*14).toFixed(1)+'deg')},{passive:true});
  document.addEventListener('pointerup',e=>{if(e.pointerType!=='mouse'||!c)return;const f=c;c=null;if(!drag)return;window._sw=Date.now();
   if(Math.abs(dx)>70&&go(dx<0))return;f.style.transition='transform .25s cubic-bezier(.3,1.2,.5,1)';f.style.transform=''},{passive:true});
  document.addEventListener('click',e=>{const f=e.target.closest&&e.target.closest('.cdw');if(!f||Date.now()-(window._sw||0)<=400)return;try{hap('light')}catch{}f.classList.remove('pop');void f.offsetWidth;f.classList.add('pop');setTimeout(()=>f.classList.remove('pop'),460)});
