@@ -352,6 +352,14 @@ async function streamExtract(file,defPos,auto,job,size){
   return P.items.slice(0,MAXW)}
 async function extract(file,defPos,auto,job){return await extract0(file,defPos,auto,job)}
 const rmF=F=>{try{F&&F.path&&fs.unlinkSync(F.path)}catch{}};
+// PDF matnini alohida jarayonda o'qiymiz: murakkab/katta PDF serverni o'chirib yubormasin (xotira yetmasa faqat o'sha jarayon to'xtaydi)
+const PDF_CHILD=`const fs=require('fs');(async()=>{try{const buf=fs.readFileSync(process.argv[1]);const pdf=require('pdf-parse/lib/pdf-parse.js');const pg=[];const r=await pdf(buf,{pagerender:p=>p.getTextContent().then(tc=>{let t='',ly=null;for(const it of tc.items){if(ly!==null&&Math.abs(it.transform[5]-ly)>2)t+='\\n';t+=it.str;ly=it.transform[5]}pg.push(t);return t})});process.stdout.write(JSON.stringify({pages:r.numpages||pg.length,pg,text:pg.length?'':(r.text||'')}))}catch(e){process.stderr.write(String(e&&e.message||e));process.exit(2)}})()`;
+function pdfChild(path,job){return new Promise(res=>{let out=[],err='',done=0,tm=null;const fin=x=>{if(!done){done=1;clearTimeout(tm);res(x)}};
+  let cp;try{cp=require('child_process').spawn(process.execPath,['--max-old-space-size='+(+process.env.PDF_MEM||1024),'-e',PDF_CHILD,path],{cwd:__dirname,env:{...process.env,NODE_PATH:require('path').join(__dirname,'node_modules')},stdio:['ignore','pipe','pipe']})}catch(e){return fin(null)}
+  tm=setTimeout(()=>{try{cp.kill('SIGKILL')}catch{}if(job)job.pdfNote="PDF juda uzoq o'qildi (vaqt tugadi)";fin(null)},+process.env.PDF_TIMEOUT||180000);
+  cp.stdout.on('data',d=>out.push(d));cp.stderr.on('data',d=>{err+=d});cp.on('error',()=>fin(null));
+  cp.on('close',(code,sig)=>{if(code!==0){console.error('pdf-child to\'xtadi:',code,sig,err.slice(0,200));if(job)job.pdfNote="PDF o'qilmadi ("+(sig||code===null?"xotira yetmadi":err.slice(0,80)||'xato')+")";return fin(null)}
+    try{fin(JSON.parse(Buffer.concat(out).toString()))}catch{fin(null)}})})}
 async function extract0(file,defPos,auto,job){
   const nm=file.originalname.toLowerCase(),size=fs.statSync(file.path).size,ext=(nm.match(/\.([a-z0-9]+)$/)||[])[1]||'',gm=GEMMIME[ext],bigVis=!!(gm&&USE_GEMINI&&size>6e6&&(ext!=='pdf'||size>150e6));
   if(ext==='hwp'){if(job)job.readErr="eski .hwp formati o'qilmaydi — Hangul'da «Boshqacha saqlash» orqali PDF, HWPX yoki DOCX qilib saqlang";return null}
@@ -360,9 +368,9 @@ async function extract0(file,defPos,auto,job){
   let txt='',visual=null,pages=0,vpl=null;const emptyP=[];
   try{
     if(bigVis){visual=gm;if(ext==='pdf'){pages=countPdfPages(file.path);if(job)job.pages=pages}}
-    else if(/\.pdf$/.test(nm)){try{const pg=[],pr0=await require('pdf-parse')(buf,{pagerender:p=>p.getTextContent().then(tc=>{let t='',ly=null;for(const it of tc.items){if(ly!==null&&Math.abs(it.transform[5]-ly)>2)t+='\n';t+=it.str;ly=it.transform[5]}pg.push(t);return t})});
-      pages=pr0.numpages||pg.length;txt=pg.length?pg.join('\n'):(pr0.text||'');if(job){job.pages=pages}
-      pg.forEach((t,i)=>{if(t.replace(/\s/g,'').length<15)emptyP.push(i+1)});if(job)job.emptyPages=emptyP.slice()}catch{txt='';pages=(buf.toString('latin1').match(/\/Type\s*\/Page[^s]/g)||[]).length;if(job)job.pages=pages}
+    else if(/\.pdf$/.test(nm)){try{if(job)job.stage="PDF o'qilmoqda...";const R=await pdfChild(file.path,job);if(!R)throw new Error('pdf-child');const pg=R.pg||[];
+      pages=R.pages||pg.length;txt=pg.length?pg.join('\n'):(R.text||'');if(job){job.pages=pages}
+      pg.forEach((t,i)=>{if(t.replace(/\s/g,'').length<15)emptyP.push(i+1)});if(job)job.emptyPages=emptyP.slice()}catch{txt='';if(job&&!job.readErr)job.readErr=job.pdfNote||"PDF matnini o'qib bo'lmadi";pages=(buf.toString('latin1').match(/\/Type\s*\/Page[^s]/g)||[]).length;if(job)job.pages=pages}
       if((txt.replace(/\s/g,'').length<40||!/[가-힣]/.test(txt))&&(buf.length<14e6||USE_GEMINI))visual='application/pdf';
       else if(emptyP.length&&(buf.length<14e6||USE_GEMINI)){visual='application/pdf';vpl=emptyP.slice()}}
     else if(/\.(xlsx|xls|ods)$/.test(nm)){const X=require('xlsx'),wb=X.read(buf);txt=wb.SheetNames.map(n=>X.utils.sheet_to_csv(wb.Sheets[n])).join('\n')}
@@ -485,6 +493,8 @@ function resumeJobs(){try{for(const r of db.prepare('select * from jobs').all())
     (pr.P.kind==='book'?runBookJob:runImportJob)(j,{...pr.F},pr.P)}
   else{j.fin=true;j.err="Server qayta ishga tushdi va ishni davom ettirib bo'lmadi (fayl topilmadi yoki ikki marta urinildi). Shu vaqtgacha qo'shilgan so'zlar saqlangan: "+(j.added||0)+" ta. Faylni qayta yuklasangiz, takroriy so'zlar o'tkazib yuboriladi.";db.prepare('update jobs set j=? where id=?').run(JSON.stringify(j),r.id)}}}catch(e){console.error('resume',e)}}
 setTimeout(resumeJobs,1500);
+console.log('Server ishga tushdi',new Date().toISOString(),'| xotira',Math.round(process.memoryUsage().rss/1048576)+' MB');
+setInterval(()=>{const a=Object.values(jobs).filter(j=>!j.fin);if(a.length)console.log('ish davom etmoqda | xotira',Math.round(process.memoryUsage().rss/1048576)+' MB |',a.map(j=>j.stage).join(' / '))},10000).unref();
 app.get('/api/admin/status',adm('admins'),(r,s)=>s.json({key:!!AI_KEY,keyLen:(AI_KEY||'').length,provider:USE_GEMINI?'Gemini':'Claude',model:FOXM,bot:!!BOT_TOKEN,webapp:WEBAPP_URL||'',data:DATA}));
 app.post('/api/admin/claude-test',adm('admins'),async(r,s)=>{if(!AI_KEY)return s.json({ok:false,error:"GEMINI_API_KEY serverda ko'rinmayapti. Railway → Variables'ga qo'shing va Deploy bosing. Ikkita loyiha bo'lsa, domen bog'langan loyihaga qo'shing."});
   try{const t=await callClaude([{role:'user',content:"Bir so'z bilan javob ber: tayyormisan?"}],"Qisqa javob ber.",50);s.json({ok:true,reply:t,model:FOXM})}catch(e){s.json({ok:false,error:String(e.message||e)})}});
