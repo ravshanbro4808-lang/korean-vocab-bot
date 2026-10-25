@@ -505,6 +505,34 @@ rp{background:rgba(0,0,0,.18)!important}
 .cdbar .pill,.cdbar .bkb{font-size:23px;padding:17px 18px;min-width:60px;border-radius:20px}
 main:has(.cdbar){padding-bottom:128px}
 @media (max-width:360px){.cdbar{gap:7px}.cdbar .pill,.cdbar .bkb{padding:15px 13px;font-size:20px;min-width:52px}.cdbar .nxt{font-size:17px;padding:16px 6px}}
+/* ===== kartochka dizaynlari: har biri o'ziga xos + interaktiv ===== */
+.cdf .pt{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;clip-path:inset(0 round 28px)}
+.cdf[class*=sk] .bgr::before{display:none!important}
+.cdf .gl{transform:translate(calc(var(--px,0)*90px),calc(var(--py,0)*90px));transition:transform .12s linear}
+.cdf .ct{transform:translate(calc(var(--px,0)*-12px),calc(var(--py,0)*-9px));transition:transform .12s linear}
+.cdw.on .cdf .ct{transform:translate(calc(var(--px,0)*12px),calc(var(--py,0)*-9px))}
+.cdf .bg,.cdf .bgr{transform:translate(calc(var(--px,0)*5px),calc(var(--py,0)*4px));transition:transform .12s linear}
+.cdw.on .cdf .bg,.cdw.on .cdf .bgr{transform:translate(calc(var(--px,0)*-5px),calc(var(--py,0)*4px))}
+.cdf .orn{position:absolute;z-index:3;font-style:normal;color:#fff;font-size:20px;line-height:1;opacity:.9;filter:drop-shadow(0 2px 2px #0005);pointer-events:none;transform:translate(calc(var(--px,0)*-22px),calc(var(--py,0)*-16px));transition:transform .12s linear}
+.cdf .orn.ob{font-size:15px;opacity:.7}
+.cdw.on .cdf .orn{transform:translate(calc(var(--px,0)*22px),calc(var(--py,0)*-16px))}
+/* matn uslublari */
+.cdf.sk1 .tx2{color:#fff;-webkit-text-stroke:2.5px var(--dk);paint-order:stroke fill;text-shadow:0 4px 0 var(--dk)}
+.cdf.sk2 .tx2{font-family:Georgia,'Times New Roman',serif;font-style:italic;font-weight:700;letter-spacing:0;text-shadow:0 2px 12px #0006}
+.cdf.sk3 .tx2{font-family:ui-monospace,Menlo,Consolas,monospace;font-weight:800;letter-spacing:.5px;text-shadow:3px 3px 0 var(--dk)}
+.cdf.sk4 .tx2{color:#fff;text-shadow:0 0 5px #fff,0 0 12px var(--c1),0 0 26px var(--c1),0 0 42px var(--c2)}
+.cdf.sk5 .tx2{color:rgba(0,0,0,.72);text-shadow:0 1.5px 0 rgba(255,255,255,.6);letter-spacing:.2px}
+.cdf.sk6 .tx2{background:linear-gradient(180deg,#fff,#ffe9b0);-webkit-background-clip:text;background-clip:text;color:transparent;text-shadow:none;filter:drop-shadow(0 2px 0 rgba(0,0,0,.4))}
+.cdf.sk7 .tx2{font-family:'Trebuchet MS','Comic Sans MS',cursive,sans-serif;transform:rotate(-3deg);text-shadow:0 3px 0 var(--dk)}
+/* ramka uslublari (to'g'ri to'rtburchak kartalar) */
+.cdf.sk1 .bgr::after{border:2px solid #ffffff77}
+.cdf.sk2 .bgr::after{inset:9px;border:5px double #ffffff66}
+.cdf.sk3 .bgr::after{display:none}
+.cdf.sk4 .bgr::after{border:2px solid #ffffffcc;box-shadow:0 0 14px #fff9,inset 0 0 14px #fff6}
+.cdf.sk5 .bgr::after{border:3px dotted #ffffff88}
+.cdf.sk6 .bgr::after{display:none}
+.cdf.sk7 .bgr::after{border:3px dashed #ffffff77;border-radius:8px 24px 8px 24px}
+.frm{opacity:.7;font-size:12px}.cdform{margin-bottom:6px;font-size:14px;opacity:1}
 </style></head><body><div id="hd"></div><main id="m"></main>
 <script>
 try{localStorage.rm='0'}catch{}
@@ -597,21 +625,34 @@ const SH=(()=>{const st='fill="FILL" stroke="#ffffff99" stroke-width="1.4"';
  cloud:{vb:'0 14 100 76',ar:'100/76',box:[24,34,62,53],svg:`<g fill="FILL"><circle cx="27" cy="62" r="19"/><circle cx="46" cy="44" r="24"/><circle cx="70" cy="50" r="22"/><circle cx="80" cy="64" r="16"/><rect x="18" y="60" width="70" height="22" rx="11"/></g>`}}})();
 const SHK=['moon','flower','circle','oval','heart','burst','hexagon','cloud'];
 const mixc=(h,t,a)=>{const n=parseInt(h.slice(1),16),m=t=='w'?255:0,f=c=>Math.round(c+(m-c)*a).toString(16).padStart(2,'0');return '#'+f(n>>16)+f(n>>8&255)+f(n&255)};
-function cardFace(i,side,txt,kind){const p=CPAL[(i+(side=='k'?4:0))%CPAL.length],dk=mixc(p[1],'k',.42),sty=`--c1:${p[0]};--c2:${p[1]};--dk:${dk}`,tag=side=='f'?'🇰🇷':'🇺🇿';
- if(kind=='rect')return `<div class="cdf ${side}" style="${sty}"><div class=bgr></div><i class=cdtag>${tag}</i><div class=ct style="left:6%;top:8%;width:88%;height:84%"><b class=tx2>${esc(txt)}</b></div></div>`;
+const ORN=['✦','❀','★','♪','✿','◆','☾','❖'];
+function skinG(sk,id,i){const rn=(n=>{let x=(i*977+sk*131+n*7919)%2147483647||1;return()=>(x=x*48271%2147483647)/2147483647})(7),W='fill="#fff"';let g='';
+ if(sk==0)g=`<pattern id="p${id}" width="8" height="8" patternUnits="userSpaceOnUse"><circle cx="4" cy="4" r="1.3" ${W} fill-opacity=".3"/></pattern><rect x="-10" y="-10" width="120" height="120" fill="url(#p${id})"/>`;
+ else if(sk==1)g=`<pattern id="p${id}" width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(35)"><rect width="5" height="10" ${W} fill-opacity=".17"/></pattern><rect x="-20" y="-20" width="140" height="140" fill="url(#p${id})"/>`;
+ else if(sk==2)g=`<pattern id="p${id}" width="12" height="12" patternUnits="userSpaceOnUse"><path d="M12 0H0V12" fill="none" stroke="#fff" stroke-opacity=".24" stroke-width=".7"/></pattern><rect x="-10" y="-10" width="120" height="120" fill="url(#p${id})"/>`;
+ else if(sk==3){for(let k=0;k<16;k++){const x=rn()*100,y=rn()*100,r=2+rn()*4;g+=`<path transform="translate(${x.toFixed(1)} ${y.toFixed(1)}) scale(${(r/3).toFixed(2)})" d="M0-3L1-1 3 0 1 1 0 3-1 1-3 0-1-1Z" ${W} fill-opacity="${(.35+rn()*.4).toFixed(2)}"/>`}}
+ else if(sk==4){for(let y=12;y<100;y+=13)g+=`<path d="M-10 ${y} q 10 -7 20 0 t 20 0 t 20 0 t 20 0 t 20 0 t 20 0 t 20 0" fill="none" stroke="#fff" stroke-opacity=".24" stroke-width="1.3"/>`}
+ else if(sk==5){const cl=['#fff','#ffe66d','#ff9ff3','#a0f0ff'];for(let k=0;k<26;k++){const x=rn()*100,y=rn()*100;g+=`<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="3.2" height="1.6" rx=".6" fill="${cl[k%4]}" fill-opacity=".6" transform="rotate(${Math.round(rn()*180)} ${x.toFixed(1)} ${y.toFixed(1)})"/>`}}
+ else if(sk==6){for(let r=10;r<=84;r+=11)g+=`<circle cx="50" cy="50" r="${r}" fill="none" stroke="#fff" stroke-opacity="${(.28-r*.0022).toFixed(2)}" stroke-width="1.2"/>`}
+ else g=`<polygon points="-10,62 120,-22 120,8 -10,92" ${W} fill-opacity=".14"/><polygon points="-10,100 120,20 120,30 -10,110" ${W} fill-opacity=".1"/>`;
+ return g+`<radialGradient id="gl${id}"><stop offset="0" stop-color="#fff" stop-opacity=".5"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient><circle class="gl" cx="50" cy="50" r="58" fill="url(#gl${id})"/>`}
+function cardFace(i,side,txt,kind){const p=CPAL[(i+(side=='k'?4:0))%CPAL.length],dk=mixc(p[1],'k',.42),sty=`--c1:${p[0]};--c2:${p[1]};--dk:${dk}`,tag=side=='f'?'🇰🇷':'🇺🇿',sk=(i*3+(side=='k'?5:0))%8,gl=ORN[sk],uid='s'+i+side;
+ const orn=(bx,by,bw,bh)=>`<i class="orn oa" style="left:${bx+bw-9}%;top:${by-5}%">${gl}</i><i class="orn ob" style="left:${bx+2}%;top:${by+bh-1}%">${gl}</i>`;
+ if(kind=='rect')return `<div class="cdf ${side} sk${sk}" style="${sty}"><div class=bgr></div><svg class=pt viewBox="0 0 100 100" preserveAspectRatio="none">${skinG(sk,uid,i)}</svg><i class=cdtag>${tag}</i>${orn(6,8,88,84)}<div class=ct style="left:6%;top:8%;width:88%;height:84%"><b class=tx2>${esc(txt)}</b></div></div>`;
  const sh=SH[SHK[i%SHK.length]],id='g'+i+side,fill=`url(#${id})`;
  let ext='';for(let k=5;k>=1;k--)ext+=`<g transform="translate(0 ${(k*.8).toFixed(1)})">${sh.svg.replace(/stroke="[^"]*"/g,'stroke="none"').replace(/FILL/g,dk).replace(/MID/g,'m'+id+k)}</g>`;
- const svg=sh.svg.replace(/FILL/g,fill).replace(/MID/g,'m'+id);
- return `<div class="cdf ${side}" style="${sty}"><svg class=bg viewBox="${sh.vb}" preserveAspectRatio="none"><defs><linearGradient id="${id}" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="100" y2="100"><stop offset="0" stop-color="${mixc(p[0],'w',.38)}"/><stop offset=".45" stop-color="${p[0]}"/><stop offset="1" stop-color="${p[1]}"/></linearGradient></defs>${ext}${svg}</svg><div class=ct style="left:${sh.box[0]}%;top:${sh.box[1]}%;width:${sh.box[2]}%;height:${sh.box[3]}%"><b class=tx2>${esc(txt)}</b></div></div>`}
+ const svg=sh.svg.replace(/FILL/g,fill).replace(/MID/g,'m'+id),mk=`<mask id="k${id}" maskUnits="userSpaceOnUse" x="-20" y="-20" width="140" height="140"><g>${sh.svg.replace(/stroke="[^"]*"/g,'stroke="none"').replace(/FILL/g,'#fff').replace(/MID/g,'n'+id)}</g></mask>`;
+ return `<div class="cdf ${side} sk${sk}" style="${sty}"><svg class=bg viewBox="${sh.vb}" preserveAspectRatio="none"><defs><linearGradient id="${id}" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="100" y2="100"><stop offset="0" stop-color="${mixc(p[0],'w',.38)}"/><stop offset=".45" stop-color="${p[0]}"/><stop offset="1" stop-color="${p[1]}"/></linearGradient>${mk}</defs>${ext}${svg}<g mask="url(#k${id})">${skinG(sk,uid,i)}</g></svg>${orn(...sh.box)}<div class=ct style="left:${sh.box[0]}%;top:${sh.box[1]}%;width:${sh.box[2]}%;height:${sh.box[3]}%"><b class=tx2>${esc(txt)}</b></div></div>`}
 function cardHTML(r,w){const kind=r.shape,sh=kind=='rect'?{ar:'3/2'}:SH[SHK[r.i%SHK.length]];
  return `<div class=cdw id=cdw style="--ar:${sh.ar}" onclick="cdFlip(this)"><div class=cdi>${cardFace(r.i,'f',w.ko,kind)}${cardFace(r.i,'k',w.uz,kind)}</div></div>`}
 function cdRepeat(){const e=$('#cdw');if(e&&e.classList.contains('on'))cdFlip(e);playWord(cur())}
 function cdFlip(f){if(Date.now()-(window._sw||0)<400||f._fl)return;const i=f.querySelector('.cdi');if(!i)return;const on=f.classList.contains('on'),a=on?180:0,b=on?0:180,m=(a+b)/2;f.classList.toggle('on');
- if(!i.animate)return;f._fl=1;const an=i.animate([{transform:`rotateY(${a}deg) translateZ(0) scale(1)`},{transform:`rotateY(${m}deg) rotateX(-10deg) translateZ(0) scale(.94)`,offset:.5},{transform:`rotateY(${b}deg) translateZ(0) scale(1)`}],{duration:190,easing:'cubic-bezier(.4,.1,.3,1)'});an.onfinish=an.oncancel=()=>{f._fl=0}}
+ if(!i.animate)return;f._fl=1;const an=i.animate([{transform:`rotateY(${a}deg) translateZ(0) scale(1)`},{transform:`rotateY(${m}deg) rotateX(-10deg) translateZ(0) scale(.94)`,offset:.5},{transform:`rotateY(${b}deg) translateZ(0) scale(1)`}],{duration:420,easing:'cubic-bezier(.4,.1,.3,1)'});an.onfinish=an.oncancel=()=>{f._fl=0}}
 function fitCd(){document.querySelectorAll('.cdf .ct').forEach(ct=>{const el=ct.firstElementChild;if(!el||!ct.clientWidth)return;const bad=()=>el.scrollHeight>ct.clientHeight+1||el.scrollWidth>ct.clientWidth+1;let fs=46;el.style.overflowWrap='normal';el.style.fontSize=fs+'px';while(bad()&&fs>11){fs-=1;el.style.fontSize=fs+'px'}
  if(bad()){el.style.overflowWrap='anywhere';fs=30;el.style.fontSize=fs+'px';while(bad()&&fs>9){fs-=1;el.style.fontSize=fs+'px'}}})}
 const WD={};
-function wrow(x){return `<div class=wr id=wr${x.id}><span><b>${esc(x.ko)}</b> <small>${esc(x.uz)}</small></span><span><button class=cb onclick="playWord(WD[${x.id}])">🔊</button>${has('dicts')?`<button class=cb onclick="editWord(${x.id})">✏️</button>`:''}</span></div>`}
+const frm=x=>x.form&&x.form!==x.ko?`<br><small class=frm>matnda: ${esc(x.form)}</small>`:'';
+function wrow(x){return `<div class=wr id=wr${x.id}><span><b>${esc(x.ko)}</b> <small>${esc(x.uz)}</small>${frm(x)}</span><span><button class=cb onclick="playWord(WD[${x.id}])">🔊</button>${has('dicts')?`<button class=cb onclick="editWord(${x.id})">✏️</button>`:''}</span></div>`}
 async function wordsView(id,pf){head("Barcha so'zlar",'back()');const [w,t]=await Promise.all([api('/words?dict='+id),api('/tree/'+id)]);S.lvn[id]=t.levels||[];S.wvd=id;w.forEach(x=>WD[x.id]=x);
  const all=w,cnt={};all.forEach(x=>cnt[x.pos]=(cnt[x.pos]||0)+1);const list=pf?all.filter(x=>x.pos==pf):all;const g={};list.forEach(x=>{const k=x.level+'|'+x.pos+'|'+x.section;(g[k]=g[k]||[]).push(x)});
  const keys=posAll(t.rows);
@@ -639,12 +680,12 @@ function ask1(){const w=cur();nav(foxChat,[w],`«${w.ko}» (${w.uz}) so'zini tus
 const foxBtn='<button class="pill fx" onclick="ask1()">🦊 Tulkidan so\'ra</button>';
 function step(keep){const r=S.run;head('Mashq','leave()');r.ans=null;if(r.mode=='speed'&&r.i>=r.w.length&&Date.now()<r.deadline){r.w=shuf(r.w);r.i=0}
  const w=r.w[r.i];
- if(r.mode=='list')return H(r.w.map(x=>`<div class=card><div><b>${esc(x.ko)}</b><br><small>${esc(x.uz)}</small></div><button class=pill onclick="playWord(S.run.w.find(z=>z.id==${x.id}))">🔊</button>${lrn(x)}</div>`).join(''));
+ if(r.mode=='list')return H(r.w.map(x=>`<div class=card><div><b>${esc(x.ko)}</b><br><small>${esc(x.uz)}</small>${frm(x)}</div><button class=pill onclick="playWord(S.run.w.find(z=>z.id==${x.id}))">🔊</button>${lrn(x)}</div>`).join(''));
  if(!w||(r.mode=='life'&&r.lives<=0)){clearInterval(S.ti);if(!r.sent){r.sent=1;api('/score',{body:{points:r.score}}).catch(()=>{});confetti()}return H(`${mas("Zo'r natija! 🎉")}<div class=sticker>🏆 ${r.score}${r.mode=='speed'?' ball':' / '+r.w.length}</div><button class=nxt onclick="leave()">Davom etish ➜</button>`)}
  const pr=r.mode=='speed'?`<div class=sp2><b id=tm>⏱ 60</b><span>⭐ ${r.score}</span></div>`:r.mode=='life'?`<div class=sp2><b>${'❤️'.repeat(r.lives)}${'🖤'.repeat(3-r.lives)}</b><span>⭐ ${r.score}</span></div>`:`<div class=pb><i style="width:${Math.round(r.i/r.w.length*100)}%"></i></div>`;
  const nx=`<div class=navr>${r.i>0?'<button class=bkb onclick="S.run.i--;step()">⬅ Orqaga</button>':''}<button class=nxt onclick="S.run.i++;step()">Keyingi ➜</button></div>`;
  if(r.mode=='cards'){const nx2=`<div class=cdbar>${r.i>0?'<button class=bkb onclick="S.run.i--;step()">⬅</button>':''}<button class=pill onclick="playWord(cur())">🔊</button><button class=pill onclick="cdRepeat()">🔁</button><button class=nxt onclick="S.run.i++;step()">Keyingi ➜</button></div>`;
-  return H(pr+mas(r.shape=='rect'?"Kartani bosing — tarjimasi ochiladi!":"Shaklni bosing — tarjimasi ochiladi!")+cardHTML(r,w)+`<div class=cdinfo>${r.i+1} / ${r.w.length} · ${esc(POS[w.pos]||"So'z")} · 👆 bosing · ⬅ ➡ suring</div>${nx2}<div class=row>${lrn(w)}${foxBtn}</div>`)}
+  return H(pr+mas(r.shape=='rect'?"Kartani bosing — tarjimasi ochiladi!":"Shaklni bosing — tarjimasi ochiladi!")+cardHTML(r,w)+`<div class=cdinfo>${w.form&&w.form!==w.ko?`<div class=cdform>📝 Matnda: <b>${esc(w.form)}</b> · Oddiy shakli: <b>${esc(w.ko)}</b></div>`:''}${r.i+1} / ${r.w.length} · ${esc(POS[w.pos]||"So'z")} · 👆 bosing · ⬅ ➡ suring</div>${nx2}<div class=row>${lrn(w)}${foxBtn}</div>`)}
 
  if(r.mode=='rev'||r.mode=='mix'){r.dirs=r.dirs||{};if(r.dirs[r.i]===undefined)r.dirs[r.i]=r.mode=='rev'?1:(Math.random()<.5?1:0);const d=r.dirs[r.i],key=d?'ko':'uz',qk=d?'uz':'ko';r.ans=w[key];
   const o=r.o&&r.oi==r.i&&r.od==d?r.o:(r.o=shuf([w[key],...shuf([...new Set(r.w.filter(x=>x.id!=w.id&&x[key]&&x[key]!=w[key]).map(x=>x[key]))]).slice(0,3)]),r.oi=r.i,r.od=d,r.o);
@@ -980,9 +1021,9 @@ async function imp(){const f=$('#if').files[0];if(!f)return;const fd=new FormDat
 async function claudeTest(){const r=await api('/admin/claude-test',{body:{}});alert(r.ok?`✅ Ishlayapti! Javob: ${r.reply}\nModel: ${r.model}`:'❌ Xato: '+r.error)}
 document.addEventListener('click',e=>{const f=e.target.closest&&e.target.closest('.cdw');if(!f||Date.now()-(window._sw||0)<=400)return;
  for(let k=0;k<8;k++){const u=document.createElement('u');u.className='spk2';u.textContent=['✨','⭐','💫','🌟'][k%4];const a=k/8*6.283;u.style.setProperty('--tx',Math.round(Math.cos(a)*(90+Math.random()*30))+'px');u.style.setProperty('--ty',Math.round(Math.sin(a)*(70+Math.random()*30))+'px');f.appendChild(u);setTimeout(()=>u.remove(),750)}});
-document.addEventListener('pointermove',e=>{const f=e.target.closest&&e.target.closest('.cdw');if(!f)return;const r=f.getBoundingClientRect();f.style.setProperty('--mx',((e.clientX-r.left)/r.width*100).toFixed(0)+'%');f.style.setProperty('--my',((e.clientY-r.top)/r.height*100).toFixed(0)+'%')},{passive:true});
+document.addEventListener('pointermove',e=>{const f=e.target.closest&&e.target.closest('.cdw');if(!f)return;const r=f.getBoundingClientRect();f.style.setProperty('--mx',((e.clientX-r.left)/r.width*100).toFixed(0)+'%');f.style.setProperty('--my',((e.clientY-r.top)/r.height*100).toFixed(0)+'%');f.style.setProperty('--px',Math.max(-.6,Math.min(.6,(e.clientX-r.left)/r.width-.5)).toFixed(2));f.style.setProperty('--py',Math.max(-.6,Math.min(.6,(e.clientY-r.top)/r.height-.5)).toFixed(2))},{passive:true});
 
-(()=>{let c=null;const rs=()=>{if(!c)return;c.classList.remove('hold','cdtilt');c.style.setProperty('--rx','0deg');c.style.setProperty('--ry','0deg');c=null};
+(()=>{let c=null;const rs=()=>{if(!c)return;c.classList.remove('hold','cdtilt');c.style.setProperty('--rx','0deg');c.style.setProperty('--ry','0deg');c.style.setProperty('--px','0');c.style.setProperty('--py','0');c=null};
 document.addEventListener('pointerdown',e=>{const f=e.target.closest&&e.target.closest('.cdw');if(!f)return;c=f;const r=f.getBoundingClientRect(),px=(e.clientX-r.left)/r.width-.5,py=(e.clientY-r.top)/r.height-.5;f.classList.add('hold','cdtilt');f.style.setProperty('--ry',(px*26).toFixed(1)+'deg');f.style.setProperty('--rx',(-py*22).toFixed(1)+'deg')},{passive:true});
 document.addEventListener('pointermove',e=>{if(!c||e.pointerType==='mouse')return;const r=c.getBoundingClientRect(),px=Math.max(-.6,Math.min(.6,(e.clientX-r.left)/r.width-.5)),py=Math.max(-.6,Math.min(.6,(e.clientY-r.top)/r.height-.5));c.style.setProperty('--ry',(px*26).toFixed(1)+'deg');c.style.setProperty('--rx',(-py*22).toFixed(1)+'deg')},{passive:true});
 ['pointerup','pointercancel'].forEach(n=>document.addEventListener(n,rs,{passive:true}))})();
@@ -1032,7 +1073,7 @@ document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest
 // v23: kartochka — sichqoncha bilan qiyshayish va sudrash, klaviatura, flip animatsiyasi
 (()=>{let c=null,x0=0,dx=0,drag=0;const run=()=>typeof S!=='undefined'&&S.run;
  const go=nx=>{if(!run()||(!nx&&S.run.i<=0))return false;const f=$('#cdw');if(f){f.style.transition='transform .2s cubic-bezier(.3,1.2,.5,1),opacity .18s';f.style.transform=`translateX(${nx?-440:440}px) rotate(${nx?-18:18}deg)`;f.style.opacity='0'}try{hap('medium')}catch{}setTimeout(()=>{S.run.i+=nx?1:-1;step()},150);return true};
- const rst=f=>{f.classList.remove('cdtilt');f.style.setProperty('--rx','0deg');f.style.setProperty('--ry','0deg')};
+ const rst=f=>{f.classList.remove('cdtilt');f.style.setProperty('--rx','0deg');f.style.setProperty('--ry','0deg');f.style.setProperty('--px','0');f.style.setProperty('--py','0')};
  document.addEventListener('pointerdown',e=>{if(e.pointerType!=='mouse')return;c=e.target.closest&&e.target.closest('.cdw');if(c){x0=e.clientX;dx=0;drag=0}},{passive:true});
  document.addEventListener('pointermove',e=>{if(e.pointerType!=='mouse')return;
   if(c&&(e.buttons&1)){dx=e.clientX-x0;if(Math.abs(dx)>8)drag=1;if(drag){rst(c);c.style.transition='none';c.style.transform=`translateX(${dx*.7}px) rotate(${dx/22}deg)`;return}}
