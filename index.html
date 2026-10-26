@@ -879,14 +879,14 @@ function gSegs(t){t=t.replace(/\p{Extended_Pictographic}/gu,' ').replace(/\uFE0F
  return segs.slice(0,14)}
 function gSpeak(t,end,fail){const segs=gSegs(t);if(!segs.length)return fail();let k=0,any=0;
  const next=()=>{if(k>=segs.length)return end();const [x,l]=segs[k++];playSrc('https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl='+l+'&q='+encodeURIComponent(x),()=>{any=1;next()},()=>{if(any)next();else fail()},30000)};next()}
-function foxSpeak(i,cb){const f=S.fox,tk=f.spk=(f.spk||0)+1;f.speaking=1;stSet('🦊 gapiryapti...','speak');let d=0,er=0;micMute(f,1);
+function foxSpeak(i,cb){const f=S.fox,tk=f.spk=(f.spk||0)+1;f.speaking=1;stSet('🦊 gapiryapti...','speak');let d=0,er=0,why='';micMute(f,1);
  const t=String(f.msgs[i].content||'').replace(/[*_#`]/g,'').trim();
  const go=()=>{if(d)return;d=1;if(f.spk!==tk)return;f.speaking=0;spkUi();if(f.talk)stSet('🎙 ovozli suhbat','listen');if(cb)cb()};
- const local=()=>{if(f.spk!==tk)return;try{if(!(speechSynthesis.getVoices()||[]).length)stSet('🔇 Ovoz chiqmadi — javob matnda','speak')}catch{}foxSpeakLocal(i,cb,tk)};
+ const local=()=>{if(f.spk!==tk)return;try{if(!(speechSynthesis.getVoices()||[]).length)stSet('🔇 Ovoz chiqmadi'+(why?' ('+why+')':'')+' — javob matnda','speak')}catch{}foxSpeakLocal(i,cb,tk)};
  const viaG=()=>{if(f.spk!==tk)return;stSet('🔊 Kori gapiryapti (Google ovozi)','speak');f.audio={pause(){try{AUD.pause()}catch{}}};gSpeak(t,go,local)};
  if(!t)return go();
  if(f.noTts&&Date.now()<f.noTts)return viaG();
- (async()=>{try{const r=await api('/fox-tts',{body:{text:t}});if(f.spk!==tk)return;if(!r.a){console.warn('fox-tts:',r.msg||r.e);throw 0}
+ (async()=>{try{const r=await api('/fox-tts',{body:{text:t}});if(f.spk!==tk)return;if(!r.a){why=String(r.msg||r.e||'');console.warn('fox-tts:',why);throw 0}
   try{f.audio&&f.audio.pause()}catch{}
   stSet('🔊 Kori gapiryapti','speak');await playB64(f,r.a,go,()=>{if(!d&&!er){er=1;viaG()}},r.mime);f.ttsFail=0}
  catch(e){if(f.spk!==tk)return;console.warn('fox ovoz:',e);f.ttsFail=(f.ttsFail||0)+1;if(f.ttsFail>=3){f.noTts=Date.now()+60000;f.ttsFail=0}viaG()}})()}
