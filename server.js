@@ -121,7 +121,14 @@ async function geminiTTS(text,mdl){
   let b=Buffer.from(p.inlineData.data,'base64');
   if(b.slice(0,4).toString()!=='RIFF'){const m=String(p.inlineData.mimeType||'').match(/rate=(\d+)/);b=wavWrap(b,m?+m[1]:24000)}
   return b.toString('base64')}
-async function geminiTTSany(text){let le;for(const m of [...new Set([TTSM,'gemini-3.8-flash-tts','gemini-3.8-flash-lite-tts'])]){try{return await geminiTTS(text,m)}catch(e){le=e;if(!/404|not found|no longer|unsupported|invalid/i.test(String(e.message)))throw e}}throw le}
+const ttsDown={};
+async function geminiTTSany(text){let le;const ms=[...new Set([TTSM,'gemini-3.8-flash-tts','gemini-3.8-flash-lite-tts','gemini-2.5-flash-preview-tts','gemini-2.5-pro-preview-tts',...(process.env.GEMINI_TTS_EXTRA||'').split(',').map(x=>x.trim()).filter(Boolean)])];
+  const live=ms.filter(m=>!(ttsDown[m]>Date.now()));
+  for(const m of (live.length?live:ms)){try{return await geminiTTS(text,m)}catch(e){le=e;const t=String(e.message);
+    if(/404|not found|no longer|unsupported|invalid/i.test(t)){ttsDown[m]=Date.now()+864e5;continue}
+    if(/quota|exceed|429|rate|demand|overload|503|unavailable/i.test(t)){ttsDown[m]=Date.now()+(/demand|overload|503|unavailable/i.test(t)?30000:10*60000);continue}
+    throw e}}
+  throw le}
 let gemTtsOff=0;
 async function wordAudio(ko){if(USE_GEMINI&&Date.now()>gemTtsOff){try{return {b:Buffer.from(await geminiTTSany(ko),'base64'),ext:'wav'}}catch(e){if(/quota|exceed|429|demand|404|not found/i.test(String(e.message)))gemTtsOff=Date.now()+30*60000}}
   const r=await fetch('https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=ko&q='+encodeURIComponent(ko),{headers:{'user-agent':'Mozilla/5.0'},signal:AbortSignal.timeout(10000)});if(!r.ok)throw new Error('tts '+r.status);const b=Buffer.from(await r.arrayBuffer());if(b.length<500)throw new Error('tts bosh');return {b,ext:'mp3'}}
@@ -178,15 +185,15 @@ async function foxEdgeTts(t){const segs=ttsSegs(t);if(!segs.length)throw new Err
 // Gemini ovozi bo'lmasa/limit tugasa: Google ovozi (koreyscha va o'zbekcha qismlar alohida o'qiladi)
 async function gTts(text,lang){let le;for(const u of ['https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=','https://translate.googleapis.com/translate_tts?ie=UTF-8&client=gtx&tl=']){try{const r=await fetch(u+lang+'&q='+encodeURIComponent(text),{headers:{'user-agent':'Mozilla/5.0'},signal:AbortSignal.timeout(6000)});if(!r.ok)throw new Error('tts '+r.status);const b=Buffer.from(await r.arrayBuffer());if(b.length<300)throw new Error('tts bosh');return b}catch(e){le=e}}throw le}
 async function foxGoogleTts(t){t=t.replace(/\p{Extended_Pictographic}/gu,' ').replace(/\uFE0F/g,'');const segs=[];
-  for(const m of t.matchAll(/([가-힣ㄱ-ㅎㅏ-ㅣ]+(?:[\s,.!?~·]+[가-힣ㄱ-ㅎㅏ-ㅣ]+)*)|([^가-힣ㄱ-ㅎㅏ-ㅣ]+)/g)){const x=m[0].replace(/\s+/g,' ').trim();if(!x||!/[\p{L}\p{N}]/u.test(x))continue;const lang=m[1]?'ko':'uz';
+  for(const m of t.matchAll(/([가-힣ㄱ-ㅎㅏ-ㅣ]+(?:[\s,.!?~·]+[가-힣ㄱ-ㅎㅏ-ㅣ]+)*)|([^가-힣ㄱ-ㅎㅏ-ㅣ]+)/g)){const x=m[0].replace(/\s+/g,' ').trim();if(!x||!/[\p{L}\p{N}]/u.test(x))continue;const lang=m[1]?'ko':'tr';
     for(let i=0;i<x.length;i+=170){let e=Math.min(x.length,i+170);if(e<x.length){const sp=x.lastIndexOf(' ',e);if(sp>i+60)e=sp}segs.push([x.slice(i,e).trim(),lang]);i=e-170}}
   if(!segs.length)throw new Error('matn yoq');const bufs=[];for(const [x,l] of segs.slice(0,14))bufs.push(await gTts(x,l));return Buffer.concat(bufs)}
 app.post('/api/fox-tts',async(r,s)=>{const k=foxKey(r.u,'tts'),cap=r.u.is_admin?1e9:active(r.u)?400:60,errs=[];
   const t=String(r.body.text||'').replace(/[*_#`]/g,'').trim().slice(0,600);if(!t)return s.json({e:'tts'});
-  const gem=USE_GEMINI&&(foxUse[k]||0)<cap&&Date.now()>gemTtsOff;
-  if(gem){foxUse[k]=(foxUse[k]||0)+1;try{return s.json({a:await geminiTTSany(t)})}catch(e){foxUse[k]--;console.error('fox-tts xato:',String(e.message||e).slice(0,300));if(/quota|exceed|429|demand|404|not found/i.test(String(e.message)))gemTtsOff=Date.now()+10*60000}}
-  try{return s.json({a:(await foxEdgeTts(t)).toString('base64'),mime:'audio/mpeg'})}catch(e){errs.push('edge: '+String(e.message||e).slice(0,80));console.error('fox-tts edge xato:',errs[0])}
-  try{s.json({a:(await foxGoogleTts(t)).toString('base64'),mime:'audio/mpeg'})}catch(e){errs.push('google: '+String(e.message||e).slice(0,60));console.error('fox-tts google xato:',errs[1]);s.json({e:'tts',msg:errs.join(' | ')})}});
+  fs.mkdirSync(DATA+'/audio/cache',{recursive:true});const ck=crypto.createHash('sha1').update(t).digest('hex'),cf=DATA+'/audio/cache/'+ck;
+  try{if(fs.existsSync(cf+'.wav'))return s.json({a:fs.readFileSync(cf+'.wav').toString('base64')})}catch{}
+  if(USE_GEMINI&&(foxUse[k]||0)<cap){foxUse[k]=(foxUse[k]||0)+1;try{const a=await geminiTTSany(t);try{fs.writeFileSync(cf+'.wav',Buffer.from(a,'base64'))}catch{}return s.json({a})}catch(e){foxUse[k]--;errs.push('gemini: '+friendlyErr(e.message||e).slice(0,80));console.error('fox-tts xato:',String(e.message||e).slice(0,300))}}
+  try{s.json({a:(await foxGoogleTts(t)).toString('base64'),mime:'audio/mpeg'})}catch(e){errs.push('google: '+String(e.message||e).slice(0,60));console.error('fox-tts google xato:',errs.join(' | '));s.json({e:'tts',msg:errs.join(' | ')})}});
 app.post('/api/fox',async(r,s)=>{const k=foxKey(r.u,'chat');if((foxUse[k]||0)>=foxLimit(r.u,'chat'))return s.json({e:'limit',left:0});foxUse[k]=(foxUse[k]||0)+1;
   const ms=(r.body.messages||[]).filter(m=>m&&m.content);const o=await askFox(ms,Array.isArray(r.body.words)?r.body.words:[]);if(o.e==='api')foxUse[k]--;o.left=foxLeft(r.u,'chat');s.json(o)});
 const VOICESYS="\nFoydalanuvchi ovozli xabar yubordi (o'zbek yoki koreys tilida). Avval u nima deganini aniq yozib ol, keyin unga javob ber. FAQAT JSON qaytar: {\"heard\":\"foydalanuvchi aytgan gap (o'z tilida)\",\"reply\":\"javobing\"}. Javob ovoz bilan o'qiladi: 1-3 qisqa gap yoz, *, #, emoji ishlatma, koreys so'zining lotincha o'qilishini qavs ichida yozma. Agar hech narsa eshitilmasa yoki faqat shovqin bo'lsa, heard ni bo'sh qoldir.";
