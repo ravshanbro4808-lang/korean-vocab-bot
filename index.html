@@ -889,14 +889,14 @@ function gSegs(t){t=t.replace(/\p{Extended_Pictographic}/gu,' ').replace(/\uFE0F
  return segs.slice(0,14)}
 function gSpeak(t,end,fail){const segs=gSegs(t);if(!segs.length)return fail();let k=0,any=0;
  const next=()=>{if(k>=segs.length)return end();const [x,l]=segs[k++];playSrc('https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl='+l+'&q='+encodeURIComponent(x),()=>{any=1;next()},()=>{if(any)next();else fail()},30000)};next()}
-function foxSpeak(i,cb){const f=S.fox,tk=f.spk=(f.spk||0)+1;f.speaking=1;stSet('🦊 gapiryapti...','speak');let d=0,er=0;micMute(f,1);
+function foxSpeak(i,cb){const f=S.fox,tk=f.spk=(f.spk||0)+1;f.speaking=1;stSet('🦊 gapiryapti...','speak');let d=0,er=0,why='';micMute(f,1);
  const t=String(f.msgs[i].content||'').replace(/[*_#`]/g,'').trim();
  const go=()=>{if(d)return;d=1;if(f.spk!==tk)return;f.speaking=0;spkUi();if(f.talk)stSet('🎙 ovozli suhbat','listen');if(cb)cb()};
- const local=()=>{if(f.spk!==tk)return;try{if(!(speechSynthesis.getVoices()||[]).length)stSet('🔇 Ovoz chiqmadi — javob matnda','speak')}catch{}foxSpeakLocal(i,cb,tk)};
+ const local=()=>{if(f.spk!==tk)return;try{if(!(speechSynthesis.getVoices()||[]).length)stSet('🔇 Ovoz chiqmadi'+(why?': '+why:'')+' — javob matnda','speak')}catch{}foxSpeakLocal(i,cb,tk)};
  const viaG=()=>{if(f.spk!==tk)return;stSet('🔊 Kori gapiryapti (Google ovozi)','speak');f.audio={pause(){try{AUD.pause()}catch{}}};gSpeak(t,go,local)};
  if(!t)return go();
  if(f.noTts&&Date.now()<f.noTts)return viaG();
- (async()=>{try{const r=await api('/fox-tts',{body:{text:t}});if(f.spk!==tk)return;if(!r.a){console.warn('fox-tts:',r.msg||r.e);throw 0}
+ (async()=>{try{const r=await api('/fox-tts',{body:{text:t}});if(f.spk!==tk)return;if(!r.a){why=String(r.msg||r.e||'server');console.warn('fox-tts:',why);throw 0}
   try{f.audio&&f.audio.pause()}catch{}
   stSet('🔊 Kori gapiryapti','speak');await playB64(f,r.a,go,()=>{if(!d&&!er){er=1;viaG()}},r.mime);f.ttsFail=0}
  catch(e){if(f.spk!==tk)return;console.warn('fox ovoz:',e);f.ttsFail=(f.ttsFail||0)+1;if(f.ttsFail>=3){f.noTts=Date.now()+60000;f.ttsFail=0}viaG()}})()}
@@ -956,7 +956,7 @@ async function talkSend(b){const f=S.fox;let sp=0;f.typing=1;stSet("🦊 o'ylaya
   if(r.reply){f.msgs.push({role:'assistant',content:r.reply});sp=1;f.typing=0;foxV();foxSpeak(f.msgs.length-1,talkListen);return}
   if(r.e=='limit'){f.msgs.push({role:'assistant',content:"Bugungi savollar limiti tugadi. Obuna bo'lsangiz ko'proq gaplashishingiz mumkin 🦊"});f.talk=0}
   else if(r.e=='nohear'){stSet('🎙 Eshitilmadi, qayta gapiring','listen')}
-  else if(r.e=='api'){f.msgs.push({role:'assistant',content:r.msg?'Xatolik: '+r.msg:"Xatolik bo'ldi, qayta urinib ko'ring."})}
+  else if(r.e=='api'){f.msgs.push({role:'assistant',content:r.msg?'Xatolik: '+r.msg:"Xatolik bo'ldi, qayta urinib ko'ring."});f.talk=0}
  }catch{f.msgs.push({role:'assistant',content:"Aloqa uzildi, qayta urinib ko'ring."})}
  f.typing=0;if(!f.talk)stopTalk();else foxV();if(f.talk&&!sp)setTimeout(talkListen,700)}
 function foxWrite(){const f=S.fox;if(f.talk)stopTalk();f.auto=0;foxStop();foxV();setTimeout(()=>{const i=$('#fin');i&&i.focus()},60)}
@@ -1022,7 +1022,7 @@ async function posRefresh(){await loadPos();const b=$('#posbox');if(b)b.innerHTM
 async function posSave(k){const r=await api('/admin/pos',{body:{key:k,name:$('#pn_'+k).value,ko:$('#pk_'+k).value}});if(r.e)return alert(r.e);posRefresh()}
 async function posDel(k){if(!confirm("Turkum o'chirilsinmi?"))return;const r=await api('/admin/pos',{body:{del:k}});if(r.e)return alert(r.e);posRefresh()}
 async function posAdd(){const name=$('#pnn').value.trim();if(!name)return alert('Nomini yozing');const r=await api('/admin/pos',{body:{name,ko:$('#pkn').value}});if(r.e)return alert(r.e);posRefresh()}
-async function ttsTest(){const r=await api('/admin/tts-test',{body:{}});if(!r.ok)return alert('❌ '+r.error);try{await new Audio('data:audio/wav;base64,'+r.a).play();alert('✅ Haqiqiy ovozli AI ishlayapti ('+(r.model||'')+')')}catch{alert("Ovoz keldi, lekin brauzer ijro etishga ruxsat bermadi. Sahifani bosib qayta urinib ko'ring.")}}
+async function ttsTest(){const r=await api('/admin/tts-test',{body:{}});if(!r.ok)return alert('❌ '+r.error);try{await new Audio('data:'+(r.mime||'audio/wav')+';base64,'+r.a).play();alert(r.mime?'✅ Google ovozi ishlayapti (Gemini ovozi limit tufayli o\'chiq: '+(r.note||'')+')':'✅ Haqiqiy ovozli AI ishlayapti ('+(r.model||'')+')')}catch{alert("Ovoz keldi, lekin brauzer ijro etishga ruxsat bermadi. Sahifani bosib qayta urinib ko'ring.")}}
 async function vProfile(){head('Profil','back()');const st=await api('/stats');me=await api('/me');
  H(`<div class=hero><i class=kr>프로필</i><small>${esc(me.email||'')}</small><h2>👤 ${esc(me.name)}</h2><small>${st.learned} ta so'z o'rganildi · ${st.rank} ball (hafta)</small></div>`)}
 const VW={};

@@ -212,7 +212,7 @@ app.post('/api/admin/pos',adm('dicts'),(r,s)=>{const b=r.body,name=String(b.name
     run('insert into poss(key,name,ko,ord) values(?,?,?,?)',k,name,ko,(one('select coalesce(max(ord),0)+1 n from poss').n))}
   possC=0;s.json({ok:1,poss:getPoss()})});
 app.post('/api/admin/tts-test',adm('admins'),async(r,s)=>{if(!USE_GEMINI)return s.json({ok:false,error:"GEMINI_API_KEY yo'q — ovozli javob brauzer ovozi bilan ishlaydi."});
-  try{const a=await geminiTTSany("안녕하세요. Salom!");s.json({ok:true,a,model:TTSM})}catch(e){s.json({ok:false,error:friendlyErr(e.message||e)})}});
+  try{const a=await geminiTTSany("안녕하세요. Salom!");s.json({ok:true,a,model:TTSM})}catch(e){const note=friendlyErr(e.message||e);try{const g=await foxGoogleTts('안녕하세요. Salom!');s.json({ok:true,a:g.toString('base64'),mime:'audio/mpeg',note})}catch(e2){s.json({ok:false,error:note+' | Google ovozi ham ishlamadi: '+String(e2.message||e2).slice(0,120)})}}});
 app.post('/api/admin/dict',adm('dicts'),(r,s)=>{run('insert into dicts(name,levels,sec,lvl) values(?,?,?,?)',r.body.name,Math.max(1,+r.body.levels||1),+r.body.sec||30,LVL(r.body.lvl));s.json({ok:1})});
 app.post('/api/admin/dict/:id',adm('dicts'),(r,s)=>{const b=r.body;
   if('free'in b)run('update dicts set free=? where id=?',b.free?1:0,r.params.id);
