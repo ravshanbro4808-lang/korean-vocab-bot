@@ -150,17 +150,40 @@ const uzBusy=new Map();
 app.post('/api/word-voice-uz/:id',async(r,s)=>{const w=one('select id,uz,audio_uz from words where id=?',r.params.id);if(!w||!w.uz||w.uz===PENDING)return s.json({e:'yoq'});if(w.audio_uz)return s.json({audio:w.audio_uz});
   try{let p=uzBusy.get(w.id);if(!p){p=(async()=>{const a=await wordAudioUz(w.uz);const name='u'+w.id+'_'+Date.now()+'.'+a.ext;fs.writeFileSync(DATA+'/audio/'+name,a.b);run("update words set audio_uz=? where id=? and (audio_uz is null or audio_uz='')",name,w.id);return one('select audio_uz from words where id=?',w.id).audio_uz})();uzBusy.set(w.id,p);p.finally(()=>uzBusy.delete(w.id)).catch(()=>{})}
     s.json({audio:await p})}catch(e){s.json({e:'tts'})}});
+// Microsoft Edge ovozi (bepul, kalitsiz, o'zbekcha va koreyscha neyron ovozlar) — "ws" paketi socket.io bilan birga o'rnatilgan
+let WSM=null;try{WSM=require('ws')}catch{}
+const EDGE_TOKEN='6A5AA1D4EAFF4E9FB37E23D68491D6F4',EDGE_VER=process.env.EDGE_TTS_VER||'143.0.3650.75',EDGE_VOICE={ko:process.env.EDGE_VOICE_KO||'ko-KR-SunHiNeural',uz:process.env.EDGE_VOICE_UZ||'uz-UZ-MadinaNeural'};
+const edgeGec=()=>{let t=Math.floor(Date.now()/1000)+11644473600;t-=t%300;return crypto.createHash('sha256').update(String(BigInt(t)*10000000n)+EDGE_TOKEN,'ascii').digest('hex').toUpperCase()};
+const xmlEsc=x=>String(x).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&apos;'}[c]));
+function edgeTts(text,voice){return new Promise((res,rej)=>{
+  if(!WSM)return rej(new Error('ws moduli yoq'));
+  const id=crypto.randomBytes(16).toString('hex'),ts=new Date().toUTCString().replace('GMT','GMT+0000 (Coordinated Universal Time)');let ws,tm,done=0;const bufs=[];
+  const fin=e=>{if(done)return;done=1;clearTimeout(tm);try{ws.close()}catch{}if(e)rej(e);else if(bufs.length)res(Buffer.concat(bufs));else rej(new Error('edge bosh javob'))};
+  try{ws=new WSM('wss://speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1?TrustedClientToken='+EDGE_TOKEN+'&Sec-MS-GEC='+edgeGec()+'&Sec-MS-GEC-Version=1-'+EDGE_VER+'&ConnectionId='+id,{headers:{'Pragma':'no-cache','Cache-Control':'no-cache','Origin':'chrome-extension://jdiccldimpdaibmpdkjnbmckianbfold','User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/'+EDGE_VER.split('.')[0]+'.0.0.0 Safari/537.36 Edg/'+EDGE_VER.split('.')[0]+'.0.0.0','Accept-Language':'en-US,en;q=0.9','Cookie':'muid='+crypto.randomBytes(16).toString('hex').toUpperCase()+';'}})}catch(e){return rej(e)}
+  tm=setTimeout(()=>fin(new Error('edge vaqt tugadi')),7000);
+  ws.on('open',()=>{try{
+    ws.send('X-Timestamp:'+ts+'\r\nContent-Type:application/json; charset=utf-8\r\nPath:speech.config\r\n\r\n{"context":{"synthesis":{"audio":{"metadataoptions":{"sentenceBoundaryEnabled":"false","wordBoundaryEnabled":"false"},"outputFormat":"audio-24khz-48kbitrate-mono-mp3"}}}}\r\n');
+    ws.send('X-RequestId:'+id+'\r\nContent-Type:application/ssml+xml\r\nX-Timestamp:'+ts+'Z\r\nPath:ssml\r\n\r\n'+"<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='en-US'><voice name='"+voice+"'><prosody pitch='+0Hz' rate='+0%' volume='+0%'>"+xmlEsc(text)+"</prosody></voice></speak>")}catch(e){fin(e)}});
+  ws.on('message',(d,bin)=>{try{if(bin){const b=Buffer.from(d),hl=b.readUInt16BE(0);if(/Path:audio/.test(b.subarray(2,2+hl).toString()))bufs.push(b.subarray(2+hl))}else if(/Path:turn\.end/.test(String(d)))fin()}catch(e){fin(e)}});
+  ws.on('unexpected-response',(rq,rs)=>fin(new Error('edge HTTP '+rs.statusCode)));
+  ws.on('error',e=>fin(e));ws.on('close',()=>fin())})}
+function ttsSegs(t){t=t.replace(/\p{Extended_Pictographic}/gu,' ').replace(/️/g,'');const segs=[];
+  for(const m of t.matchAll(/([가-힣ㄱ-ㅎㅏ-ㅣ]+(?:[\s,.!?~·]+[가-힣ㄱ-ㅎㅏ-ㅣ]+)*)|([^가-힣ㄱ-ㅎㅏ-ㅣ]+)/g)){const x=m[0].replace(/\s+/g,' ').trim();if(!x||!/[\p{L}\p{N}]/u.test(x))continue;const lang=m[1]?'ko':'uz';
+    for(let i=0;i<x.length;i+=400){segs.push([x.slice(i,i+400).trim(),lang])}}
+  return segs.slice(0,10)}
+async function foxEdgeTts(t){const segs=ttsSegs(t);if(!segs.length)throw new Error('matn yoq');return Buffer.concat(await Promise.all(segs.map(([x,l])=>edgeTts(x,EDGE_VOICE[l]))))}
 // Gemini ovozi bo'lmasa/limit tugasa: Google ovozi (koreyscha va o'zbekcha qismlar alohida o'qiladi)
 async function gTts(text,lang){const r=await fetch('https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl='+lang+'&q='+encodeURIComponent(text),{headers:{'user-agent':'Mozilla/5.0'},signal:AbortSignal.timeout(8000)});if(!r.ok)throw new Error('tts '+r.status);const b=Buffer.from(await r.arrayBuffer());if(b.length<300)throw new Error('tts bosh');return b}
 async function foxGoogleTts(t){t=t.replace(/\p{Extended_Pictographic}/gu,' ').replace(/\uFE0F/g,'');const segs=[];
   for(const m of t.matchAll(/([가-힣ㄱ-ㅎㅏ-ㅣ]+(?:[\s,.!?~·]+[가-힣ㄱ-ㅎㅏ-ㅣ]+)*)|([^가-힣ㄱ-ㅎㅏ-ㅣ]+)/g)){const x=m[0].replace(/\s+/g,' ').trim();if(!x||!/[\p{L}\p{N}]/u.test(x))continue;const lang=m[1]?'ko':'uz';
     for(let i=0;i<x.length;i+=170){let e=Math.min(x.length,i+170);if(e<x.length){const sp=x.lastIndexOf(' ',e);if(sp>i+60)e=sp}segs.push([x.slice(i,e).trim(),lang]);i=e-170}}
   if(!segs.length)throw new Error('matn yoq');const bufs=[];for(const [x,l] of segs.slice(0,14))bufs.push(await gTts(x,l));return Buffer.concat(bufs)}
-app.post('/api/fox-tts',async(r,s)=>{const k=foxKey(r.u,'tts'),cap=r.u.is_admin?1e9:active(r.u)?400:60;
+app.post('/api/fox-tts',async(r,s)=>{const k=foxKey(r.u,'tts'),cap=r.u.is_admin?1e9:active(r.u)?400:60,errs=[];
   const t=String(r.body.text||'').replace(/[*_#`]/g,'').trim().slice(0,600);if(!t)return s.json({e:'tts'});
+  try{return s.json({a:(await foxEdgeTts(t)).toString('base64'),mime:'audio/mpeg'})}catch(e){errs.push('edge: '+String(e.message||e).slice(0,90));console.error('fox-tts edge xato:',errs[0])}
   const gem=USE_GEMINI&&(foxUse[k]||0)<cap&&Date.now()>gemTtsOff;
-  if(gem){foxUse[k]=(foxUse[k]||0)+1;try{return s.json({a:await geminiTTSany(t)})}catch(e){foxUse[k]--;console.error('fox-tts xato:',String(e.message||e).slice(0,300));if(/quota|exceed|429|demand|404|not found/i.test(String(e.message)))gemTtsOff=Date.now()+10*60000}}
-  try{s.json({a:(await foxGoogleTts(t)).toString('base64'),mime:'audio/mpeg'})}catch(e){console.error('fox-tts google xato:',String(e.message||e).slice(0,200));s.json({e:'tts',msg:String(e.message||e).slice(0,200)})}});
+  if(gem){foxUse[k]=(foxUse[k]||0)+1;try{return s.json({a:await geminiTTSany(t)})}catch(e){foxUse[k]--;errs.push('gemini: '+friendlyErr(e.message||e).slice(0,70));console.error('fox-tts xato:',String(e.message||e).slice(0,300));if(/quota|exceed|429|demand|404|not found/i.test(String(e.message)))gemTtsOff=Date.now()+10*60000}}
+  try{s.json({a:(await foxGoogleTts(t)).toString('base64'),mime:'audio/mpeg'})}catch(e){errs.push('google: '+String(e.message||e).slice(0,60));console.error('fox-tts google xato:',String(e.message||e).slice(0,200));s.json({e:'tts',msg:errs.join(' | ')})}});
 app.post('/api/fox',async(r,s)=>{const k=foxKey(r.u,'chat');if((foxUse[k]||0)>=foxLimit(r.u,'chat'))return s.json({e:'limit',left:0});foxUse[k]=(foxUse[k]||0)+1;
   const ms=(r.body.messages||[]).filter(m=>m&&m.content);const o=await askFox(ms,Array.isArray(r.body.words)?r.body.words:[]);if(o.e==='api')foxUse[k]--;o.left=foxLeft(r.u,'chat');s.json(o)});
 const VOICESYS="\nFoydalanuvchi ovozli xabar yubordi (o'zbek yoki koreys tilida). Avval u nima deganini aniq yozib ol, keyin unga javob ber. FAQAT JSON qaytar: {\"heard\":\"foydalanuvchi aytgan gap (o'z tilida)\",\"reply\":\"javobing\"}. Javob ovoz bilan o'qiladi: 1-3 qisqa gap yoz, *, #, emoji ishlatma, koreys so'zining lotincha o'qilishini qavs ichida yozma. Agar hech narsa eshitilmasa yoki faqat shovqin bo'lsa, heard ni bo'sh qoldir.";
@@ -211,7 +234,8 @@ app.post('/api/admin/pos',adm('dicts'),(r,s)=>{const b=r.body,name=String(b.name
   else{if(!name)return s.status(400).json({e:'bad'});let k=name.toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'')||'t'+Date.now();if(/^\d/.test(k))k='k'+k;while(one('select 1 from poss where key=?',k))k+='_';
     run('insert into poss(key,name,ko,ord) values(?,?,?,?)',k,name,ko,(one('select coalesce(max(ord),0)+1 n from poss').n))}
   possC=0;s.json({ok:1,poss:getPoss()})});
-app.post('/api/admin/tts-test',adm('admins'),async(r,s)=>{if(!USE_GEMINI)return s.json({ok:false,error:"GEMINI_API_KEY yo'q — ovozli javob brauzer ovozi bilan ishlaydi."});
+app.post('/api/admin/tts-test',adm('admins'),async(r,s)=>{try{const g=await foxEdgeTts('안녕하세요. Salom!');return s.json({ok:true,a:g.toString('base64'),mime:'audio/mpeg',note:'Edge ovozi'})}catch(e){var edgeErr=String(e.message||e).slice(0,100)}
+  if(!USE_GEMINI)return s.json({ok:false,error:"Edge ovozi: "+edgeErr});
   try{const a=await geminiTTSany("안녕하세요. Salom!");s.json({ok:true,a,model:TTSM})}catch(e){const note=friendlyErr(e.message||e);try{const g=await foxGoogleTts('안녕하세요. Salom!');s.json({ok:true,a:g.toString('base64'),mime:'audio/mpeg',note})}catch(e2){s.json({ok:false,error:note+' | Google ovozi ham ishlamadi: '+String(e2.message||e2).slice(0,120)})}}});
 app.post('/api/admin/dict',adm('dicts'),(r,s)=>{run('insert into dicts(name,levels,sec,lvl) values(?,?,?,?)',r.body.name,Math.max(1,+r.body.levels||1),+r.body.sec||30,LVL(r.body.lvl));s.json({ok:1})});
 app.post('/api/admin/dict/:id',adm('dicts'),(r,s)=>{const b=r.body;
