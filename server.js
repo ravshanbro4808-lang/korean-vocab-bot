@@ -2,7 +2,7 @@ const express=require('express'),crypto=require('crypto'),fs=require('fs'),http=
 const Database=require('better-sqlite3'),multer=require('multer'),{Telegraf,Markup}=require('telegraf'),{Server}=require('socket.io');
 const {OAuth2Client}=require('google-auth-library');
 const {BOT_TOKEN,WEBAPP_URL,ADMIN_IDS='',ADMIN_EMAILS='',GOOGLE_CLIENT_ID,SECRET='change-me',DEV,PORT=3000,TRANSLATE_URL,TRANSLATE_KEY,TRANSLATE_TARGET='uz',ANTHROPIC_API_KEY,GEMINI_API_KEY,GEMINI_MODEL='gemini-3.8-flash',FOX_MODEL='claude-haiku-5-5',GOOGLE_TRANSLATE_KEY,BOT_USERNAME='Koreys_lugat_2026_bot'}=process.env;
-let THINK=process.env.GEMINI_THINKING||'minimal';const FALLBACKS=(process.env.GEMINI_FALLBACK_MODEL||'gemini-3.6-flash,gemini-3.5-flash-lite,gemini-3.1-flash-lite').split(',').map(x=>x.trim()).filter(Boolean),GEMINI_FALLBACK=FALLBACKS[0],BUSY=/quota|429|exceed|demand|overload|unavailable|timeout|aborted|fetch failed|not found|no longer available|404|rate/i;
+let THINK=process.env.GEMINI_THINKING||'low';const FALLBACKS=(process.env.GEMINI_FALLBACK_MODEL||'gemini-3.6-flash,gemini-3.5-flash-lite,gemini-3.1-flash-lite').split(',').map(x=>x.trim()).filter(Boolean),GEMINI_FALLBACK=FALLBACKS[0],BUSY=/quota|429|exceed|demand|overload|unavailable|timeout|aborted|fetch failed|not found|no longer available|404|rate/i;
 const FASTM=(process.env.GEMINI_FAST_MODEL||'gemini-3.5-flash-lite').split(',').map(x=>x.trim()).filter(Boolean),down={};
 const markDown=(m,e)=>{const t=String(e&&(e.message||e));down[m]=Date.now()+(/404|not found|no longer/i.test(t)?864e5:/quota|exceed|429/i.test(t)?90000:60000)};
 const chainFor=(first,fast)=>{const all=[...new Set([...(fast?FASTM:[]),first,...FALLBACKS])].filter(Boolean),ok=all.filter(m=>!(down[m]>Date.now()));return ok.length?ok:[first]};
@@ -115,7 +115,7 @@ const foxLeft=(u,t)=>u.is_admin?null:Math.max(0,foxLimit(u,t)-(foxUse[foxKey(u,t
 const TTSM=process.env.GEMINI_TTS_MODEL||'gemini-3.8-flash-lite-tts',VOICE=process.env.GEMINI_VOICE||'Kore';
 function wavWrap(pcm,rate){rate=rate||24000;const h=Buffer.alloc(44);h.write('RIFF',0);h.writeUInt32LE(36+pcm.length,4);h.write('WAVEfmt ',8);h.writeUInt32LE(16,16);h.writeUInt16LE(1,20);h.writeUInt16LE(1,22);h.writeUInt32LE(rate,24);h.writeUInt32LE(rate*2,28);h.writeUInt16LE(2,32);h.writeUInt16LE(16,34);h.write('data',36);h.writeUInt32LE(pcm.length,40);return Buffer.concat([h,pcm])}
 async function geminiTTS(text,mdl){
-  const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+encodeURIComponent(mdl||TTSM)+':generateContent',{method:'POST',signal:AbortSignal.timeout(10000),headers:{'content-type':'application/json','x-goog-api-key':GEMINI_API_KEY},body:JSON.stringify({contents:[{parts:[{text}]}],generationConfig:{responseModalities:['AUDIO'],speechConfig:{voiceConfig:{prebuiltVoiceConfig:{voiceName:VOICE}}}}})});
+  const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+encodeURIComponent(mdl||TTSM)+':generateContent',{method:'POST',signal:AbortSignal.timeout(20000),headers:{'content-type':'application/json','x-goog-api-key':GEMINI_API_KEY},body:JSON.stringify({contents:[{parts:[{text}]}],generationConfig:{responseModalities:['AUDIO'],speechConfig:{voiceConfig:{prebuiltVoiceConfig:{voiceName:VOICE}}}}})});
   const j=await r.json();if(!r.ok)throw new Error((j.error&&j.error.message)||('HTTP '+r.status));
   const p=((j.candidates||[])[0]?.content?.parts||[]).find(x=>x.inlineData&&x.inlineData.data);if(!p)throw new Error('audio yoq');
   let b=Buffer.from(p.inlineData.data,'base64');
@@ -178,12 +178,11 @@ async function foxGoogleTts(t){t=t.replace(/\p{Extended_Pictographic}/gu,' ').re
   for(const m of t.matchAll(/([가-힣ㄱ-ㅎㅏ-ㅣ]+(?:[\s,.!?~·]+[가-힣ㄱ-ㅎㅏ-ㅣ]+)*)|([^가-힣ㄱ-ㅎㅏ-ㅣ]+)/g)){const x=m[0].replace(/\s+/g,' ').trim();if(!x||!/[\p{L}\p{N}]/u.test(x))continue;const lang=m[1]?'ko':'uz';
     for(let i=0;i<x.length;i+=170){let e=Math.min(x.length,i+170);if(e<x.length){const sp=x.lastIndexOf(' ',e);if(sp>i+60)e=sp}segs.push([x.slice(i,e).trim(),lang]);i=e-170}}
   if(!segs.length)throw new Error('matn yoq');const bufs=[];for(const [x,l] of segs.slice(0,14))bufs.push(await gTts(x,l));return Buffer.concat(bufs)}
-app.post('/api/fox-tts',async(r,s)=>{const k=foxKey(r.u,'tts'),cap=r.u.is_admin?1e9:active(r.u)?400:60,errs=[];
+app.post('/api/fox-tts',async(r,s)=>{const k=foxKey(r.u,'tts'),cap=r.u.is_admin?1e9:active(r.u)?400:60;
   const t=String(r.body.text||'').replace(/[*_#`]/g,'').trim().slice(0,600);if(!t)return s.json({e:'tts'});
-  try{return s.json({a:(await foxEdgeTts(t)).toString('base64'),mime:'audio/mpeg'})}catch(e){errs.push('edge: '+String(e.message||e).slice(0,90));console.error('fox-tts edge xato:',errs[0])}
   const gem=USE_GEMINI&&(foxUse[k]||0)<cap&&Date.now()>gemTtsOff;
-  if(gem){foxUse[k]=(foxUse[k]||0)+1;try{return s.json({a:await geminiTTSany(t)})}catch(e){foxUse[k]--;errs.push('gemini: '+friendlyErr(e.message||e).slice(0,70));console.error('fox-tts xato:',String(e.message||e).slice(0,300));if(/quota|exceed|429|demand|404|not found/i.test(String(e.message)))gemTtsOff=Date.now()+10*60000}}
-  try{s.json({a:(await foxGoogleTts(t)).toString('base64'),mime:'audio/mpeg'})}catch(e){errs.push('google: '+String(e.message||e).slice(0,60));console.error('fox-tts google xato:',String(e.message||e).slice(0,200));s.json({e:'tts',msg:errs.join(' | ')})}});
+  if(gem){foxUse[k]=(foxUse[k]||0)+1;try{return s.json({a:await geminiTTSany(t)})}catch(e){foxUse[k]--;console.error('fox-tts xato:',String(e.message||e).slice(0,300));if(/quota|exceed|429|demand|404|not found/i.test(String(e.message)))gemTtsOff=Date.now()+10*60000}}
+  try{s.json({a:(await foxGoogleTts(t)).toString('base64'),mime:'audio/mpeg'})}catch(e){console.error('fox-tts google xato:',String(e.message||e).slice(0,200));try{s.json({a:(await foxEdgeTts(t)).toString('base64'),mime:'audio/mpeg'})}catch(e2){s.json({e:'tts',msg:String(e.message||e).slice(0,100)+' | edge: '+String(e2.message||e2).slice(0,80)})}}});
 app.post('/api/fox',async(r,s)=>{const k=foxKey(r.u,'chat');if((foxUse[k]||0)>=foxLimit(r.u,'chat'))return s.json({e:'limit',left:0});foxUse[k]=(foxUse[k]||0)+1;
   const ms=(r.body.messages||[]).filter(m=>m&&m.content);const o=await askFox(ms,Array.isArray(r.body.words)?r.body.words:[]);if(o.e==='api')foxUse[k]--;o.left=foxLeft(r.u,'chat');s.json(o)});
 const VOICESYS="\nFoydalanuvchi ovozli xabar yubordi (o'zbek yoki koreys tilida). Avval u nima deganini aniq yozib ol, keyin unga javob ber. FAQAT JSON qaytar: {\"heard\":\"foydalanuvchi aytgan gap (o'z tilida)\",\"reply\":\"javobing\"}. Javob ovoz bilan o'qiladi: 1-3 qisqa gap yoz, *, #, emoji ishlatma, koreys so'zining lotincha o'qilishini qavs ichida yozma. Agar hech narsa eshitilmasa yoki faqat shovqin bo'lsa, heard ni bo'sh qoldir.";
@@ -234,9 +233,8 @@ app.post('/api/admin/pos',adm('dicts'),(r,s)=>{const b=r.body,name=String(b.name
   else{if(!name)return s.status(400).json({e:'bad'});let k=name.toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'')||'t'+Date.now();if(/^\d/.test(k))k='k'+k;while(one('select 1 from poss where key=?',k))k+='_';
     run('insert into poss(key,name,ko,ord) values(?,?,?,?)',k,name,ko,(one('select coalesce(max(ord),0)+1 n from poss').n))}
   possC=0;s.json({ok:1,poss:getPoss()})});
-app.post('/api/admin/tts-test',adm('admins'),async(r,s)=>{try{const g=await foxEdgeTts('안녕하세요. Salom!');return s.json({ok:true,a:g.toString('base64'),mime:'audio/mpeg',note:'Edge ovozi'})}catch(e){var edgeErr=String(e.message||e).slice(0,100)}
-  if(!USE_GEMINI)return s.json({ok:false,error:"Edge ovozi: "+edgeErr});
-  try{const a=await geminiTTSany("안녕하세요. Salom!");s.json({ok:true,a,model:TTSM})}catch(e){const note=friendlyErr(e.message||e);try{const g=await foxGoogleTts('안녕하세요. Salom!');s.json({ok:true,a:g.toString('base64'),mime:'audio/mpeg',note})}catch(e2){s.json({ok:false,error:note+' | Google ovozi ham ishlamadi: '+String(e2.message||e2).slice(0,120)})}}});
+app.post('/api/admin/tts-test',adm('admins'),async(r,s)=>{if(!USE_GEMINI)return s.json({ok:false,error:"GEMINI_API_KEY yo'q — ovozli javob brauzer ovozi bilan ishlaydi."});
+  try{const a=await geminiTTSany("안녕하세요. Salom!");s.json({ok:true,a,model:TTSM})}catch(e){s.json({ok:false,error:friendlyErr(e.message||e)})}});
 app.post('/api/admin/dict',adm('dicts'),(r,s)=>{run('insert into dicts(name,levels,sec,lvl) values(?,?,?,?)',r.body.name,Math.max(1,+r.body.levels||1),+r.body.sec||30,LVL(r.body.lvl));s.json({ok:1})});
 app.post('/api/admin/dict/:id',adm('dicts'),(r,s)=>{const b=r.body;
   if('free'in b)run('update dicts set free=? where id=?',b.free?1:0,r.params.id);
@@ -259,7 +257,7 @@ async function callGemini0(messages,system,max,model,n=0){
   const body={systemInstruction:{parts:[{text:system||''}]},contents:messages.map(m=>({role:m.role==='assistant'?'model':'user',parts:[{text:String(m.content)}]})),generationConfig:{maxOutputTokens:max}};
   if(/gemini-3/i.test(model)){const fast=max<=1000;body.generationConfig.thinkingConfig={thinkingLevel:fast?THINK:'low'};body.generationConfig.maxOutputTokens=max+(fast?400:1500)}
   else if(/gemini-2\.5-flash/i.test(model))body.generationConfig.thinkingConfig={thinkingBudget:0};
-  const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+encodeURIComponent(model)+':generateContent',{method:'POST',signal:AbortSignal.timeout(max<=1000?8000:90000),headers:{'content-type':'application/json','x-goog-api-key':GEMINI_API_KEY},body:JSON.stringify(body)});
+  const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+encodeURIComponent(model)+':generateContent',{method:'POST',signal:AbortSignal.timeout(max<=1000?15000:90000),headers:{'content-type':'application/json','x-goog-api-key':GEMINI_API_KEY},body:JSON.stringify(body)});
   const j=await r.json().catch(()=>({}));
   if(!r.ok){if(/thinking level/i.test((j.error&&j.error.message)||'')&&THINK!=='low'){THINK='low';return callGemini(messages,system,max,model)}const em0=(j.error&&j.error.message)||'';if(n===0&&r.status===503){await new Promise(z=>setTimeout(z,1500));return callGemini0(messages,system,max,model,1)}if(r.status===404&&n<2&&model!=='gemini-3.8-flash'){const t=await callGemini(messages,system,max,'gemini-3.8-flash');FOXM='gemini-3.8-flash';return t}throw new Error((j.error&&j.error.message)||'api '+r.status)}
   const c=j.candidates&&j.candidates[0];
@@ -283,7 +281,7 @@ async function geminiRaw(contents,system,cfg,n=0,mdl){const base=mdl||FOXM;let l
   try{return await geminiRaw0(contents,system,c2,2,m)}catch(e){le=e;if(!BUSY.test(String(e&&(e.message||e.name))))throw e;markDown(m,e)}}throw le}
 async function geminiRaw0(contents,system,cfg,n=0,mdl){
   const body={contents,generationConfig:cfg};if(system)body.systemInstruction={parts:[{text:system}]};
-  const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+encodeURIComponent(mdl||FOXM)+':generateContent',{method:'POST',signal:AbortSignal.timeout(cfg.maxOutputTokens<=1500?10000:300000),headers:{'content-type':'application/json','x-goog-api-key':GEMINI_API_KEY},body:JSON.stringify(body)});
+  const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+encodeURIComponent(mdl||FOXM)+':generateContent',{method:'POST',signal:AbortSignal.timeout(cfg.maxOutputTokens<=1500?30000:300000),headers:{'content-type':'application/json','x-goog-api-key':GEMINI_API_KEY},body:JSON.stringify(body)});
   const j=await r.json().catch(()=>({}));
   if(!r.ok){const em=(j.error&&j.error.message)||'api '+r.status;if(/thinking level/i.test(em)&&cfg.thinkingConfig&&cfg.thinkingConfig.thinkingLevel!=='low'){THINK='low';cfg.thinkingConfig.thinkingLevel='low';return geminiRaw(contents,system,cfg)}if(n===0&&r.status===503){await new Promise(z=>setTimeout(z,1500));return geminiRaw0(contents,system,cfg,1,mdl)}throw new Error(em)}
   const c=j.candidates&&j.candidates[0];const t=c&&c.content?(c.content.parts||[]).map(x=>x.text||'').join('').trim():'';

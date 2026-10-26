@@ -564,7 +564,7 @@ const dev=new URLSearchParams(location.search).get('dev');let me,S={hist:[],cfg:
 const $=s=>document.querySelector(s),H=h=>($('#m').innerHTML=h);
 async function api(p,o={}){const h={'x-init':tg?.initData||'','x-dev':dev||''},t=localStorage.tok;if(t)h.authorization='Bearer '+t;let b=o.body;
   if(b&&!(b instanceof FormData)){h['content-type']='application/json';b=JSON.stringify(b)}
-  const ab=o.t?new AbortController():null,tm=ab&&setTimeout(()=>ab.abort(),o.t);let r;try{r=await fetch('/api'+p,{method:o.body?'POST':'GET',headers:h,body:b,signal:ab?ab.signal:undefined})}finally{clearTimeout(tm)}
+  const r=await fetch('/api'+p,{method:o.body?'POST':'GET',headers:h,body:b});
   if(r.status==401){login();throw 0}if(r.status==402){gate();throw 0}if(r.status==403){alert("Bu funksiya sizga o'chirilgan");throw 0}const tx=await r.text();try{return JSON.parse(tx)}catch{return {e:'Server javobi xato (HTTP '+r.status+'): '+tx.replace(/<[^>]+>/g,' ').trim().slice(0,150)}}}
 const esc=t=>String(t??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 let POS={ot:'Ot (명사)',fel:"Fe'l (동사)",sifat:'Sifat (형용사)',ravish:'Ravish (부사)',olmosh:'Olmosh (대명사)',son:'Son (수사)',yordamchi:'Yordamchi (조사)'},POSL=[];
@@ -577,16 +577,12 @@ function speak(t,cb,lang){let d=0;const fin=()=>{if(d)return;d=1;clearTimeout(tm
  try{const u=new SpeechSynthesisUtterance(t),vo=lang?pickVoice(lang):null;u.lang=lang==='uz'?(vo?vo.lang:'uz-UZ'):'ko-KR';if(vo)u.voice=vo;u.onend=u.onerror=fin;speechSynthesis.cancel();speechSynthesis.speak(u)}catch{fin()}}
 const AUD=new Audio(),SIL='data:audio/wav;base64,UklGRkQDAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YSADAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgA==';let audOk=0;
 // telefonda ovoz faqat "bosish" (click/touchend) paytida ochiladi; pointerdown sensorli ekranda hisoblanmaydi
-function dbg(m){try{let e=document.getElementById('dbg');if(!e){e=document.createElement('div');e.id='dbg';e.style.cssText='position:fixed;left:8px;right:8px;bottom:84px;z-index:2000;background:#000d;color:#fff;font:12px/1.35 sans-serif;padding:7px 11px;border-radius:10px;pointer-events:none;word-break:break-word';document.body.appendChild(e)}e.textContent='🔧 '+m;clearTimeout(e._t);e._t=setTimeout(()=>e.remove(),12000)}catch{}}
-let ACX=null,MICST=null;
-function getAC(){const A=window.AudioContext||window.webkitAudioContext;if(!ACX&&A){try{ACX=new A()}catch{}}return ACX}
-function acUnlock(){try{const a=getAC();if(a&&a.state!=='running')a.resume()}catch{}}
-// mikrofon bir marta so'raladi va butun sessiya davomida qayta ishlatiladi
+let MICST=null;
 async function getMic(){if(MICST&&MICST.getTracks().some(t=>t.readyState==='live'))return MICST;
  MICST=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true}});return MICST}
-function audUnlock(){acUnlock();if(audOk||AUD._busy)return;try{AUD.src=SIL;const p=AUD.play();if(p&&p.then)p.then(()=>{audOk=1}).catch(()=>{});else audOk=1}catch{}}
+function audUnlock(){if(audOk||AUD._busy)return;try{AUD.src=SIL;const p=AUD.play();if(p&&p.then)p.then(()=>{audOk=1}).catch(()=>{});else audOk=1}catch{}}
 ['click','touchend','pointerup'].forEach(t=>document.addEventListener(t,()=>{if(AUD._pend){const x=AUD._pend;AUD._pend=null;playSrc(x.src,x.end,x.err,x.max);return}audUnlock()},{capture:true,passive:true}));
-function playSrc(src,end,err,maxMs){let d=0,tm=0;AUD._busy=1;AUD._pend=null;const done=f=>{if(d)return;d=1;clearTimeout(tm);AUD._busy=0;AUD.onended=AUD.onerror=null;if(f)f()};tm=setTimeout(()=>done(end),maxMs||25000);AUD.onended=()=>done(end);AUD.onerror=()=>{dbg('HTMLAudio xato kodi '+(AUD.error&&AUD.error.code));done(err||end)};AUD.src=src;const p=AUD.play();
+function playSrc(src,end,err,maxMs){let d=0,tm=0;AUD._busy=1;AUD._pend=null;const done=f=>{if(d)return;d=1;clearTimeout(tm);AUD._busy=0;AUD.onended=AUD.onerror=null;if(f)f()};tm=setTimeout(()=>done(end),maxMs||25000);AUD.onended=()=>done(end);AUD.onerror=()=>done(err||end);AUD.src=src;const p=AUD.play();
  if(p&&p.then)p.then(()=>{audOk=1}).catch(e=>{if(e&&e.name==='NotAllowedError'){d=1;clearTimeout(tm);AUD._busy=0;AUD.onended=AUD.onerror=null;AUD._pend={src,end,err,max:maxMs};try{stSet('🔈 Ovozni eshitish uchun ekranni bosing','speak')}catch{}}else done(err||end)})}
 function playWord(w,cb){if(!w)return;let once=0;const end=()=>{if(!once){once=1;if(cb)cb()}},sp=()=>speak(w.ko,end),pa=()=>playSrc('/audio/'+w.audio,end,sp);
  if(w.audio){pa();return}
@@ -872,32 +868,25 @@ function foxV(){const f=S.fox;H(`<div class=fxw><div class=fxh><i>🦊</i><div><
 <div class=inp><input id=fin placeholder="Savol yozing..." autocomplete=off onkeydown="if(event.key==='Enter')foxSend()"><button class=mic2 onclick="foxLang()">${f.lang=='ko-KR'?'🇰🇷':'🇺🇿'}</button><button class=mic2 onclick="foxMic()">🎤</button><button class=send onclick="foxSend()">➤</button></div></div>`);
  setTimeout(()=>{const c=$('#fch');c&&(c.scrollTop=c.scrollHeight);window.scrollTo(0,document.body.scrollHeight)},40);vcSync()}
 async function foxSend(t){let sp=0;const f=S.fox;if(f.typing)return;const v=(t??$('#fin').value).trim();if(!v)return;f.msgs.push({role:'user',content:v});f.typing=1;foxV();
- try{const r=await api('/fox',{t:20000,body:{messages:f.msgs,words:f.words.slice(0,20).map(w=>({ko:w.ko,uz:w.uz}))}});
+ try{const r=await api('/fox',{body:{messages:f.msgs,words:f.words.slice(0,20).map(w=>({ko:w.ko,uz:w.uz}))}});
   f.lite=!!r.lite;if(r.left!=null)f.left=r.left;f.msgs.push({role:'assistant',content:r.reply||(r.e=='nokey'?"Men hali uyg'onmaganman 😴 Admin GEMINI_API_KEY ni sozlashi kerak.":r.e=='limit'?"Bugungi savollar limiti tugadi. Obuna bo'lsangiz ko'proq yozishingiz mumkin 🦊":(r.msg?'Xatolik: '+r.msg:"Xatolik bo'ldi, qayta urinib ko'ring."))});
   if(r.reply&&(f.auto||f.viaMic)){sp=1;foxSpeak(f.msgs.length-1,f.talk?talkListen:null)}f.viaMic=0}catch{f.msgs.push({role:'assistant',content:"Aloqa uzildi, qayta urinib ko'ring."})}
  f.typing=0;foxV();if(f.talk&&!sp)setTimeout(talkListen,500)}
-async function playB64(f,b64,onEnd,onErr,mime){
- try{const ac=getAC();if(!ac)throw 0;try{await ac.resume()}catch{}if(ac.state!=='running')throw 0;
-  const bin=atob(b64),u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);
-  const buf=await new Promise((ok,no)=>{const r=ac.decodeAudioData(u.buffer,ok,no);if(r&&r.catch)r.catch(no)});
-  const src=ac.createBufferSource();src.buffer=buf;src.connect(ac.destination);let d=0;const end=()=>{if(d)return;d=1;if(onEnd)onEnd()};
-  f.audio={pause(){d=1;try{src.onended=null;src.stop()}catch{}}};src.onended=end;src.start();dbg('WebAudio ijro: '+buf.duration.toFixed(1)+' s, holat '+ac.state);setTimeout(end,buf.duration*1000+2500);return}
- catch(e){dbg('WebAudio xato: '+(e&&e.message||e)+' → HTMLAudio')}
- f.audio={pause(){try{AUD.pause()}catch{}}};playSrc('data:'+(mime||'audio/wav')+';base64,'+b64,onEnd,onErr,120000)}
+async function playB64(f,b64,onEnd,onErr,mime){f.audio={pause(){try{AUD.pause()}catch{}}};playSrc('data:'+(mime||'audio/wav')+';base64,'+b64,onEnd,onErr,120000)}
 function gSegs(t){t=t.replace(/\p{Extended_Pictographic}/gu,' ').replace(/\uFE0F/g,'');const segs=[];
  for(const m of t.matchAll(/([가-힣ㄱ-ㅎㅏ-ㅣ]+(?:[\s,.!?~·]+[가-힣ㄱ-ㅎㅏ-ㅣ]+)*)|([^가-힣ㄱ-ㅎㅏ-ㅣ]+)/g)){const x=m[0].replace(/\s+/g,' ').trim();if(!x||!/[\p{L}\p{N}]/u.test(x))continue;const lang=m[1]?'ko':'uz';
   for(let i=0;i<x.length;i+=170){let e=Math.min(x.length,i+170);if(e<x.length){const sp=x.lastIndexOf(' ',e);if(sp>i+60)e=sp}segs.push([x.slice(i,e).trim(),lang]);i=e-170}}
  return segs.slice(0,14)}
 function gSpeak(t,end,fail){const segs=gSegs(t);if(!segs.length)return fail();let k=0,any=0;
- const next=()=>{if(k>=segs.length)return end();const [x,l]=segs[k++];playSrc('https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl='+l+'&q='+encodeURIComponent(x),()=>{any=1;next()},()=>{if(any)next();else{dbg('Google brauzer ovozi ishlamadi');fail()}},30000)};next()}
-function foxSpeak(i,cb){const f=S.fox,tk=f.spk=(f.spk||0)+1;f.speaking=1;stSet('🦊 gapiryapti...','speak');let d=0,er=0,why='';micMute(f,1);
+ const next=()=>{if(k>=segs.length)return end();const [x,l]=segs[k++];playSrc('https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl='+l+'&q='+encodeURIComponent(x),()=>{any=1;next()},()=>{if(any)next();else fail()},30000)};next()}
+function foxSpeak(i,cb){const f=S.fox,tk=f.spk=(f.spk||0)+1;f.speaking=1;stSet('🦊 gapiryapti...','speak');let d=0,er=0;micMute(f,1);
  const t=String(f.msgs[i].content||'').replace(/[*_#`]/g,'').trim();
  const go=()=>{if(d)return;d=1;if(f.spk!==tk)return;f.speaking=0;spkUi();if(f.talk)stSet('🎙 ovozli suhbat','listen');if(cb)cb()};
- const local=()=>{if(f.spk!==tk)return;try{if(!(speechSynthesis.getVoices()||[]).length)stSet('🔇 Ovoz chiqmadi'+(why?': '+why:'')+' — javob matnda','speak')}catch{}foxSpeakLocal(i,cb,tk)};
+ const local=()=>{if(f.spk!==tk)return;try{if(!(speechSynthesis.getVoices()||[]).length)stSet('🔇 Ovoz chiqmadi — javob matnda','speak')}catch{}foxSpeakLocal(i,cb,tk)};
  const viaG=()=>{if(f.spk!==tk)return;stSet('🔊 Kori gapiryapti (Google ovozi)','speak');f.audio={pause(){try{AUD.pause()}catch{}}};gSpeak(t,go,local)};
  if(!t)return go();
  if(f.noTts&&Date.now()<f.noTts)return viaG();
- (async()=>{try{const r=await api('/fox-tts',{body:{text:t}});if(f.spk!==tk)return;dbg('server ovozi: '+(r.a?Math.round(r.a.length/1000)+'KB '+(r.mime||'wav'):'XATO '+(r.msg||r.e)));if(!r.a){why=String(r.msg||r.e||'server');console.warn('fox-tts:',why);throw 0}
+ (async()=>{try{const r=await api('/fox-tts',{body:{text:t}});if(f.spk!==tk)return;if(!r.a){console.warn('fox-tts:',r.msg||r.e);throw 0}
   try{f.audio&&f.audio.pause()}catch{}
   stSet('🔊 Kori gapiryapti','speak');await playB64(f,r.a,go,()=>{if(!d&&!er){er=1;viaG()}},r.mime);f.ttsFail=0}
  catch(e){if(f.spk!==tk)return;console.warn('fox ovoz:',e);f.ttsFail=(f.ttsFail||0)+1;if(f.ttsFail>=3){f.noTts=Date.now()+60000;f.ttsFail=0}viaG()}})()}
@@ -940,7 +929,7 @@ async function talkListen(){const f=S.fox;if(f&&f.talk&&f.endAfter&&!f.typing&&!
   x.onend=()=>{f.rec=0;if(!got&&f.talk&&!f.typing&&!f.speaking)setTimeout(talkListen,500)};
   try{x.start()}catch{f.rec=0}return}
  try{if(f.st&&!f.st.getTracks().some(t=>t.readyState==='live'))f.st=null;f.st=await getMic();micMute(f,0)}catch{stopTalk();return alert("Mikrofonga ruxsat berilmadi. Telefon sozlamalarida Telegram uchun mikrofonni yoqing.")}
- const ac=f.ac=getAC();try{await ac.resume()}catch{}
+ const AC=window.AudioContext||window.webkitAudioContext,ac=f.ac=f.ac||new AC();try{await ac.resume()}catch{}
  if(!f.talk||f.rec)return;
  const src=ac.createMediaStreamSource(f.st),pr=ac.createScriptProcessor(4096,1,1),g=ac.createGain(),ch=[];g.gain.value=0;
  let vc=0,talked=0,done=0,t0=Date.now(),last=t0;f.rec=1;stSet('🎙 Tinglayapman...','listen');
@@ -952,13 +941,13 @@ async function talkListen(){const f=S.fox;if(f&&f.talk&&f.endAfter&&!f.typing&&!
  f.cur=()=>fin(0);f.sendNow=()=>fin(vc>=4);src.connect(pr);pr.connect(g);g.connect(ac.destination)}
 async function talkSend(b){const f=S.fox;let sp=0;f.typing=1;stSet("🦊 o'ylayapti...",'think');foxV();
  try{const fd=new FormData();fd.append('audio',b,'v.wav');fd.append('messages',JSON.stringify(f.msgs.slice(-10)));fd.append('words',JSON.stringify(f.words.slice(0,20).map(w=>({ko:w.ko,uz:w.uz}))));
-  const r=await api('/fox-voice',{t:35000,body:fd});if(r.left!=null)f.vleft=r.left;
+  const r=await api('/fox-voice',{body:fd});if(r.left!=null)f.vleft=r.left;
   if(r.heard)f.msgs.push({role:'user',content:r.heard});
   if(r.reply){f.msgs.push({role:'assistant',content:r.reply});sp=1;f.typing=0;foxV();foxSpeak(f.msgs.length-1,talkListen);return}
   if(r.e=='limit'){f.msgs.push({role:'assistant',content:"Bugungi savollar limiti tugadi. Obuna bo'lsangiz ko'proq gaplashishingiz mumkin 🦊"});f.talk=0}
   else if(r.e=='nohear'){stSet('🎙 Eshitilmadi, qayta gapiring','listen')}
-  else if(r.e=='api'){f.msgs.push({role:'assistant',content:r.msg?'Xatolik: '+r.msg:"Xatolik bo'ldi, qayta urinib ko'ring."});f.talk=0}
- }catch{f.msgs.push({role:'assistant',content:"Javob kechikdi yoki aloqa uzildi, qayta urinib ko'ring."});f.talk=0}
+  else if(r.e=='api'){f.msgs.push({role:'assistant',content:r.msg?'Xatolik: '+r.msg:"Xatolik bo'ldi, qayta urinib ko'ring."})}
+ }catch{f.msgs.push({role:'assistant',content:"Aloqa uzildi, qayta urinib ko'ring."})}
  f.typing=0;if(!f.talk)stopTalk();else foxV();if(f.talk&&!sp)setTimeout(talkListen,700)}
 function foxWrite(){const f=S.fox;if(f.talk)stopTalk();f.auto=0;foxStop();foxV();setTimeout(()=>{const i=$('#fin');i&&i.focus()},60)}
 function foxLang(){S.fox.lang=S.fox.lang=='ko-KR'?'uz-UZ':'ko-KR';foxV()}
@@ -1023,7 +1012,7 @@ async function posRefresh(){await loadPos();const b=$('#posbox');if(b)b.innerHTM
 async function posSave(k){const r=await api('/admin/pos',{body:{key:k,name:$('#pn_'+k).value,ko:$('#pk_'+k).value}});if(r.e)return alert(r.e);posRefresh()}
 async function posDel(k){if(!confirm("Turkum o'chirilsinmi?"))return;const r=await api('/admin/pos',{body:{del:k}});if(r.e)return alert(r.e);posRefresh()}
 async function posAdd(){const name=$('#pnn').value.trim();if(!name)return alert('Nomini yozing');const r=await api('/admin/pos',{body:{name,ko:$('#pkn').value}});if(r.e)return alert(r.e);posRefresh()}
-async function ttsTest(){const r=await api('/admin/tts-test',{body:{}});if(!r.ok)return alert('❌ '+r.error);try{await new Audio('data:'+(r.mime||'audio/wav')+';base64,'+r.a).play();alert(r.mime?'✅ Google ovozi ishlayapti (Gemini ovozi limit tufayli o\'chiq: '+(r.note||'')+')':'✅ Haqiqiy ovozli AI ishlayapti ('+(r.model||'')+')')}catch{alert("Ovoz keldi, lekin brauzer ijro etishga ruxsat bermadi. Sahifani bosib qayta urinib ko'ring.")}}
+async function ttsTest(){const r=await api('/admin/tts-test',{body:{}});if(!r.ok)return alert('❌ '+r.error);try{await new Audio('data:audio/wav;base64,'+r.a).play();alert('✅ Haqiqiy ovozli AI ishlayapti ('+(r.model||'')+')')}catch{alert("Ovoz keldi, lekin brauzer ijro etishga ruxsat bermadi. Sahifani bosib qayta urinib ko'ring.")}}
 async function vProfile(){head('Profil','back()');const st=await api('/stats');me=await api('/me');
  H(`<div class=hero><i class=kr>프로필</i><small>${esc(me.email||'')}</small><h2>👤 ${esc(me.name)}</h2><small>${st.learned} ta so'z o'rganildi · ${st.rank} ball (hafta)</small></div>`)}
 const VW={};
