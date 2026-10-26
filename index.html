@@ -564,7 +564,7 @@ const dev=new URLSearchParams(location.search).get('dev');let me,S={hist:[],cfg:
 const $=s=>document.querySelector(s),H=h=>($('#m').innerHTML=h);
 async function api(p,o={}){const h={'x-init':tg?.initData||'','x-dev':dev||''},t=localStorage.tok;if(t)h.authorization='Bearer '+t;let b=o.body;
   if(b&&!(b instanceof FormData)){h['content-type']='application/json';b=JSON.stringify(b)}
-  const r=await fetch('/api'+p,{method:o.body?'POST':'GET',headers:h,body:b});
+  const ab=o.t?new AbortController():null,tm=ab&&setTimeout(()=>ab.abort(),o.t);let r;try{r=await fetch('/api'+p,{method:o.body?'POST':'GET',headers:h,body:b,signal:ab?ab.signal:undefined})}finally{clearTimeout(tm)}
   if(r.status==401){login();throw 0}if(r.status==402){gate();throw 0}if(r.status==403){alert("Bu funksiya sizga o'chirilgan");throw 0}const tx=await r.text();try{return JSON.parse(tx)}catch{return {e:'Server javobi xato (HTTP '+r.status+'): '+tx.replace(/<[^>]+>/g,' ').trim().slice(0,150)}}}
 const esc=t=>String(t??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 let POS={ot:'Ot (명사)',fel:"Fe'l (동사)",sifat:'Sifat (형용사)',ravish:'Ravish (부사)',olmosh:'Olmosh (대명사)',son:'Son (수사)',yordamchi:'Yordamchi (조사)'},POSL=[];
@@ -871,7 +871,7 @@ function foxV(){const f=S.fox;H(`<div class=fxw><div class=fxh><i>🦊</i><div><
 <div class=inp><input id=fin placeholder="Savol yozing..." autocomplete=off onkeydown="if(event.key==='Enter')foxSend()"><button class=mic2 onclick="foxLang()">${f.lang=='ko-KR'?'🇰🇷':'🇺🇿'}</button><button class=mic2 onclick="foxMic()">🎤</button><button class=send onclick="foxSend()">➤</button></div></div>`);
  setTimeout(()=>{const c=$('#fch');c&&(c.scrollTop=c.scrollHeight);window.scrollTo(0,document.body.scrollHeight)},40);vcSync()}
 async function foxSend(t){let sp=0;const f=S.fox;if(f.typing)return;const v=(t??$('#fin').value).trim();if(!v)return;f.msgs.push({role:'user',content:v});f.typing=1;foxV();
- try{const r=await api('/fox',{body:{messages:f.msgs,words:f.words.slice(0,20).map(w=>({ko:w.ko,uz:w.uz}))}});
+ try{const r=await api('/fox',{t:20000,body:{messages:f.msgs,words:f.words.slice(0,20).map(w=>({ko:w.ko,uz:w.uz}))}});
   f.lite=!!r.lite;if(r.left!=null)f.left=r.left;f.msgs.push({role:'assistant',content:r.reply||(r.e=='nokey'?"Men hali uyg'onmaganman 😴 Admin GEMINI_API_KEY ni sozlashi kerak.":r.e=='limit'?"Bugungi savollar limiti tugadi. Obuna bo'lsangiz ko'proq yozishingiz mumkin 🦊":(r.msg?'Xatolik: '+r.msg:"Xatolik bo'ldi, qayta urinib ko'ring."))});
   if(r.reply&&(f.auto||f.viaMic)){sp=1;foxSpeak(f.msgs.length-1,f.talk?talkListen:null)}f.viaMic=0}catch{f.msgs.push({role:'assistant',content:"Aloqa uzildi, qayta urinib ko'ring."})}
  f.typing=0;foxV();if(f.talk&&!sp)setTimeout(talkListen,500)}
@@ -951,13 +951,13 @@ async function talkListen(){const f=S.fox;if(f&&f.talk&&f.endAfter&&!f.typing&&!
  f.cur=()=>fin(0);f.sendNow=()=>fin(vc>=4);src.connect(pr);pr.connect(g);g.connect(ac.destination)}
 async function talkSend(b){const f=S.fox;let sp=0;f.typing=1;stSet("🦊 o'ylayapti...",'think');foxV();
  try{const fd=new FormData();fd.append('audio',b,'v.wav');fd.append('messages',JSON.stringify(f.msgs.slice(-10)));fd.append('words',JSON.stringify(f.words.slice(0,20).map(w=>({ko:w.ko,uz:w.uz}))));
-  const r=await api('/fox-voice',{body:fd});if(r.left!=null)f.vleft=r.left;
+  const r=await api('/fox-voice',{t:35000,body:fd});if(r.left!=null)f.vleft=r.left;
   if(r.heard)f.msgs.push({role:'user',content:r.heard});
   if(r.reply){f.msgs.push({role:'assistant',content:r.reply});sp=1;f.typing=0;foxV();foxSpeak(f.msgs.length-1,talkListen);return}
   if(r.e=='limit'){f.msgs.push({role:'assistant',content:"Bugungi savollar limiti tugadi. Obuna bo'lsangiz ko'proq gaplashishingiz mumkin 🦊"});f.talk=0}
   else if(r.e=='nohear'){stSet('🎙 Eshitilmadi, qayta gapiring','listen')}
   else if(r.e=='api'){f.msgs.push({role:'assistant',content:r.msg?'Xatolik: '+r.msg:"Xatolik bo'ldi, qayta urinib ko'ring."});f.talk=0}
- }catch{f.msgs.push({role:'assistant',content:"Aloqa uzildi, qayta urinib ko'ring."})}
+ }catch{f.msgs.push({role:'assistant',content:"Javob kechikdi yoki aloqa uzildi, qayta urinib ko'ring."});f.talk=0}
  f.typing=0;if(!f.talk)stopTalk();else foxV();if(f.talk&&!sp)setTimeout(talkListen,700)}
 function foxWrite(){const f=S.fox;if(f.talk)stopTalk();f.auto=0;foxStop();foxV();setTimeout(()=>{const i=$('#fin');i&&i.focus()},60)}
 function foxLang(){S.fox.lang=S.fox.lang=='ko-KR'?'uz-UZ':'ko-KR';foxV()}
