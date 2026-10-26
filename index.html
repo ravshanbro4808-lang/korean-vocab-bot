@@ -539,6 +539,23 @@ main:has(.cdbar){padding-bottom:128px}
 .cdf .glr.rg{border-radius:28px}
 .cdf .ct,.cdf .bg,.cdf .bgr,.cdf .orn{will-change:transform}
 .cdi{will-change:transform}
+/* ===== bosh sahifa kartasidagi fon dizayni hamma tugmalarda; ranglar bir-biridan keyin almashib turadi ===== */
+@property --ba{syntax:'<color>';inherits:false;initial-value:#4a78d4}
+@property --bb{syntax:'<color>';inherits:false;initial-value:#8a62c9}
+@property --bs{syntax:'<color>';inherits:false;initial-value:#34459a}
+@keyframes gcyc{0%{--ba:#4a78d4;--bb:#8a62c9;--bs:#34459a}17%{--ba:#8a62c9;--bb:#d65a9a;--bs:#5e3a92}33%{--ba:#2aa3b8;--bb:#4a78d4;--bs:#1c6a85}50%{--ba:#36b27a;--bb:#2aa3b8;--bs:#1f7a58}67%{--ba:#f08a4a;--bb:#d65a9a;--bs:#a85428}83%{--ba:#5b6be6;--bb:#a05be0;--bs:#3a3fa6}100%{--ba:#4a78d4;--bb:#8a62c9;--bs:#34459a}}
+:is(.b,.nxt,.big2,.pill,.lrn:not(.on),.gold,.bkb,.book,.tile)[data-bc]:not(#_):not(#_):not(#_){position:relative;overflow:hidden;isolation:isolate;border:0!important;color:#fff!important;text-shadow:0 1px 0 #0003!important;background-color:transparent!important;background-image:linear-gradient(135deg,var(--ba),var(--bb))!important;background-size:100% 100%!important;box-shadow:0 6px 0 var(--bs),0 12px 20px #0003,inset 0 2px 0 #ffffff55!important}
+:is(.b,.nxt,.big2,.pill,.lrn:not(.on),.gold,.bkb,.book,.tile)[data-bc]:not(.dodge):not(#_):not(#_):not(#_){animation:gcyc 36s linear infinite!important}
+:is(.b,.nxt,.big2,.pill,.lrn:not(.on),.gold,.bkb,.book,.tile)[data-bc]:not(#_):not(#_):not(#_)::before{content:attr(data-kr)!important;display:block!important;position:absolute!important;z-index:-1;left:auto!important;bottom:auto!important;width:auto!important;height:auto!important;transform:none!important;background:none!important;box-shadow:none!important;right:-.1em!important;top:-.28em!important;font-size:3.2em;line-height:1;font-weight:800;font-style:normal;opacity:.17;color:#fff;pointer-events:none}
+:is(.b,.nxt,.big2,.pill,.lrn:not(.on),.gold,.bkb,.book,.tile)[data-bc]:active:not(#_):not(#_):not(#_){transform:translateY(4px);box-shadow:0 2px 0 var(--bs),0 6px 12px #0003,inset 0 2px 0 #ffffff55!important}
+:is(.b,.nxt,.big2,.pill,.lrn:not(.on),.gold,.bkb,.book,.tile)[data-bc][disabled]:not(#_):not(#_):not(#_){filter:grayscale(.6);opacity:.6}
+main:has(.cdw) :is(.b,.nxt,.big2,.pill,.lrn:not(.on),.gold,.bkb,.book,.tile)[data-bc]:not(.dodge):not(#_):not(#_):not(#_){animation:none!important}
+:is(.b,.nxt,.big2,.pill,.lrn:not(.on),.gold,.bkb,.book,.tile)[data-bc="0"]:not(.dodge):not(#_):not(#_):not(#_){--ba:#4a78d4;--bb:#8a62c9;--bs:#34459a;animation-delay:-0s!important}
+:is(.b,.nxt,.big2,.pill,.lrn:not(.on),.gold,.bkb,.book,.tile)[data-bc="1"]:not(.dodge):not(#_):not(#_):not(#_){--ba:#8a62c9;--bb:#d65a9a;--bs:#5e3a92;animation-delay:-6s!important}
+:is(.b,.nxt,.big2,.pill,.lrn:not(.on),.gold,.bkb,.book,.tile)[data-bc="2"]:not(.dodge):not(#_):not(#_):not(#_){--ba:#2aa3b8;--bb:#4a78d4;--bs:#1c6a85;animation-delay:-12s!important}
+:is(.b,.nxt,.big2,.pill,.lrn:not(.on),.gold,.bkb,.book,.tile)[data-bc="3"]:not(.dodge):not(#_):not(#_):not(#_){--ba:#36b27a;--bb:#2aa3b8;--bs:#1f7a58;animation-delay:-18s!important}
+:is(.b,.nxt,.big2,.pill,.lrn:not(.on),.gold,.bkb,.book,.tile)[data-bc="4"]:not(.dodge):not(#_):not(#_):not(#_){--ba:#f08a4a;--bb:#d65a9a;--bs:#a85428;animation-delay:-24s!important}
+:is(.b,.nxt,.big2,.pill,.lrn:not(.on),.gold,.bkb,.book,.tile)[data-bc="5"]:not(.dodge):not(#_):not(#_):not(#_){--ba:#5b6be6;--bb:#a05be0;--bs:#3a3fa6;animation-delay:-30s!important}
 </style></head><body><div id="hd"></div><main id="m"></main>
 <script>
 try{localStorage.rm='0'}catch{}
@@ -848,22 +865,16 @@ function foxV(){const f=S.fox;H(`<div class=fxw><div class=fxh><i>🦊</i><div><
 async function foxSend(t){let sp=0;const f=S.fox;if(f.typing)return;const v=(t??$('#fin').value).trim();if(!v)return;f.msgs.push({role:'user',content:v});f.typing=1;foxV();
  try{const r=await api('/fox',{body:{messages:f.msgs,words:f.words.slice(0,20).map(w=>({ko:w.ko,uz:w.uz}))}});
   f.lite=!!r.lite;if(r.left!=null)f.left=r.left;f.msgs.push({role:'assistant',content:r.reply||(r.e=='nokey'?"Men hali uyg'onmaganman 😴 Admin GEMINI_API_KEY ni sozlashi kerak.":r.e=='limit'?"Bugungi savollar limiti tugadi. Obuna bo'lsangiz ko'proq yozishingiz mumkin 🦊":(r.msg?'Xatolik: '+r.msg:"Xatolik bo'ldi, qayta urinib ko'ring."))});
-  if(r.reply&&f.auto){sp=1;foxSpeak(f.msgs.length-1,f.talk?talkListen:null)}}catch{f.msgs.push({role:'assistant',content:"Aloqa uzildi, qayta urinib ko'ring."})}
+  if(r.reply&&(f.auto||f.viaMic)){sp=1;foxSpeak(f.msgs.length-1,f.talk?talkListen:null)}f.viaMic=0}catch{f.msgs.push({role:'assistant',content:"Aloqa uzildi, qayta urinib ko'ring."})}
  f.typing=0;foxV();if(f.talk&&!sp)setTimeout(talkListen,500)}
-async function playB64(f,b64,onEnd,onErr){
- const bin=atob(b64),u8=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u8[i]=bin.charCodeAt(i);
- const AC=window.AudioContext||window.webkitAudioContext;
- if(AC){try{const ac=f.ac=f.ac||new AC();if(ac.state!=='running')await ac.resume();
-  if(ac.state==='running'){const buf=await new Promise((ok,no)=>{const p=ac.decodeAudioData(u8.buffer.slice(0),ok,no);if(p&&p.catch)p.catch(no)});
-   const sn=ac.createBufferSource();sn.buffer=buf;sn.connect(ac.destination);f.audio={pause(){try{sn.onended=null;sn.stop()}catch{}}};sn.onended=onEnd;sn.start();return}}catch{}}
- const a=f.audio=new Audio('data:audio/wav;base64,'+b64);a.onended=onEnd;a.onerror=onErr;await a.play()}
+async function playB64(f,b64,onEnd,onErr,mime){f.audio={pause(){try{AUD.pause()}catch{}}};playSrc('data:'+(mime||'audio/wav')+';base64,'+b64,onEnd,onErr)}
 function foxSpeak(i,cb){const f=S.fox,tk=f.spk=(f.spk||0)+1;f.speaking=1;stSet('🦊 gapiryapti...','speak');
  const t=String(f.msgs[i].content||'').replace(/[*_#`]/g,'').trim(),local=()=>{if(f.spk===tk)foxSpeakLocal(i,cb,tk)};
  if((f.noTts&&Date.now()<f.noTts)||!t)return local();
  (async()=>{try{const r=await api('/fox-tts',{body:{text:t}});if(f.spk!==tk)return;if(!r.a){console.warn('fox-tts:',r.msg||r.e);throw 0}
   try{f.audio&&f.audio.pause()}catch{}let d=0;
   const go=()=>{if(d)return;d=1;if(f.spk!==tk)return;f.speaking=0;spkUi();if(f.talk)stSet('🎙 ovozli suhbat','listen');if(cb)cb()};
-  await playB64(f,r.a,go,()=>{if(!d){d=1;local()}});f.ttsFail=0}
+  await playB64(f,r.a,go,()=>{if(!d){d=1;local()}},r.mime);f.ttsFail=0}
  catch(e){if(f.spk!==tk)return;console.warn('fox ovoz:',e);f.ttsFail=(f.ttsFail||0)+1;if(f.ttsFail>=3){f.noTts=Date.now()+60000;f.ttsFail=0}local()}})()}
 function foxSpeakLocal(i,cb,tk){const f=S.fox;let d=0,tm;
  const go=()=>{if(d)return;d=1;clearTimeout(tm);if(f.spk!==tk)return;f.speaking=0;spkUi();if(f.talk)stSet('🎙 ovozli suhbat','listen');if(cb)cb()};
@@ -893,7 +904,7 @@ function wav16(ch,sr){let n=0;ch.forEach(c=>n+=c.length);const a=new Float32Arra
  return new Blob([d],{type:'audio/wav'})}
 function foxTalk(){const f=S.fox;if(f.talk)return stopTalk();
  if(!(S.cfg&&S.cfg.voice)&&!(window.SpeechRecognition||window.webkitSpeechRecognition))return alert("Bu qurilmada ovozli suhbat ishlamaydi. Yozib yuboring.");
- f.talk=1;f.auto=1;f.muted=0;f.endAfter=0;vcOpen();foxV();talkListen()}
+ audUnlock();f.talk=1;f.auto=1;f.muted=0;f.endAfter=0;vcOpen();foxV();talkListen()}
 function stopTalk(){const v=$('#vc');if(v)v.remove();const f=S.fox;if(!f)return;f.talk=0;f.muted=0;f.endAfter=0;f.status='';f.speaking=0;f.spk=(f.spk||0)+1;if(f.cur)f.cur();try{speechSynthesis.cancel()}catch{}if(f.st){f.st.getTracks().forEach(t=>t.stop());f.st=null}if($('#fch'))foxV()}
 async function talkListen(){const f=S.fox;if(f&&f.talk&&f.endAfter&&!f.typing&&!f.speaking&&!f.rec)return stopTalk();if(!f||!f.talk||f.muted)return;if(!$('#fch'))return stopTalk();if(f.typing||f.speaking||f.rec)return;
  if(!(S.cfg&&S.cfg.voice)){const R=window.SpeechRecognition||window.webkitSpeechRecognition;if(!R){stopTalk();return alert("Bu qurilmada ovoz tanish ishlamaydi.")}
@@ -925,7 +936,7 @@ async function talkSend(b){const f=S.fox;let sp=0;f.typing=1;stSet("🦊 o'ylaya
  f.typing=0;if(!f.talk)stopTalk();else foxV();if(f.talk&&!sp)setTimeout(talkListen,700)}
 function foxWrite(){const f=S.fox;if(f.talk)stopTalk();f.auto=0;foxStop();foxV();setTimeout(()=>{const i=$('#fin');i&&i.focus()},60)}
 function foxLang(){S.fox.lang=S.fox.lang=='ko-KR'?'uz-UZ':'ko-KR';foxV()}
-function foxMic(){const R=window.SpeechRecognition||window.webkitSpeechRecognition;if(!R)return alert("Bu qurilmada ovoz tanish ishlamaydi. Yozib yuboring.");const x=new R();x.lang=S.fox.lang;x.onresult=e=>foxSend(e.results[0][0].transcript);x.start()}
+function foxMic(){const R=window.SpeechRecognition||window.webkitSpeechRecognition;if(!R)return alert("Bu qurilmada ovoz tanish ishlamaydi. Yozib yuboring.");const x=new R();x.lang=S.fox.lang;x.onresult=e=>{S.fox.viaMic=1;foxSend(e.results[0][0].transcript)};audUnlock();x.start()}
 // ---------- obuna oynasi
 async function sheet(note){const [pl,mt]=await Promise.all([api('/plans'),api('/methods')]);document.getElementById('ov')?.remove();const o=document.createElement('div');o.id='ov';
  const gr={};pl.forEach(x=>(gr[x.dict_id||0]=gr[x.dict_id||0]||[]).push(x));
@@ -1055,6 +1066,11 @@ document.addEventListener('pointermove',e=>{const f=e.target.closest&&e.target.c
 document.addEventListener('pointerdown',e=>{const f=e.target.closest&&e.target.closest('.cdw');if(!f)return;c=f;const r=f.getBoundingClientRect(),px=(e.clientX-r.left)/r.width-.5,py=(e.clientY-r.top)/r.height-.5;f.classList.add('hold','cdtilt');f.style.setProperty('--ry',(px*26).toFixed(1)+'deg');f.style.setProperty('--rx',(-py*22).toFixed(1)+'deg')},{passive:true});
 document.addEventListener('pointermove',e=>{if(!c||e.pointerType==='mouse')return;const r=c.getBoundingClientRect(),px=Math.max(-.6,Math.min(.6,(e.clientX-r.left)/r.width-.5)),py=Math.max(-.6,Math.min(.6,(e.clientY-r.top)/r.height-.5));c.style.setProperty('--ry',(px*26).toFixed(1)+'deg');c.style.setProperty('--rx',(-py*22).toFixed(1)+'deg')},{passive:true});
 ['pointerup','pointercancel'].forEach(n=>document.addEventListener(n,rs,{passive:true}))})();
+// tugmalarga ketma-ket rang va fon harfi beriladi (qo'shni tugmalar bir xil bo'lmaydi)
+(()=>{const SEL='.b,.nxt,.big2,.pill,.lrn,.gold,.bkb,.book,.tile',KR=['안','녕','한','국','어','사','랑','말','책','꿈'];let q=0;
+ const run=()=>{q=0;document.querySelectorAll(SEL).forEach((b,i)=>{if(b.dataset.bc!==undefined)return;b.dataset.bc=i%6;b.dataset.kr=KR[(i*3)%KR.length]})};
+ new MutationObserver(()=>{if(!q){q=1;requestAnimationFrame(run)}}).observe(document.body,{childList:true,subtree:true});run()})();
+
 init();
 
 window.hap=(t='light')=>{try{Telegram.WebApp.HapticFeedback.impactOccurred(t)}catch{try{navigator.vibrate&&navigator.vibrate(8)}catch{}}};
