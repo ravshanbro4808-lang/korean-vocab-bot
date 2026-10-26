@@ -546,7 +546,7 @@ main:has(.cdbar){padding-bottom:128px}
 @keyframes gcyc{0%{--ba:#4a78d4;--bb:#8a62c9;--bs:#34459a}17%{--ba:#8a62c9;--bb:#d65a9a;--bs:#5e3a92}33%{--ba:#2aa3b8;--bb:#4a78d4;--bs:#1c6a85}50%{--ba:#36b27a;--bb:#2aa3b8;--bs:#1f7a58}67%{--ba:#f08a4a;--bb:#d65a9a;--bs:#a85428}83%{--ba:#5b6be6;--bb:#a05be0;--bs:#3a3fa6}100%{--ba:#4a78d4;--bb:#8a62c9;--bs:#34459a}}
 :is(.b,.nxt,.big2,.pill,.lrn:not(.on),.gold,.bkb,.book,.tile)[data-bc]:not(#_):not(#_):not(#_){position:relative;overflow:hidden;isolation:isolate;border:0!important;color:#fff!important;text-shadow:0 1px 0 #0003!important;background-color:transparent!important;background-image:linear-gradient(135deg,var(--ba),var(--bb))!important;background-size:100% 100%!important;box-shadow:0 6px 0 var(--bs),0 12px 20px #0003,inset 0 2px 0 #ffffff55!important}
 :is(.b,.nxt,.big2,.pill,.lrn:not(.on),.gold,.bkb,.book,.tile)[data-bc]:not(.dodge):not(#_):not(#_):not(#_){animation:gcyc 36s linear infinite!important}
-:is(.b,.nxt,.big2,.pill,.lrn:not(.on),.gold,.bkb,.book,.tile)[data-bc]:not(#_):not(#_):not(#_)::before{content:attr(data-kr)!important;display:block!important;position:absolute!important;z-index:-1;left:auto!important;bottom:auto!important;width:auto!important;height:auto!important;transform:none!important;background:none!important;box-shadow:none!important;right:-.1em!important;top:-.28em!important;font-size:3.2em;line-height:1;font-weight:800;font-style:normal;opacity:.17;color:#fff;pointer-events:none}
+:is(.b,.nxt,.big2,.pill,.lrn:not(.on),.gold,.bkb,.book,.tile)[data-bc]:not(#_):not(#_):not(#_)::before{content:none!important;display:none!important}
 :is(.b,.nxt,.big2,.pill,.lrn:not(.on),.gold,.bkb,.book,.tile)[data-bc]:active:not(#_):not(#_):not(#_){transform:translateY(4px);box-shadow:0 2px 0 var(--bs),0 6px 12px #0003,inset 0 2px 0 #ffffff55!important}
 :is(.b,.nxt,.big2,.pill,.lrn:not(.on),.gold,.bkb,.book,.tile)[data-bc][disabled]:not(#_):not(#_):not(#_){filter:grayscale(.6);opacity:.6}
 main:has(.cdw) :is(.b,.nxt,.big2,.pill,.lrn:not(.on),.gold,.bkb,.book,.tile)[data-bc]:not(.dodge):not(#_):not(#_):not(#_){animation:none!important}
@@ -1068,7 +1068,7 @@ document.addEventListener('pointermove',e=>{if(!c||e.pointerType==='mouse')retur
 ['pointerup','pointercancel'].forEach(n=>document.addEventListener(n,rs,{passive:true}))})();
 // tugmalarga ketma-ket rang va fon harfi beriladi (qo'shni tugmalar bir xil bo'lmaydi)
 (()=>{const SEL='.b,.nxt,.big2,.pill,.lrn,.gold,.bkb,.book,.tile',KR=['안','녕','한','국','어','사','랑','말','책','꿈'];let q=0;
- const run=()=>{q=0;document.querySelectorAll(SEL).forEach((b,i)=>{if(b.dataset.bc!==undefined)return;b.dataset.bc=i%6;b.dataset.kr=KR[(i*3)%KR.length]})};
+ const run=()=>{q=0;document.querySelectorAll(SEL).forEach((b,i)=>{if(b.dataset.bc!==undefined)return;b.dataset.bc=i%6})};
  new MutationObserver(()=>{if(!q){q=1;requestAnimationFrame(run)}}).observe(document.body,{childList:true,subtree:true});run()})();
 
 init();
