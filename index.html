@@ -876,7 +876,7 @@ function gSegs(t){t=t.replace(/\p{Extended_Pictographic}/gu,' ').replace(/\uFE0F
  return segs.slice(0,14)}
 function gSpeak(t,end,fail){const segs=gSegs(t);if(!segs.length)return fail();let k=0,any=0;
  const next=()=>{if(k>=segs.length)return end();const [x,l]=segs[k++];playSrc('https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl='+l+'&q='+encodeURIComponent(x),()=>{any=1;next()},()=>{if(any)next();else fail()},30000)};next()}
-function foxSpeak(i,cb){const f=S.fox,tk=f.spk=(f.spk||0)+1;f.speaking=1;stSet('🦊 gapiryapti...','speak');let d=0,er=0;try{f.st&&f.st.getTracks().forEach(t=>t.stop());f.st=null}catch{}
+function foxSpeak(i,cb){const f=S.fox,tk=f.spk=(f.spk||0)+1;f.speaking=1;stSet('🦊 gapiryapti...','speak');let d=0,er=0;micMute(f,1);
  const t=String(f.msgs[i].content||'').replace(/[*_#`]/g,'').trim();
  const go=()=>{if(d)return;d=1;if(f.spk!==tk)return;f.speaking=0;spkUi();if(f.talk)stSet('🎙 ovozli suhbat','listen');if(cb)cb()};
  const local=()=>{if(f.spk!==tk)return;try{if(!(speechSynthesis.getVoices()||[]).length)stSet('🔇 Ovoz chiqmadi — javob matnda','speak')}catch{}foxSpeakLocal(i,cb,tk)};
@@ -917,6 +917,7 @@ function foxTalk(){const f=S.fox;if(f.talk)return stopTalk();
  if(!(S.cfg&&S.cfg.voice)&&!(window.SpeechRecognition||window.webkitSpeechRecognition))return alert("Bu qurilmada ovozli suhbat ishlamaydi. Yozib yuboring.");
  audUnlock();f.talk=1;f.auto=1;f.muted=0;f.endAfter=0;vcOpen();foxV();talkListen()}
 function stopTalk(){const v=$('#vc');if(v)v.remove();const f=S.fox;if(!f)return;f.talk=0;f.muted=0;f.endAfter=0;f.status='';f.speaking=0;f.spk=(f.spk||0)+1;if(f.cur)f.cur();try{speechSynthesis.cancel()}catch{}if(f.st){f.st.getTracks().forEach(t=>t.stop());f.st=null}if($('#fch'))foxV()}
+function micMute(f,m){try{f.st&&f.st.getTracks().forEach(t=>{t.enabled=!m})}catch{}}
 async function talkListen(){const f=S.fox;if(f&&f.talk&&f.endAfter&&!f.typing&&!f.speaking&&!f.rec)return stopTalk();if(!f||!f.talk||f.muted)return;if(!$('#fch'))return stopTalk();if(f.typing||f.speaking||f.rec)return;
  if(!(S.cfg&&S.cfg.voice)){const R=window.SpeechRecognition||window.webkitSpeechRecognition;if(!R){stopTalk();return alert("Bu qurilmada ovoz tanish ishlamaydi.")}
   const x=new R();let got=0;x.lang=f.lang;f.rec=1;stSet('🎙 Tinglayapman...','listen');
@@ -924,13 +925,13 @@ async function talkListen(){const f=S.fox;if(f&&f.talk&&f.endAfter&&!f.typing&&!
   x.onerror=e=>{f.rec=0;if(e.error!='no-speech'&&e.error!='aborted'){stopTalk();alert("Ovoz tanishda xato: "+e.error)}};
   x.onend=()=>{f.rec=0;if(!got&&f.talk&&!f.typing&&!f.speaking)setTimeout(talkListen,500)};
   try{x.start()}catch{f.rec=0}return}
- try{f.st=f.st||await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true}})}catch{stopTalk();return alert("Mikrofonga ruxsat berilmadi. Telefon sozlamalarida Telegram uchun mikrofonni yoqing.")}
+ try{if(f.st&&!f.st.getTracks().some(t=>t.readyState==='live'))f.st=null;f.st=f.st||await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true}});micMute(f,0)}catch{stopTalk();return alert("Mikrofonga ruxsat berilmadi. Telefon sozlamalarida Telegram uchun mikrofonni yoqing.")}
  const AC=window.AudioContext||window.webkitAudioContext,ac=f.ac=f.ac||new AC();try{await ac.resume()}catch{}
  if(!f.talk||f.rec)return;
  const src=ac.createMediaStreamSource(f.st),pr=ac.createScriptProcessor(4096,1,1),g=ac.createGain(),ch=[];g.gain.value=0;
  let vc=0,talked=0,done=0,t0=Date.now(),last=t0;f.rec=1;stSet('🎙 Tinglayapman...','listen');
  const fin=send=>{if(done)return;done=1;f.rec=0;f.cur=null;f.sendNow=null;pr.onaudioprocess=null;try{pr.disconnect();src.disconnect();g.disconnect()}catch{}
-  if(send){try{f.st&&f.st.getTracks().forEach(t=>t.stop())}catch{}f.st=null;talkSend(wav16(ch,ac.sampleRate))}else if(f.talk)setTimeout(talkListen,300)};
+  if(send){micMute(f,1);talkSend(wav16(ch,ac.sampleRate))}else if(f.talk)setTimeout(talkListen,300)};
  pr.onaudioprocess=e=>{if(done)return;const x=new Float32Array(e.inputBuffer.getChannelData(0));ch.push(x);let s=0;for(let i=0;i<x.length;i++)s+=x[i]*x[i];const n=Date.now();
   const rm=Math.sqrt(s/x.length),v0=$('#vc');if(v0)v0.style.setProperty('--lv',Math.min(1,rm*10));if(rm>.02){vc++;talked=1;last=n}
   if(!f.talk||!$('#fch'))fin(0);else if(talked&&(n-last>1300||n-t0>30000))fin(vc>=4);else if(!talked&&n-t0>12000)fin(0)};
