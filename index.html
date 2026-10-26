@@ -577,6 +577,7 @@ function speak(t,cb,lang){let d=0;const fin=()=>{if(d)return;d=1;clearTimeout(tm
  try{const u=new SpeechSynthesisUtterance(t),vo=lang?pickVoice(lang):null;u.lang=lang==='uz'?(vo?vo.lang:'uz-UZ'):'ko-KR';if(vo)u.voice=vo;u.onend=u.onerror=fin;speechSynthesis.cancel();speechSynthesis.speak(u)}catch{fin()}}
 const AUD=new Audio(),SIL='data:audio/wav;base64,UklGRkQDAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YSADAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgA==';let audOk=0;
 // telefonda ovoz faqat "bosish" (click/touchend) paytida ochiladi; pointerdown sensorli ekranda hisoblanmaydi
+function dbg(m){try{let e=document.getElementById('dbg');if(!e){e=document.createElement('div');e.id='dbg';e.style.cssText='position:fixed;left:8px;right:8px;bottom:84px;z-index:2000;background:#000d;color:#fff;font:12px/1.35 sans-serif;padding:7px 11px;border-radius:10px;pointer-events:none;word-break:break-word';document.body.appendChild(e)}e.textContent='🔧 '+m;clearTimeout(e._t);e._t=setTimeout(()=>e.remove(),12000)}catch{}}
 let ACX=null,MICST=null;
 function getAC(){const A=window.AudioContext||window.webkitAudioContext;if(!ACX&&A){try{ACX=new A()}catch{}}return ACX}
 function acUnlock(){try{const a=getAC();if(a&&a.state!=='running')a.resume()}catch{}}
@@ -585,7 +586,7 @@ async function getMic(){if(MICST&&MICST.getTracks().some(t=>t.readyState==='live
  MICST=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true}});return MICST}
 function audUnlock(){acUnlock();if(audOk||AUD._busy)return;try{AUD.src=SIL;const p=AUD.play();if(p&&p.then)p.then(()=>{audOk=1}).catch(()=>{});else audOk=1}catch{}}
 ['click','touchend','pointerup'].forEach(t=>document.addEventListener(t,()=>{if(AUD._pend){const x=AUD._pend;AUD._pend=null;playSrc(x.src,x.end,x.err,x.max);return}audUnlock()},{capture:true,passive:true}));
-function playSrc(src,end,err,maxMs){let d=0,tm=0;AUD._busy=1;AUD._pend=null;const done=f=>{if(d)return;d=1;clearTimeout(tm);AUD._busy=0;AUD.onended=AUD.onerror=null;if(f)f()};tm=setTimeout(()=>done(end),maxMs||25000);AUD.onended=()=>done(end);AUD.onerror=()=>done(err||end);AUD.src=src;const p=AUD.play();
+function playSrc(src,end,err,maxMs){let d=0,tm=0;AUD._busy=1;AUD._pend=null;const done=f=>{if(d)return;d=1;clearTimeout(tm);AUD._busy=0;AUD.onended=AUD.onerror=null;if(f)f()};tm=setTimeout(()=>done(end),maxMs||25000);AUD.onended=()=>done(end);AUD.onerror=()=>{dbg('HTMLAudio xato kodi '+(AUD.error&&AUD.error.code));done(err||end)};AUD.src=src;const p=AUD.play();
  if(p&&p.then)p.then(()=>{audOk=1}).catch(e=>{if(e&&e.name==='NotAllowedError'){d=1;clearTimeout(tm);AUD._busy=0;AUD.onended=AUD.onerror=null;AUD._pend={src,end,err,max:maxMs};try{stSet('🔈 Ovozni eshitish uchun ekranni bosing','speak')}catch{}}else done(err||end)})}
 function playWord(w,cb){if(!w)return;let once=0;const end=()=>{if(!once){once=1;if(cb)cb()}},sp=()=>speak(w.ko,end),pa=()=>playSrc('/audio/'+w.audio,end,sp);
  if(w.audio){pa();return}
@@ -880,15 +881,15 @@ async function playB64(f,b64,onEnd,onErr,mime){
   const bin=atob(b64),u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);
   const buf=await new Promise((ok,no)=>{const r=ac.decodeAudioData(u.buffer,ok,no);if(r&&r.catch)r.catch(no)});
   const src=ac.createBufferSource();src.buffer=buf;src.connect(ac.destination);let d=0;const end=()=>{if(d)return;d=1;if(onEnd)onEnd()};
-  f.audio={pause(){d=1;try{src.onended=null;src.stop()}catch{}}};src.onended=end;src.start();setTimeout(end,buf.duration*1000+2500);return}
- catch(e){}
+  f.audio={pause(){d=1;try{src.onended=null;src.stop()}catch{}}};src.onended=end;src.start();dbg('WebAudio ijro: '+buf.duration.toFixed(1)+' s, holat '+ac.state);setTimeout(end,buf.duration*1000+2500);return}
+ catch(e){dbg('WebAudio xato: '+(e&&e.message||e)+' → HTMLAudio')}
  f.audio={pause(){try{AUD.pause()}catch{}}};playSrc('data:'+(mime||'audio/wav')+';base64,'+b64,onEnd,onErr,120000)}
 function gSegs(t){t=t.replace(/\p{Extended_Pictographic}/gu,' ').replace(/\uFE0F/g,'');const segs=[];
  for(const m of t.matchAll(/([가-힣ㄱ-ㅎㅏ-ㅣ]+(?:[\s,.!?~·]+[가-힣ㄱ-ㅎㅏ-ㅣ]+)*)|([^가-힣ㄱ-ㅎㅏ-ㅣ]+)/g)){const x=m[0].replace(/\s+/g,' ').trim();if(!x||!/[\p{L}\p{N}]/u.test(x))continue;const lang=m[1]?'ko':'uz';
   for(let i=0;i<x.length;i+=170){let e=Math.min(x.length,i+170);if(e<x.length){const sp=x.lastIndexOf(' ',e);if(sp>i+60)e=sp}segs.push([x.slice(i,e).trim(),lang]);i=e-170}}
  return segs.slice(0,14)}
 function gSpeak(t,end,fail){const segs=gSegs(t);if(!segs.length)return fail();let k=0,any=0;
- const next=()=>{if(k>=segs.length)return end();const [x,l]=segs[k++];playSrc('https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl='+l+'&q='+encodeURIComponent(x),()=>{any=1;next()},()=>{if(any)next();else fail()},30000)};next()}
+ const next=()=>{if(k>=segs.length)return end();const [x,l]=segs[k++];playSrc('https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl='+l+'&q='+encodeURIComponent(x),()=>{any=1;next()},()=>{if(any)next();else{dbg('Google brauzer ovozi ishlamadi');fail()}},30000)};next()}
 function foxSpeak(i,cb){const f=S.fox,tk=f.spk=(f.spk||0)+1;f.speaking=1;stSet('🦊 gapiryapti...','speak');let d=0,er=0,why='';micMute(f,1);
  const t=String(f.msgs[i].content||'').replace(/[*_#`]/g,'').trim();
  const go=()=>{if(d)return;d=1;if(f.spk!==tk)return;f.speaking=0;spkUi();if(f.talk)stSet('🎙 ovozli suhbat','listen');if(cb)cb()};
@@ -896,7 +897,7 @@ function foxSpeak(i,cb){const f=S.fox,tk=f.spk=(f.spk||0)+1;f.speaking=1;stSet('
  const viaG=()=>{if(f.spk!==tk)return;stSet('🔊 Kori gapiryapti (Google ovozi)','speak');f.audio={pause(){try{AUD.pause()}catch{}}};gSpeak(t,go,local)};
  if(!t)return go();
  if(f.noTts&&Date.now()<f.noTts)return viaG();
- (async()=>{try{const r=await api('/fox-tts',{body:{text:t}});if(f.spk!==tk)return;if(!r.a){why=String(r.msg||r.e||'server');console.warn('fox-tts:',why);throw 0}
+ (async()=>{try{const r=await api('/fox-tts',{body:{text:t}});if(f.spk!==tk)return;dbg('server ovozi: '+(r.a?Math.round(r.a.length/1000)+'KB '+(r.mime||'wav'):'XATO '+(r.msg||r.e)));if(!r.a){why=String(r.msg||r.e||'server');console.warn('fox-tts:',why);throw 0}
   try{f.audio&&f.audio.pause()}catch{}
   stSet('🔊 Kori gapiryapti','speak');await playB64(f,r.a,go,()=>{if(!d&&!er){er=1;viaG()}},r.mime);f.ttsFail=0}
  catch(e){if(f.spk!==tk)return;console.warn('fox ovoz:',e);f.ttsFail=(f.ttsFail||0)+1;if(f.ttsFail>=3){f.noTts=Date.now()+60000;f.ttsFail=0}viaG()}})()}
