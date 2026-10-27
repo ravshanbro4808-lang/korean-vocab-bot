@@ -556,6 +556,15 @@ main:has(.cdw) :is(.b,.nxt,.big2,.pill,.lrn:not(.on),.gold,.bkb,.book,.tile)[dat
 :is(.b,.nxt,.big2,.pill,.lrn:not(.on),.gold,.bkb,.book,.tile)[data-bc="3"]:not(.dodge):not(#_):not(#_):not(#_){--ba:#36b27a;--bb:#2aa3b8;--bs:#1f7a58;animation-delay:-18s!important}
 :is(.b,.nxt,.big2,.pill,.lrn:not(.on),.gold,.bkb,.book,.tile)[data-bc="4"]:not(.dodge):not(#_):not(#_):not(#_){--ba:#f08a4a;--bb:#d65a9a;--bs:#a85428;animation-delay:-24s!important}
 :is(.b,.nxt,.big2,.pill,.lrn:not(.on),.gold,.bkb,.book,.tile)[data-bc="5"]:not(.dodge):not(#_):not(#_):not(#_){--ba:#5b6be6;--bb:#a05be0;--bs:#3a3fa6;animation-delay:-30s!important}
+/* grammatika + misol gaplar */
+mark{background:#ffe58a;color:#4a3000;border-radius:6px;padding:0 4px;font-weight:800}
+.exb{margin:12px 4px;text-align:left}.exh{font-size:12px;font-weight:800;opacity:.7;margin-bottom:4px}
+.exr{background:var(--c);border:2px solid var(--bd);border-radius:18px;padding:12px 14px;margin:8px 0}.exk{font-size:19px;font-weight:800;line-height:1.35}.exu{opacity:.8;margin-top:3px}.exbt{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
+.glv{display:inline-block;font-size:11px;font-weight:800;padding:3px 9px;border-radius:999px;background:#efeaff;color:#4a3fa0;white-space:nowrap}
+.mgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:10px 0}.mgrid>div{display:flex;flex-direction:column;gap:8px}
+.mc{border:2px solid var(--bd);background:var(--c);color:var(--fg);border-radius:16px;padding:12px 8px;font-size:15px;font-weight:700;min-height:54px}
+.mc.sl{border-color:#7b5cff;background:#efeaff;color:#4a3fa0}.mc.dn{background:linear-gradient(135deg,#5be39a,#17b26a);color:#fff;border-color:#17b26a;opacity:.65;pointer-events:none}.mc.bad{background:linear-gradient(135deg,#ff8a8a,#e0405a);color:#fff;border-color:#e0405a}
+.dock{flex-wrap:wrap;row-gap:12px}.dock .dk{flex:0 0 calc(25% - 5px)}
 </style></head><body><div id="hd"></div><main id="m"></main>
 <script>
 try{localStorage.rm='0'}catch{}
@@ -623,7 +632,7 @@ const bkChips=d=>d.some(x=>x.lvl)?`<div class=posch>${[['','Hammasi'],['b',"Bosh
 function book(x,i){const g=GR[i%GR.length];return `<div class=book style="background:linear-gradient(145deg,${g[0]},${g[1]})" onclick="${x.ok?`nav(openDict,${x.id})`:'sheet()'}"><h3>${esc(x.name)}</h3><small>${x.free?'Bepul':"Lug'at"}</small><span class=pill2>${x.ok?'✓':'🔒'} ${x.levels} daraja</span><i class=gh>${esc([...String(x.name)][0])}</i></div>`}
 async function home(){S.admOpen=null;head('');const [d,st]=await Promise.all([api('/dicts'),api('/stats')]);me=await api('/me');
  const lv=Math.floor(st.learned/50)+1,pr=Math.round((st.learned%50)/50*100);
- const dock=[['🎮',"O'yinlar",'nav(gHub)','#ff8a5c,#e0508a'],['📝','Topshiriq','nav(vTasks)','#2e8a69,#0f8a9d'],['🦊','Tulki',"nav(foxChat)",'#ffb347,#ff7a45'],['🏆','Reyting','nav(rating)','#4a3f93,#7b5cff'],['💎','Obuna','sheet()','#d48a1c,#f5c05a']];
+ const dock=[['📖','Grammatika','nav(gramHome)','#7b5cff,#e0508a'],['🎮',"O'yinlar",'nav(gHub)','#ff8a5c,#e0508a'],['📝','Topshiriq','nav(vTasks)','#2e8a69,#0f8a9d'],['🦊','Tulki',"nav(foxChat)",'#ffb347,#ff7a45'],['🏆','Reyting','nav(rating)','#4a3f93,#7b5cff'],['💎','Obuna','sheet()','#d48a1c,#f5c05a']];
  dock.push(['👤','Profil','nav(vProfile)','#651fff,#d500f9']);if(me.is_admin)dock.push(['⚙️','Sozlamalar','S.admOpen=null;nav(vAdmin)','#5b6577,#2c3340']);
  H(`<div class=hero><i class=kr>안녕</i><small>Annyeong! 안녕하세요</small><h2>Salom, ${esc(me.name)}</h2><div class=xp><i style="width:${pr}%"></i></div><small>${lv}-daraja · keyingisigacha ${50-st.learned%50} so'z · ${st.rank} ball (hafta)</small></div>
  <div class=dock>${dock.map(x=>`<button class=dk onclick="${x[2]}"><i style="background:linear-gradient(145deg,${x[3]})">${x[0]}</i><span>${x[1]}</span></button>`).join('')}</div>
@@ -734,7 +743,7 @@ function step(keep){const r=S.run;head('Mashq','leave()');r.ans=null;if(r.mode==
  const pr=r.mode=='speed'?`<div class=sp2><b id=tm>⏱ 60</b><span>⭐ ${r.score}</span></div>`:r.mode=='life'?`<div class=sp2><b>${'❤️'.repeat(r.lives)}${'🖤'.repeat(3-r.lives)}</b><span>⭐ ${r.score}</span></div>`:`<div class=pb><i style="width:${Math.round(r.i/r.w.length*100)}%"></i></div>`;
  const nx=`<div class=navr>${r.i>0?'<button class=bkb onclick="S.run.i--;step()">⬅ Orqaga</button>':''}<button class=nxt onclick="S.run.i++;step()">Keyingi ➜</button></div>`;
  if(r.mode=='cards'){const nx2=`<div class=cdbar>${r.i>0?'<button class=bkb onclick="S.run.i--;step()">⬅</button>':''}<button class=pill onclick="cardSay(cur())">🔊</button><button class=pill onclick="cdRepeat()">🔁</button><button class=nxt onclick="S.run.i++;step()">Keyingi ➜</button></div>`;
-  return H(pr+mas(r.shape=='rect'?"Kartani bosing — tarjimasi ochiladi!":"Shaklni bosing — tarjimasi ochiladi!")+cardHTML(r,w)+`<div class=cdinfo>${w.form&&w.form!==w.ko?`<div class=cdform>📝 Matnda: <b>${esc(w.form)}</b> · Oddiy shakli: <b>${esc(w.ko)}</b></div>`:''}${r.i+1} / ${r.w.length} · ${esc(POS[w.pos]||"So'z")} · 👆 bosing · ⬅ ➡ suring</div>${nx2}<div class=row>${lrn(w)}${foxBtn}</div>`)}
+  return H(pr+mas(r.shape=='rect'?"Kartani bosing — tarjimasi ochiladi!":"Shaklni bosing — tarjimasi ochiladi!")+cardHTML(r,w)+`<div class=cdinfo>${w.form&&w.form!==w.ko?`<div class=cdform>📝 Matnda: <b>${esc(w.form)}</b> · Oddiy shakli: <b>${esc(w.ko)}</b></div>`:''}${r.i+1} / ${r.w.length} · ${esc(POS[w.pos]||"So'z")} · 👆 bosing · ⬅ ➡ suring</div>${nx2}<div id=exb class=exb></div><div class=row>${lrn(w)}${foxBtn}</div>`),setTimeout(()=>loadEx(w),0)}
 
  if(r.mode=='rev'||r.mode=='mix'){r.dirs=r.dirs||{};if(r.dirs[r.i]===undefined)r.dirs[r.i]=r.mode=='rev'?1:(Math.random()<.5?1:0);const d=r.dirs[r.i],key=d?'ko':'uz',qk=d?'uz':'ko';r.ans=w[key];
   const o=r.o&&r.oi==r.i&&r.od==d?r.o:(r.o=shuf([w[key],...shuf([...new Set(r.w.filter(x=>x.id!=w.id&&x[key]&&x[key]!=w[key]).map(x=>x[key]))]).slice(0,3)]),r.oi=r.i,r.od=d,r.o);
@@ -1143,4 +1152,83 @@ document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest
  document.addEventListener('click',e=>{const f=e.target.closest&&e.target.closest('.cdw');if(!f||Date.now()-(window._sw||0)<=400)return;try{hap('light')}catch{}f.classList.remove('pop');void f.offsetWidth;f.classList.add('pop');setTimeout(()=>f.classList.remove('pop'),460)});
  document.addEventListener('keydown',e=>{const f=$('#cdw');if(!f||e.target!==document.body)return;
   if(e.key===' '||e.key==='Enter'){e.preventDefault();f.click()}else if(e.key==='ArrowRight')go(true);else if(e.key==='ArrowLeft')go(false);else if(e.key==='ArrowUp'&&typeof cdRepeat==='function')cdRepeat()})})();
+// ---------- misol gaplar (kartochka tagida)
+S.exc=S.exc||{};S.exlast={};
+const plainKo=t=>String(t).replace(/[{}]/g,'');
+const hl=t=>esc(t).replace(/\{(.+?)\}/g,'<mark>$1</mark>');
+function exHTML(e,wid){return `<div class=exr><div class=exk>${esc(e.ko)}</div><div class=exu>${esc(e.uz)}</div><div class=exbt><button class=pill onclick="speak(${esc(JSON.stringify(e.ko)).replace(/'/g,'&#39;')})">🔊</button><button class=pill onclick="exShow(${wid},1)">🔄 Boshqa misol</button></div></div>`}
+function exShow(wid,again){const box=$('#exb'),a=S.exc[wid];if(!box||!a||!a.length)return;let i=Math.floor(Math.random()*a.length);if(a.length>1&&i==S.exlast[wid])i=(i+1)%a.length;S.exlast[wid]=i;box.innerHTML=`<div class=exh>💬 Misol gap</div>`+exHTML(a[i],wid)}
+async function loadEx(w){if(!w||!w.id||w.id<1)return;const wid=w.id;
+ if(!S.exc[wid]){try{const a=await api('/wex/'+wid);S.exc[wid]=Array.isArray(a)?a:[]}catch{S.exc[wid]=[]}}
+ if(!cur()||cur().id!=wid)return;exShow(wid)}
+// ---------- Grammatika bo'limi
+const GCAT_ICON={'Yuklamalar':'🔗','Tugatuvchi shakllar':'🏁','Zamon va sifatdosh':'⏳',"Bog'lovchilar":'🧵','Sabab va maqsad':'🎯','Shart va taxmin':'🤔',"Istak, reja va taklif":'💡',"Ruxsat, taqiq va majburiyat":'🚦',"Yordamchi fe'llar":'🛠',"Gap ichidagi nutq":'💬'};
+S.gl=S.gl||0;S.gcat=S.gcat||'';S.gr=null;
+async function gramLoad(){if(!S.gr){const d=await api('/gram');if(!d||!d.g)throw 0;S.gr=d}return S.gr}
+const gramPool=()=>S.gr.g.filter(g=>(!S.gl||g.l==S.gl)&&(!S.gcat||g.c==S.gcat));
+async function gramHome(){head('Grammatika','back()');let d;try{d=await gramLoad()}catch{return}
+ const cats=[...new Set(d.g.map(g=>g.c))],pool=gramPool();
+ const GM=[['fill','✏️',"Bo'sh joyni to'ldir","Gapdagi grammatikani toping",'#ff8a5c,#e0508a'],['mean','🔎',"Ma'nosi nima?","Grammatika → tarjima",'#2e8a69,#0f8a9d'],['which','🧐','Qaysi grammatika?',"Gap → grammatika",'#7b5cff,#4a55e8'],['build','🧩','Gap tuz',"Bo'laklarni tartibga soling",'#d48a1c,#f5c05a'],['match','🔀','Juftlash',"Grammatika ↔ ma'no",'#0f8a9d,#2f5fb3']];
+ H(`<div class=hero><i class=kr>문법</i><small>Koreys grammatikasi</small><h2>${d.g.length} ta grammatika · 5 ta o'yin</h2></div>
+ <h3 class=sec style="font-size:18px">🎮 O'yinlar${pool.length<8?' <small>(filtrda kam — hammasi olinadi)</small>':''}</h3><div class=tiles>${GM.map(g=>`<div class=tile style="background:linear-gradient(145deg,${g[4]})" onclick="nav(gramGame,'${g[0]}')"><em>${g[1]}</em><b>${g[2]}</b><small>${g[3]}</small></div>`).join('')}</div>
+ <h3 class=sec style="font-size:18px">📚 Darslar</h3>
+ <div class=posch>${[0,1,2,3].map(l=>`<button class="b ${S.gl==l?'sel':'g'}" onclick="S.gl=${l};gramHome()">${l?d.lv[l]:'Hammasi'}</button>`).join('')}</div>
+ <div class=posch><button class="b ${S.gcat==''?'sel':'g'}" onclick="S.gcat='';gramHome()">Barcha turkum</button>${cats.map((c,i)=>`<button class="b ${S.gcat==c?'sel':'g'}" onclick="S.gcat=GCATS[${i}];gramHome()">${GCAT_ICON[c]||'📘'} ${esc(c)}</button>`).join('')}</div>
+ ${pool.map(g=>`<div class=card onclick="nav(gramView,${g.id})"><div><b style="font-size:19px">${esc(g.p)}</b><br><small>${esc(g.m)}</small></div><span class=glv>${esc(d.lv[g.l])}</span></div>`).join('')||'<p class=s>Topilmadi</p>'}`);window.GCATS=cats}
+function gxCount(id){try{return +localStorage['gx'+id]||0}catch{return 0}}
+function gxBump(id){try{localStorage['gx'+id]=gxCount(id)+2}catch{}}
+async function gramView(id){head('Grammatika','back()');let d;try{d=await gramLoad()}catch{return}const g=d.g[id];if(!g)return back();
+ const n=g.e.length,c=gxCount(id),ex=[g.e[c%n],g.e[(c+1)%n]].filter((x,i,a)=>a.indexOf(x)==i);gxBump(id);
+ H(`<div class=card style="display:block"><span class=glv>${esc(d.lv[g.l])} · ${esc(g.c)}</span><h2 style="margin:8px 0 2px;font-size:28px">${esc(g.p)}</h2><div style="font-size:18px;font-weight:700;color:#7b5cff">${esc(g.m)}</div></div>
+ <div class=card style="display:block"><b>📍 Qachon va qayerda ishlatiladi?</b><p style="margin:6px 0 0">${esc(g.u)}</p></div>
+ <h3 class=sec style="font-size:18px">💬 Misollar</h3><div id=gxl>${ex.map(e=>gxRow(e)).join('')}</div>
+ <div class=row><button class=pill onclick="gramView(${id})">🔄 Boshqa misollar</button><button class=pill onclick="gramMore(${id},this)">✨ AI yangi misol</button></div>
+ <div class=row><button class=nxt onclick="nav(gramGame,'fill',${id})">✏️ Shu grammatikani mashq qilish</button></div>`)}
+function gxRow(e){return `<div class=exr><div class=exk>${hl(e[0])}</div><div class=exu>${esc(e[1])}</div><div class=exbt><button class=pill onclick="speak(${esc(JSON.stringify(plainKo(e[0]))).replace(/'/g,'&#39;')})">🔊</button></div></div>`}
+async function gramMore(id,b){b.disabled=1;b.textContent='⏳ ...';const r=await api('/gram/more',{body:{id}}).catch(()=>null);b.disabled=0;b.textContent='✨ AI yangi misol';
+ if(!r||!r.ex||!r.ex.length)return alert((r&&r.e)||"Yangi misol topilmadi");S.gr.g[id].e.push(...r.ex);$('#gxl').innerHTML=r.ex.map(gxRow).join('')}
+// ---------- 5 ta o'yin
+const GA=a=>a.length;
+function gMkQs(mode,only){const pool=only!=null?[S.gr.g[only]]:(gramPool().length>=6?gramPool():S.gr.g),all=S.gr.g,N=only!=null?5:8,qs=[];
+ const exs=g=>g.e.filter(e=>/\{.+\}/.test(e[0])),others=(g,f)=>shuf(all.filter(x=>x.id!=g.id&&(!f||f(x))));
+ if(mode=='match'){const p=shuf(pool).slice(0,10);for(let i=0;i<p.length;i+=5)if(p.slice(i,i+5).length>=3)qs.push({pairs:p.slice(i,i+5)});return qs}
+ const src=only!=null?[S.gr.g[only],S.gr.g[only],S.gr.g[only],S.gr.g[only],S.gr.g[only]]:shuf(pool).slice(0,N);
+ let used=0;for(const g of src){const E=exs(g);if(!E.length)continue;
+  if(mode=='fill'){const e=E[(used++)%E.length],m=e[0].match(/\{(.+?)\}/),ans=m[1],ko=e[0].replace(/\{.+?\}/,'＿＿＿').replace(/[{}]/g,'');
+   const pl=new Set([ans]);const ds=[];for(const o of others(g,x=>x.c==g.c).concat(others(g)))for(const oe of shuf(exs(o))){const t=oe[0].match(/\{(.+?)\}/)[1];if(!pl.has(t)){pl.add(t);ds.push(t);break}if(ds.length>=3)break}
+   if(ds.length<3)continue;qs.push({t:'fill',ko,uz:e[1],ans,opts:shuf([ans,...ds.slice(0,3)]),g})}
+  else if(mode=='mean'){const ds=[...new Set(others(g,x=>x.c==g.c).concat(others(g)).map(x=>x.m).filter(m=>m!=g.m))].slice(0,3);qs.push({t:'mean',ans:g.m,opts:shuf([g.m,...ds]),g})}
+  else if(mode=='which'){const e=E[(used++)%E.length],ds=[...new Set(others(g,x=>x.c==g.c).concat(others(g)).map(x=>x.p).filter(p=>p!=g.p))].slice(0,3);qs.push({t:'which',ko:plainKo(e[0]),uz:e[1],ans:g.p,opts:shuf([g.p,...ds]),g})}
+  else if(mode=='build'){const e=E[(used++)%E.length],ko=plainKo(e[0]),L=ko.split(' ');if(L.length<3||L.length>8)continue;qs.push({t:'build',ko,uz:e[1],L,g})}}
+ return qs.slice(0,N)}
+async function gramGame(mode,only){let d;try{d=await gramLoad()}catch{return}
+ const qs=gMkQs(mode,only);if(qs.length<(mode=='match'?1:3)){alert("Bu o'yin uchun ma'lumot yetmadi. Filtrni o'zgartiring.");return back()}
+ S.gg={mode,qs,i:0,score:0,wrong:[],lock:0,only};gramQ()}
+const GTITLE={fill:"Bo'sh joyni to'ldir",mean:"Ma'nosi nima?",which:'Qaysi grammatika?',build:'Gap tuz',match:'Juftlash'};
+function gramQ(){const g=S.gg,q=g.qs[g.i];head(GTITLE[g.mode],'back()');if(!q)return gramEnd();g.lock=0;
+ const pb=`<div class=pb><i style="width:${Math.round(g.i/g.qs.length*100)}%"></i></div>`;
+ if(g.mode=='match'){g.sel=null;g.done=0;g.R=shuf(q.pairs.map(x=>x.m));return H(pb+mas("Grammatikani uning ma'nosi bilan juftlang!")+`<div class=mgrid><div>${q.pairs.map(p=>`<button class="mc" data-k="p${p.id}" onclick="gMatch(this,'p',${p.id})">${esc(p.p)}</button>`).join('')}</div><div>${g.R.map(m=>{const p=q.pairs.find(x=>x.m==m);return `<button class="mc" data-k="m${p.id}" onclick="gMatch(this,'m',${p.id})">${esc(m)}</button>`}).join('')}</div></div><div id=gfb></div>`)}
+ if(g.mode=='build'){g.ans=[];g.tiles=shuf(q.L.map((c,i)=>({c,i})));return gBuildV(pb)}
+ const top=g.mode=='fill'?`${mas("Bo'sh joyga mos grammatikani tanlang")}<div class=sticker style="font-size:26px">${esc(q.ko)}<small>${esc(q.uz)}</small></div>`:g.mode=='mean'?`${mas("Bu grammatika qanday ma'no beradi?")}<div class=sticker>${esc(q.g.p)}</div>`:`${mas('Bu gapda qaysi grammatika ishlatilgan?')}<div class=sticker style="font-size:26px">${esc(q.ko)}<small>${esc(q.uz)}</small><button class=pill onclick="speak(${esc(JSON.stringify(q.ko)).replace(/'/g,'&#39;')})">🔊</button></div>`;
+ H(pb+top+q.opts.map((o,i)=>`<button class=opt2 data-o="${i}" onclick="gPick(this,${i})"><span>${'ABCD'[i]}</span>${esc(o)}</button>`).join('')+'<div id=gfb></div>')}
+function gFeed(ok,q,extra){const g=S.gg;if(ok)g.score++;else g.wrong.push(q.g||q);
+ const p=q.g;$('#gfb').innerHTML=`<div class="${ok?'okb':'nob'}">${ok?'✅ To\'g\'ri!':'❌ Noto\'g\'ri'}</div>${p?`<div class=card style="display:block"><b>${esc(p.p)}</b> — ${esc(p.m)}<br><small>${esc(p.u)}</small>${extra||''}</div>`:''}<button class=nxt onclick="S.gg.i++;gramQ()">Keyingi ➜</button>`;if(ok)confetti(6)}
+function gPick(b,i){const g=S.gg,q=g.qs[g.i];if(g.lock)return;g.lock=1;const ok=q.opts[i]==q.ans;b.classList.add(ok?'ok':'no');if(!ok)[...document.querySelectorAll('.opt2')].find(x=>q.opts[+x.dataset.o]==q.ans)?.classList.add('ok');
+ gFeed(ok,q,q.t=='fill'?`<br>✔️ ${hl(q.ko.replace('＿＿＿','{'+q.ans+'}'))}`:'')}
+function gBuildV(pb){const g=S.gg,q=g.qs[g.i];pb=pb||`<div class=pb><i style="width:${Math.round(g.i/g.qs.length*100)}%"></i></div>`;
+ H(pb+mas("Bo'laklarni to'g'ri tartibda terib, gap tuz!")+`<div class=sticker style="font-size:24px">${esc(q.uz)}</div><div class=slots>${q.L.map((_,i)=>`<span class="slot ${g.ans[i]?'f':''}" style="font-size:18px">${g.ans[i]?esc(g.ans[i].c):''}</span>`).join('')}</div><div class=tilesrow>${g.tiles.map((t,i)=>`<button class="tl ${g.ans.includes(t)?'used':''}" style="font-size:18px" onclick="gBuildTap(${i})">${esc(t.c)}</button>`).join('')}</div><div class=row><button class=pill onclick="S.gg.ans=[];gBuildV()">↺ Qaytadan</button></div><div id=gfb></div>`)}
+function gBuildTap(ti){const g=S.gg,q=g.qs[g.i],t=g.tiles[ti];if(g.lock||g.ans.includes(t))return;g.ans.push(t);
+ if(g.ans.length<q.L.length)return gBuildV();const ok=g.ans.map(x=>x.c).join(' ')==q.L.join(' ');
+ if(ok){g.lock=1;gBuildV();speak(q.ko);gFeed(true,q,`<br>✔️ ${esc(q.ko)}`)}else{g.wrong.push(q.g);g.ans=[];gBuildV();document.querySelector('.slots')?.classList.add('shake');g.fails=(g.fails||0)+1;
+  if(g.fails>=2){g.fails=0;g.lock=1;S.gg.wrong.pop();g.wrong.push(q.g);$('#gfb').innerHTML=`<div class=nob>❌ To'g'ri javob:</div><div class=card style="display:block"><b>${esc(q.ko)}</b><br><small>${esc(q.g.p)} — ${esc(q.g.m)}</small></div><button class=nxt onclick="S.gg.i++;gramQ()">Keyingi ➜</button>`}}}
+function gMatch(b,side,id){const g=S.gg;if(b.classList.contains('dn'))return;
+ if(!g.sel){g.sel={b,side,id};b.classList.add('sl');return}
+ if(g.sel.b===b){b.classList.remove('sl');g.sel=null;return}
+ if(g.sel.side==side){g.sel.b.classList.remove('sl');g.sel={b,side,id};b.classList.add('sl');return}
+ const a=g.sel;g.sel=null;a.b.classList.remove('sl');
+ if(a.id==id){a.b.classList.add('dn');b.classList.add('dn');g.score++;g.done++;if(g.done>=g.qs[g.i].pairs.length){confetti(8);setTimeout(()=>{g.i++;gramQ()},500)}}
+ else{a.b.classList.add('bad');b.classList.add('bad');const p=S.gr.g[a.side=='p'?a.id:id];g.wrong.push(p);setTimeout(()=>{a.b.classList.remove('bad');b.classList.remove('bad')},500)}}
+function gramEnd(){const g=S.gg,tot=g.mode=='match'?g.qs.reduce((s,q)=>s+q.pairs.length,0):g.qs.length,pts=Math.min(g.score*2,60);api('/score',{body:{points:pts}}).catch(()=>{});confetti();
+ const wr=[...new Map(g.wrong.map(x=>[x.id,x])).values()];
+ H(`${mas(g.score>=tot*.8?'Barakalla! 🎉':"Yaxshi urinish! Xatolarni qayta ko'rib chiqing 💪")}<div class=sticker>🏆 ${g.score} / ${tot}<small>+${pts} ball</small></div>${wr.length?`<h3 class=sec style="font-size:18px">Qayta ko'ring</h3>`+wr.map(x=>`<div class=card onclick="nav(gramView,${x.id})"><div><b>${esc(x.p)}</b><br><small>${esc(x.m)}</small></div><i>›</i></div>`).join(''):''}<div class=row><button class=nxt onclick="gramGame('${g.mode}'${g.only!=null?','+g.only:''})">🔁 Qayta o'ynash</button></div><div class=row><button class="b g" onclick="back()">← Grammatika</button></div>`)}
 </script></body></html>
