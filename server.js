@@ -520,7 +520,26 @@ async function textAudio(text,gate){
   if(!b){try{b=await foxGoogleTts(text);ext='mp3'}catch(e){le=e}}
   if(!b||b.length<500)throw le||new Error('tts bosh');
   fs.writeFileSync(DATA+'/audio/cache/'+ck+'.'+ext,b);return 'cache/'+ck+'.'+ext}
+// ===== Qo'lda yozilgan ovozlar (matn bo'yicha): grammatika, misol gap, o'zbekcha/koreyscha matn =====
+db.exec("create table if not exists voice_over(h text primary key,t text,a text,ts int)");
+const nzT=t=>String(t||'').replace(/[{}*_#`]/g,'').replace(/\s+/g,' ').trim().slice(0,900);
+const voH=t=>crypto.createHash('sha1').update(nzT(t)).digest('hex');
+const voOne=t=>{const r=one('select a from voice_over where h=?',voH(t));return (r&&r.a)||''};
+const audExt=mt=>mt.includes('ogg')?'ogg':/mp4|m4a|aac/.test(mt)?'mp4':/mpeg|mp3/.test(mt)?'mp3':mt.includes('wav')?'wav':'webm';
+app.post('/api/admin/voice-text',adm('import'),up.single('audio'),(r,s)=>{const t=nzT(r.body.text);if(!t||!r.file){try{r.file&&fs.unlinkSync(r.file.path)}catch{}return s.status(400).json({e:'bad'})}
+  const h=voH(t),old=one('select a from voice_over where h=?',h),name='vo_'+h.slice(0,12)+'_'+Date.now()+'.'+audExt(r.file.mimetype||'');
+  fs.renameSync(r.file.path,DATA+'/audio/'+name);if(old&&old.a)try{fs.unlinkSync(DATA+'/audio/'+old.a)}catch{}
+  run('insert or replace into voice_over(h,t,a,ts) values(?,?,?,?)',h,t,name,Date.now());s.json({ok:1,audio:name})});
+app.post('/api/admin/voice-text/del',adm('import'),(r,s)=>{const h=voH(r.body.text),old=one('select a from voice_over where h=?',h);
+  if(old&&old.a)try{fs.unlinkSync(DATA+'/audio/'+old.a)}catch{}run('delete from voice_over where h=?',h);s.json({ok:1})});
+app.get('/api/admin/voice-gram',adm('import'),(r,s)=>{const ex={};for(const e of q('select gid,ko,uz from gex'))(ex[e.gid]=ex[e.gid]||[]).push([e.ko,e.uz]);
+  const all=GRM.map((g,i)=>({id:i,g})).concat(customGram()),vo={};for(const x of q('select t,a from voice_over'))vo[x.t]=x.a;
+  s.json({lv:GRM_LV,g:all.map(x=>({id:x.id,p:x.g[0],l:x.g[1],c:x.g[2],m:x.g[3],u:x.g[4],e:x.g[5].concat(ex[x.id]||[])})),vo})});
+app.post('/api/admin/word/:id/audio-uz',adm('import'),up.single('audio'),(r,s)=>{const w=one('select * from words where id=?',r.params.id);if(!w||!r.file)return s.status(400).json({e:'bad'});
+  const name='u'+w.id+'_'+Date.now()+'.'+audExt(r.file.mimetype||'');fs.renameSync(r.file.path,DATA+'/audio/'+name);
+  if(w.audio_uz)try{fs.unlinkSync(DATA+'/audio/'+w.audio_uz)}catch{}run('update words set audio_uz=? where id=?',name,w.id);s.json({ok:1,audio_uz:name})});
 app.post('/api/say',async(r,s)=>{const t=String(r.body.text||'').trim().slice(0,900);if(!t)return s.json({e:'bad'});
+  const vo0=voOne(t);if(vo0)return s.json({audio:vo0});
   const k=foxKey(r.u,'say'),cap=r.u.is_admin?1e9:active(r.u)?500:80;
   try{s.json({audio:await textAudio(t,()=>{if((foxUse[k]||0)>=cap)throw new Error('limit');foxUse[k]=(foxUse[k]||0)+1})})}
   catch(e){console.error('say xato:',String(e.message||e).slice(0,200));s.json({e:/limit/.test(String(e.message))?'limit':'tts'})}});

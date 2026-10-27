@@ -1061,7 +1061,42 @@ async function ttsTest(){const r=await api('/admin/tts-test',{body:{}});if(!r.ok
 async function vProfile(){head('Profil','back()');const st=await api('/stats');me=await api('/me');
  H(`<div class=hero><i class=kr>프로필</i><small>${esc(me.email||'')}</small><h2>👤 ${esc(me.name)}</h2><small>${st.learned} ta so'z o'rganildi · ${st.rank} ball (hafta)</small></div>`)}
 const VW={};
-function voiceCard(d){return `<div class=card><b>🎙 Ovoz yozish</b><div class=s>Kitob → daraja → so'z turi → bo'lim tanlang, so'ng har bir so'z uchun ovozingizni yozing. Foydalanuvchi «Tinglash»da sizning ovozingizni eshitadi.</div><select id=vd onchange="vTree()">${d.map(x=>`<option value=${x.id}>${esc(x.name)}</option>`).join('')}</select><select id=vl onchange="vTree(1)"></select><select id=vp onchange="vTree(2)"></select><select id=vs></select><button class=big2 onclick="loadVoice()">📋 So'zlarni ko'rsat</button><button class=big2 onclick="autoVoice()">🤖 Ovozsiz so'zlarga avto ovoz qo'shish</button><div id=vlist></div></div>`}
+function voiceCard(d){return `<div class=card><b>🎙 Ovoz yozish</b><div class=s>Nimaga ovoz yozishni tanlang. Har bir koreyscha va o'zbekcha matnga alohida ovoz yozasiz; yozilmaganini avtomatik ovoz o'qiydi. Yozgan ovozingiz o'rniga avto ovoz ishlatilmaydi.</div><div class=posch><button class="b sel" id=vmw onclick="vMode('w')">📚 Lug'at</button><button class="b g" id=vmg onclick="vMode('g')">📘 Grammatika</button><button class="b g" id=vmt onclick="vMode('t')">✍️ Erkin matn</button></div><div id=vwb><div class=s>Kitob → daraja → so'z turi → bo'lim tanlang. Har bir so'zda 🇰🇷 koreyscha va 🇺🇿 o'zbekcha ovozni alohida yozasiz; 💬 bosib misol gaplarga ham yozasiz.</div><select id=vd onchange="vTree()">${d.map(x=>`<option value=${x.id}>${esc(x.name)}</option>`).join('')}</select><select id=vl onchange="vTree(1)"></select><select id=vp onchange="vTree(2)"></select><select id=vs></select><button class=big2 onclick="loadVoice()">📋 So'zlarni ko'rsat</button><button class=big2 onclick="autoVoice()">🤖 Ovozsiz so'zlarga avto ovoz qo'shish</button></div><div id=vgb style="display:none"></div><div id=vlist></div></div>`}
+const nzC=t=>String(t||'').replace(/[{}*_#`]/g,'').replace(/\s+/g,' ').trim().slice(0,900);
+let VO={},VTX=[];
+async function vLoadVO(){const d=await api('/admin/voice-gram');if(d&&d.g){VO=d.vo||{};S.vg=d;S.vg.by={};d.g.forEach(g=>S.vg.by[g.id]=g)}return S.vg}
+function vMode(m){['w','g','t'].forEach(k=>{const b=$('#vm'+k);if(b)b.className='b '+(k==m?'sel':'g')});$('#vwb').style.display=m=='w'?'':'none';const g=$('#vgb');g.style.display=m=='w'?'none':'';$('#vlist').innerHTML='';
+ if(m=='g')vGramList();else if(m=='t')vFree()}
+async function vGramList(){const g=$('#vgb');g.innerHTML='<p class=s>⏳ Yuklanmoqda...</p>';let d;try{d=await vLoadVO()}catch{}if(!d)return g.innerHTML='<p class=s>Grammatika yuklanmadi</p>';
+ const cats=[...new Set(d.g.map(x=>x.c))];window.VGC=cats;
+ g.innerHTML=`<select id=vgl onchange="vGramFilter()"><option value="">Barcha darajalar</option>${[1,2,3].filter(l=>d.lv[l]).map(l=>`<option value=${l}>${esc(d.lv[l])}</option>`).join('')}</select><select id=vgc onchange="vGramFilter()"><option value="">Barcha turkumlar</option>${cats.map((c,i)=>`<option value=${i}>${esc(c)}</option>`).join('')}</select><input id=vgq placeholder="Grammatikani qidirish..." oninput="vGramFilter()" style="width:100%;margin:6px 0;padding:10px;border-radius:12px;border:1px solid var(--bd)"><div id=vgr></div>`;vGramFilter()}
+function vGramFilter(){const d=S.vg,l=$('#vgl').value,c=$('#vgc').value,q=($('#vgq').value||'').trim().toLowerCase();
+ const L=d.g.filter(x=>(!l||x.l==l)&&(c===''||x.c==window.VGC[c])&&(!q||(x.p+' '+x.m).toLowerCase().includes(q))).slice(0,300);
+ $('#vgr').innerHTML=L.map(x=>`<div class=vrow onclick="vGram(${x.id})"><div><b>${esc(x.p)}</b><small>${esc(x.m)}</small></div><div>›</div></div>`).join('')||'<p class=s>Topilmadi</p>'}
+function vSlotH(i){const {t,title,flag}=VTX[i],a=VO[nzC(t)]||'';return `<div class=vrow id=vt${i}><div><small>${flag} ${esc(title)}</small><b style="font-size:16px">${esc(t)}</b>${a?'':'<small>🤖 hozir avto ovoz</small>'}</div><div><button class="cb play" onclick="vPlay(${i})">▶</button><button class="cb mic ${a?'done':''}" onclick="vRecT(${i},this)">${a?'🔁':'🎙'}</button>${a?`<button class="cb" onclick="vDelT(${i})">🗑</button>`:''}</div></div>`}
+function vSlot(title,t,flag){const i=VTX.push({t,title,flag})-1;return vSlotH(i)}
+function vGram(id){const g=S.vg.by[id];if(!g)return;VTX=[];const k='🇰🇷',u='🇺🇿';
+ let o=`<div class=card style="display:block"><button class=pill onclick="$('#vlist').innerHTML=''">✖ Yopish</button><h3 style="margin:8px 0">${esc(g.p)}</h3>`;
+ o+=vSlot('Grammatika nomi',g.p,k)+vSlot("Ma'nosi (o'zbekcha)",g.m,u)+vSlot('Qachon va qayerda ishlatiladi',g.u,u);
+ g.e.forEach((e,n)=>{if(!e||!e[0])return;o+=vSlot('Gap '+(n+1)+' — koreyscha',plainKo(e[0]),k);if(e[1])o+=vSlot('Gap '+(n+1)+" — o'zbekcha",e[1],u)});
+ $('#vlist').innerHTML=o+'</div>';$('#vlist').scrollIntoView({behavior:'smooth'})}
+function vRefreshSlot(i){const e=$('#vt'+i);if(e)e.outerHTML=vSlotH(i)}
+function vPlay(i){const t=VTX[i].t,a=VO[nzC(t)];audUnlock();if(a)return playSrc('/audio/'+a);srvAudio(t).then(x=>x?playSrc('/audio/'+x):speak(t))}
+function vRecT(i,btn){const t=VTX[i].t;vRec(btn,'/admin/voice-text',{text:t},r=>{VO[nzC(t)]=r.audio;vRefreshSlot(i)})}
+async function vDelT(i){const t=VTX[i].t;if(!confirm("Yozilgan ovoz o'chirilsin? Avto ovoz qaytadi."))return;try{await api('/admin/voice-text/del',{body:{text:t}})}catch{return alert('Xato')}delete VO[nzC(t)];vRefreshSlot(i)}
+function vFree(){$('#vgb').innerHTML=`<div class=s>Istalgan koreyscha yoki o'zbekcha matnni yozing va unga ovoz yozing. Shu matn qayerda ovoz bilan o'qilsa (misol gap, tahlil, grammatika), sizning ovozingiz eshitiladi.</div><textarea id=vft rows=3 placeholder="Matn..." style="width:100%;padding:10px;border-radius:12px;border:1px solid var(--bd)"></textarea><div><button class="cb play" onclick="vFreePlay()">▶</button><button class="cb mic" onclick="vFreeRec(this)">🎙</button></div>`}
+function vFreePlay(){const t=($('#vft').value||'').trim();if(!t)return;audUnlock();const a=VO[nzC(t)];if(a)return playSrc('/audio/'+a);srvAudio(t).then(x=>x?playSrc('/audio/'+x):speak(t))}
+async function vFreeRec(b){const t=($('#vft').value||'').trim();if(!t)return alert('Avval matnni yozing');if(!S.vg)await vLoadVO();vRec(b,'/admin/voice-text',{text:t},r=>{VO[nzC(t)]=r.audio;b.textContent='🎙';alert('✅ Saqlandi')})}
+async function vRec(btn,url,fields,done){if(S.rec){S.rec.stop();return}
+ if(!navigator.mediaDevices||!window.MediaRecorder)return alert("Bu qurilmada ovoz yozib bo'lmaydi");
+ const st=await getMic().then(m=>m.clone()).catch(()=>null);if(!st)return alert("Mikrofonga ruxsat bering");
+ const mr=new MediaRecorder(st),ch=[],old=btn.textContent;S.rec=mr;btn.textContent='⏹';btn.classList.add('live');
+ mr.ondataavailable=e=>ch.push(e.data);
+ mr.onstop=async()=>{st.getTracks().forEach(t=>t.stop());S.rec=null;btn.classList.remove('live');btn.textContent='⏳';
+  const fd=new FormData();for(const k in fields)fd.append(k,fields[k]);fd.append('audio',new Blob(ch,{type:mr.mimeType||'audio/webm'}),'v');
+  let r=null;try{r=await api(url,{body:fd})}catch{}
+  if(!r||r.e){btn.textContent=old;alert("Ovoz saqlanmadi, qayta urinib ko'ring")}else done(r)};
+ mr.start();setTimeout(()=>S.rec&&S.rec.stop(),60000)}
 async function vTree(stage){const id=$('#vd').value;if(!id)return;if(!S.vt||S.vt.id!=id||!stage){const t=await api('/tree/'+id);S.vt={id,rows:t.rows}}
  const R=S.vt.rows,lv=[...new Set(R.map(r=>r.level))].sort((a,b)=>a-b);
  if(!stage)$('#vl').innerHTML='<option value="">Barcha darajalar</option>'+lv.map(l=>`<option>${l}</option>`).join('');
@@ -1069,19 +1104,14 @@ async function vTree(stage){const id=$('#vd').value;if(!id)return;if(!S.vt||S.vt
  if(stage!=2)$('#vp').innerHTML='<option value="">Barcha turlar</option>'+pp.map(p=>`<option value="${esc(p)}">${esc(POS[p]||p)}</option>`).join('');
  const P=$('#vp').value,ss=[...new Set(R.filter(r=>(!L||r.level==L)&&(!P||r.pos==P)).map(r=>r.section))].sort((a,b)=>a-b);
  $('#vs').innerHTML='<option value="">Barcha bo\'limlar</option>'+ss.map(s=>`<option value=${s}>${s}-bo'lim</option>`).join('')}
-function voiceRow(x){return `<div class=vrow id=vr${x.id}><div><b>${esc(x.ko)}</b><small>${esc(x.uz)}</small></div><div>${x.audio?`<button class="cb play" onclick="new Audio('/audio/${x.audio}').play()">▶</button>`:''}<button class="cb mic ${x.audio?'done':''}" onclick="recWord(${x.id},this)">${x.audio?'🔁':'🎙'}</button></div></div>`}
+function vBtns(kind,x){const a=kind=='uz'?x.audio_uz:x.audio,lab=kind=='uz'?'🇺🇿':'🇰🇷';return `<span style="white-space:nowrap">${lab}${a?`<button class="cb play" onclick="new Audio('/audio/${a}').play()">▶</button>`:''}<button class="cb mic ${a?'done':''}" onclick="recWord(${x.id},this,'${kind}')">${a?'🔁':'🎙'}</button></span>`}
+function voiceRow(x){return `<div id=vr${x.id}><div class=vrow><div><b>${esc(x.ko)}</b><small>${esc(x.uz)}</small><small><a href="javascript:vWex(${x.id})">💬 Misol gaplar</a></small></div><div>${vBtns('ko',x)}${vBtns('uz',x)}</div></div><div id=vx${x.id}></div></div>`}
+async function vWex(id){const box=$('#vx'+id);if(!box)return;if(box.innerHTML){box.innerHTML='';return}box.innerHTML='<p class=s>⏳ ...</p>';if(!S.vg)await vLoadVO().catch(()=>{});
+ let a=[];try{a=await api('/wex/'+id)}catch{}a=Array.isArray(a)?a:[];
+ box.innerHTML=a.map((e,n)=>vSlot('Gap '+(n+1)+' — koreyscha',e.ko,'🇰🇷')+vSlot('Gap '+(n+1)+" — o'zbekcha",e.uz,'🇺🇿')).join('')||'<p class=s>Misol gap yo\'q</p>'}
 async function loadVoice(){const p=new URLSearchParams({dict:$('#vd').value,level:$('#vl').value,pos:$('#vp').value,section:$('#vs').value});const w=await api('/words?'+p);w.forEach(x=>VW[x.id]=x);
  $('#vlist').innerHTML=w.slice(0,200).map(voiceRow).join('')||'<p class=s>So\'z yo\'q</p>'}
-async function recWord(id,btn){if(S.rec){S.rec.stop();return}
- if(!navigator.mediaDevices||!window.MediaRecorder)return alert("Bu qurilmada ovoz yozib bo'lmaydi");
- const st=await getMic().then(m=>m.clone()).catch(()=>null);if(!st)return alert("Mikrofonga ruxsat bering");
- const mr=new MediaRecorder(st),ch=[];S.rec=mr;btn.textContent='⏹';btn.classList.add('live');
- mr.ondataavailable=e=>ch.push(e.data);
- mr.onstop=async()=>{st.getTracks().forEach(t=>t.stop());S.rec=null;btn.classList.remove('live');btn.textContent='⏳';
-  const fd=new FormData();fd.append('audio',new Blob(ch,{type:mr.mimeType||'audio/webm'}),'v');
-  try{const r=await api('/admin/word/'+id+'/audio',{body:fd});VW[id].audio=r.audio}catch{}
-  const e=$('#vr'+id);if(e)e.outerHTML=voiceRow(VW[id])};
- mr.start();setTimeout(()=>S.rec&&S.rec.stop(),15000)}
+function recWord(id,btn,kind){kind=kind||'ko';vRec(btn,'/admin/word/'+id+(kind=='uz'?'/audio-uz':'/audio'),{},r=>{if(kind=='uz')VW[id].audio_uz=r.audio_uz;else VW[id].audio=r.audio;if(WD[id])WD[id][kind=='uz'?'audio_uz':'audio']=VW[id][kind=='uz'?'audio_uz':'audio'];const e=$('#vr'+id);if(e)e.outerHTML=voiceRow(VW[id])})}
 const impMsg=r=>{if(r.found==0)return "Faylda koreyscha so'z topilmadi. Fayl o'qilmadi yoki ichida koreyscha so'z yo'q. (.doc bo'lsa .docx yoki PDF qilib saqlang. Rasm va skan PDF faqat Gemini kaliti bilan o'qiladi.)"+((r.warn||[]).length?'\n⚠️ '+r.warn.join('\n⚠️ '):'');
  const L=[`${r.added} ta so'z qo'shildi (${r.translated} ta avto-tarjima)`];
  if(r.pages)L.push(`📄 ${r.pages} ta sahifa tekshirildi · topilgan so'z: ${r.found}${r.expected?' (taxminan kutilgan: '+r.expected+')':''}`);else L.push(`Topilgan so'z: ${r.found}`);
@@ -1260,9 +1290,9 @@ function gramNavHTML(id){const a=gramPoolIds(id),i=a.indexOf(id),pv=a[(i-1+a.len
 function gramText(id){const g=S.gr.by[id],d=S.gr,_d=x=>{x=String(x||'').trim();return x&&!/[.!?]$/.test(x)?x+'.':x};
   return [`Grammatika: ${g.p}.`,`Daraja: ${d.lv[g.l]}. Turkum: ${g.c}.`,`Ma'nosi: ${_d(g.m)}`,`Qachon va qayerda ishlatiladi: ${_d(g.u)}`].join(' ')}
 async function sayGram(id,b){if(!S.gr||!S.gr.by[id])return;const t=window._sayT=(window._sayT||0)+1;audUnlock();try{speechSynthesis.cancel()}catch{}
-  const txt=gramText(id);let old='';if(b){old=b.textContent;b.disabled=1;b.textContent='⏳'}
-  const a=await srvAudio(txt);if(b){b.disabled=0;b.textContent=old}if(window._sayT!==t)return;
-  if(a)playSrc('/audio/'+a,null,()=>speak(txt,null,'uz'));else speak(txt,null,'uz')}
+  const g=S.gr.by[id],parts=[g.p,g.m,g.u].map(x=>String(x||'').trim()).filter(Boolean);let old='';if(b){old=b.textContent;b.disabled=1;b.textContent='⏳'}
+  const urls=await Promise.all(parts.map(p=>srvAudio(p)));if(b){b.disabled=0;b.textContent=old}
+  for(let k=0;k<parts.length;k++){if(window._sayT!==t)return;await new Promise(res=>{if(urls[k])playSrc('/audio/'+urls[k],res,()=>speak(parts[k],res,'uz'));else speak(parts[k],res,'uz')});await new Promise(z=>setTimeout(z,250))}}
 function gxRow(e){return `<div class=exr><div class=exk>${hl(e[0])}</div><div class=exu>${esc(e[1])}</div><div class=exbt><button class=pill onclick="sayKoUz(${jq(plainKo(e[0]))},${jq(e[1])},this)">🔊 Eshitish</button></div></div>`}
 async function gramMore(id,b){b.disabled=1;b.textContent='⏳ ...';const r=await api('/gram/more',{body:{id}}).catch(()=>null);b.disabled=0;b.textContent='✨ AI yangi misol';
  if(!r||!r.ex||!r.ex.length)return alert((r&&r.e)||"Yangi misol topilmadi");S.gr.by[id].e.push(...r.ex);$('#gxl').innerHTML=r.ex.map(gxRow).join('')}
