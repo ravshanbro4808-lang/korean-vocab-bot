@@ -330,10 +330,10 @@ function edgeTts(text,voice,ver){ver=ver||EDGE_VER;return new Promise((res,rej)=
   ws.on('message',(d,bin)=>{try{if(bin){const b=Buffer.from(d),hl=b.readUInt16BE(0);if(/Path:audio/.test(b.subarray(2,2+hl).toString()))bufs.push(b.subarray(2+hl))}else if(/Path:turn\.end/.test(String(d)))fin()}catch(e){fin(e)}});
   ws.on('unexpected-response',(rq,rs)=>fin(new Error('edge HTTP '+rs.statusCode)));
   ws.on('error',e=>fin(e));ws.on('close',()=>fin())})}
-function ttsSegs(t){t=t.replace(/\p{Extended_Pictographic}/gu,' ').replace(/️/g,'');const segs=[];
+function ttsSegs(t,n){t=t.replace(/\p{Extended_Pictographic}/gu,' ').replace(/️/g,'');const segs=[];
   for(const m of t.matchAll(/([가-힣ㄱ-ㅎㅏ-ㅣ]+(?:[\s,.!?~·]+[가-힣ㄱ-ㅎㅏ-ㅣ]+)*)|([^가-힣ㄱ-ㅎㅏ-ㅣ]+)/g)){const x=m[0].replace(/\s+/g,' ').trim();if(!x||!/[\p{L}\p{N}]/u.test(x))continue;const lang=m[1]?'ko':'uz';
     for(let i=0;i<x.length;i+=400){segs.push([x.slice(i,i+400).trim(),lang])}}
-  return segs.slice(0,10)}
+  return segs.slice(0,n||10)}
 let edgeVerOk=null;
 async function foxEdgeTts(t){const segs=ttsSegs(t);if(!segs.length)throw new Error('matn yoq');
   const vers=[...new Set([edgeVerOk,EDGE_VER,'143.0.3650.75','130.0.2849.68','140.0.3485.14','120.0.2210.91'].filter(Boolean))];let le;
@@ -352,6 +352,51 @@ app.post('/api/fox-tts',async(r,s)=>{const k=foxKey(r.u,'tts'),cap=r.u.is_admin?
   try{s.json({a:(await foxGoogleTts(t)).toString('base64'),mime:'audio/mpeg'})}catch(e){errs.push('google: '+String(e.message||e).slice(0,60));console.error('fox-tts google xato:',errs.join(' | '));s.json({e:'tts',msg:errs.join(' | ')})}});
 app.post('/api/fox',async(r,s)=>{const k=foxKey(r.u,'chat');if((foxUse[k]||0)>=foxLimit(r.u,'chat'))return s.json({e:'limit',left:0});foxUse[k]=(foxUse[k]||0)+1;
   const ms=(r.body.messages||[]).filter(m=>m&&m.content);const o=await askFox(ms,Array.isArray(r.body.words)?r.body.words:[]);if(o.e==='api')foxUse[k]--;o.left=foxLeft(r.u,'chat');s.json(o)});
+// ===== Misol gap va tahlil ovozi: bir marta yasaladi va keshlanadi (Edge → Gemini → Google) =====
+async function edgeLong(t){const segs=ttsSegs(t,30);if(!segs.length)throw new Error('matn yoq');
+  const vers=[...new Set([edgeVerOk,EDGE_VER,'143.0.3650.75','130.0.2849.68','140.0.3485.14','120.0.2210.91'].filter(Boolean))];let le;
+  for(const v of vers){try{const out=[];for(let i=0;i<segs.length;i+=6)out.push(...await Promise.all(segs.slice(i,i+6).map(([x,l])=>edgeTts(x,EDGE_VOICE[l],v))));edgeVerOk=v;return Buffer.concat(out)}catch(e){le=e;if(!/403|401|ws moduli/.test(String(e.message)))throw e}}throw le}
+async function textAudio(text,gate){
+  text=String(text||'').replace(/[{}*_#`]/g,'').replace(/\s+/g,' ').trim().slice(0,900);if(!text)throw new Error('matn yoq');
+  fs.mkdirSync(DATA+'/audio/cache',{recursive:true});
+  const ck='t_'+crypto.createHash('sha1').update(text).digest('hex');
+  for(const x of ['mp3','wav'])if(fs.existsSync(DATA+'/audio/cache/'+ck+'.'+x))return 'cache/'+ck+'.'+x;
+  if(gate)gate();
+  let b=null,ext='mp3',le;
+  try{b=await edgeLong(text)}catch(e){le=e}
+  if(!b&&USE_GEMINI&&Date.now()>gemTtsOff){try{b=Buffer.from(await geminiTTSany(text),'base64');ext='wav'}catch(e){le=e;if(/quota|exceed|429|demand|404|not found/i.test(String(e.message)))gemTtsOff=Date.now()+30*60000}}
+  if(!b){try{b=await foxGoogleTts(text);ext='mp3'}catch(e){le=e}}
+  if(!b||b.length<500)throw le||new Error('tts bosh');
+  fs.writeFileSync(DATA+'/audio/cache/'+ck+'.'+ext,b);return 'cache/'+ck+'.'+ext}
+app.post('/api/say',async(r,s)=>{const t=String(r.body.text||'').trim().slice(0,900);if(!t)return s.json({e:'bad'});
+  const k=foxKey(r.u,'say'),cap=r.u.is_admin?1e9:active(r.u)?500:80;
+  try{s.json({audio:await textAudio(t,()=>{if((foxUse[k]||0)>=cap)throw new Error('limit');foxUse[k]=(foxUse[k]||0)+1})})}
+  catch(e){console.error('say xato:',String(e.message||e).slice(0,200));s.json({e:/limit/.test(String(e.message))?'limit':'tts'})}});
+// Misol gapni so'zma-so'z tahlil qilish (bir marta AI yozadi, keyin bazadan beriladi)
+db.exec("create table if not exists wan(h text primary key,js text)");
+function parseAn(t){let a=[];t=String(t||'');try{a=JSON.parse(t.match(/\[[\s\S]*\]/)[0])}catch{for(const m of t.match(/\{[^{}]*\}/g)||[])try{a.push(JSON.parse(m))}catch{}}
+  const f=(v,n)=>String(v==null?'':v).replace(/[{}]/g,'').trim().slice(0,n);
+  return a.filter(o=>o&&o.w&&o.mean).slice(0,14).map(o=>({w:f(o.w,40),base:f(o.base,120),mean:f(o.mean,120),gram:f(o.gram,200),tense:f(o.tense,80),when:f(o.when,260),where:f(o.where,200)}))}
+app.post('/api/wex-tahlil',async(r,s)=>{
+  const ko=String(r.body.ko||'').replace(/[{}]/g,'').trim().slice(0,160);if(!ko)return s.json({e:'bad'});
+  const h=crypto.createHash('sha1').update(ko).digest('hex'),c=one('select js from wan where h=?',h);
+  if(c){try{return s.json({a:JSON.parse(c.js)})}catch{}}
+  const ex=one('select uz from wex where ko=?',ko);if(!ex)return s.json({e:'bad'});
+  if(!AI_KEY)return s.json({e:"Sun'iy intellekt ulanmagan"});
+  try{const t=await callClaude([{role:'user',content:`Koreys gapi: «${ko}» (o'zbekcha: ${ex.uz}).
+Gapni so'zma-so'z tahlil qil: bo'sh joy bilan ajratilgan har bir bo'lak alohida, gapdagi tartibda. Har bir bo'lak uchun maydonlar:
+"w" — bo'lak hangulda (gapdagidek),
+"base" — lug'at shakli va tarkibi (masalan «가다 + -았어요» yoki «학교 + 에»),
+"mean" — o'zbekcha ma'nosi,
+"gram" — qanday grammatika/yuklama/tugatma ishlatilgan va u nima vazifa bajaradi (qo'shimchasiz oddiy so'z bo'lsa «oddiy so'z, qo'shimchasiz»),
+"tense" — zamon: o'tgan / hozirgi / kelasi / zamonga aloqasiz (ot, yuklama, ravish uchun «zamon yo'q»),
+"when" — shu grammatika yoki shakl umuman qaysi vaqt va vaziyatlarda ishlatiladi (1-2 gap),
+"where" — aynan shu gapda bu so'z qaysi vazifada kelgan: ega, to'ldiruvchi, kesim, hol va h.k. (1 gap).
+Barcha izoh o'zbek tilida (lotin yozuvi). Koreyscha so'z va qo'shimchalarni faqat hangulda yoz, lotincha o'qilishini yozma. Har maydon qisqa va aniq bo'lsin.
+FAQAT JSON massiv qaytar: [{"w":"","base":"","mean":"","gram":"","tense":"","when":"","where":""}]`}],"Sen koreys tili o'qituvchisisan. Faqat JSON massiv qaytarasan.",2500);
+    const a=parseAn(t);if(!a.length)throw new Error('bosh');
+    run('insert or replace into wan(h,js) values(?,?)',h,JSON.stringify(a));s.json({a})}
+  catch(e){console.log('tahlil',String(e.message||e).slice(0,200));s.json({e:"Tahlil olinmadi, birozdan keyin qayta urinib ko'ring"})}});
 const VOICESYS="\nFoydalanuvchi ovozli xabar yubordi (o'zbek yoki koreys tilida). Avval u nima deganini aniq yozib ol, keyin unga javob ber. FAQAT JSON qaytar: {\"heard\":\"foydalanuvchi aytgan gap (o'z tilida)\",\"reply\":\"javobing\"}. Javob ovoz bilan o'qiladi: 1-3 qisqa gap yoz, *, #, emoji ishlatma, koreys so'zining lotincha o'qilishini qavs ichida yozma. Agar hech narsa eshitilmasa yoki faqat shovqin bo'lsa, heard ni bo'sh qoldir.";
 app.post('/api/fox-voice',up.single('audio'),async(r,s)=>{
   let buf=null;try{if(r.file){buf=fs.readFileSync(r.file.path);fs.unlinkSync(r.file.path)}}catch{}

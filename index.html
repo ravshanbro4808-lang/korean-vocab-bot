@@ -560,6 +560,7 @@ main:has(.cdw) :is(.b,.nxt,.big2,.pill,.lrn:not(.on),.gold,.bkb,.book,.tile)[dat
 mark{background:#ffe58a;color:#4a3000;border-radius:6px;padding:0 4px;font-weight:800}
 .exb{margin:12px 4px;text-align:left}.exh{font-size:12px;font-weight:800;opacity:.7;margin-bottom:4px}
 .exr{background:var(--c);border:2px solid var(--bd);border-radius:18px;padding:12px 14px;margin:8px 0}.exk{font-size:19px;font-weight:800;line-height:1.35}.exu{opacity:.8;margin-top:3px}.exbt{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
+.exk small{font-size:13px;opacity:.7;font-weight:600;margin-left:6px}.an{font-size:14px;line-height:1.45;margin-top:6px}.an div{margin:3px 0}.an b{opacity:.75}.exan{margin-top:6px}
 .glv{display:inline-block;font-size:11px;font-weight:800;padding:3px 9px;border-radius:999px;background:#efeaff;color:#4a3fa0;white-space:nowrap}
 .mgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:10px 0}.mgrid>div{display:flex;flex-direction:column;gap:8px}
 .mc{border:2px solid var(--bd);background:var(--c);color:var(--fg);border-radius:16px;padding:12px 8px;font-size:15px;font-weight:700;min-height:54px}
@@ -1156,8 +1157,38 @@ document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest
 S.exc=S.exc||{};S.exlast={};
 const plainKo=t=>String(t).replace(/[{}]/g,'');
 const hl=t=>esc(t).replace(/\{(.+?)\}/g,'<mark>$1</mark>');
-function exHTML(e,wid){return `<div class=exr><div class=exk>${esc(e.ko)}</div><div class=exu>${esc(e.uz)}</div><div class=exbt><button class=pill onclick="speak(${esc(JSON.stringify(e.ko)).replace(/'/g,'&#39;')})">🔊</button><button class=pill onclick="exShow(${wid},1)">🔄 Boshqa misol</button></div></div>`}
+// ovoz serverdan olinadi (brauzer koreyscha ovozi telefonda ko'pincha yo'q), bo'lmasa brauzer ovoziga qaytadi
+const _sayC={};
+async function srvAudio(text){text=String(text).replace(/[{}]/g,'');if(_sayC[text])return _sayC[text];
+  const r=await api('/say',{body:{text}}).catch(()=>null);if(r&&r.audio){_sayC[text]=r.audio;return r.audio}return null}
+// gap: avval koreyscha, keyin o'zbekcha tarjimasi (kartochkadagi so'z kabi)
+function sayKoUz(ko,uz,b){const t=window._sayT=(window._sayT||0)+1;audUnlock();try{speechSynthesis.cancel()}catch{}
+  let old='';if(b){old=b.textContent;b.disabled=1;b.textContent='⏳'}const rel=()=>{if(b){b.disabled=0;b.textContent=old}};
+  const pu=uz?srvAudio(uz):Promise.resolve(null);
+  const second=async()=>{if(window._sayT!==t||!uz)return;const f=await pu;if(window._sayT!==t)return;if(f)playSrc('/audio/'+f,null,()=>speak(uz,null,'uz'));else speak(uz,null,'uz')};
+  srvAudio(ko).then(a=>{rel();if(window._sayT!==t)return;if(a)playSrc('/audio/'+a,()=>setTimeout(second,250),()=>speak(ko,second));else speak(ko,second)})}
+const jq=v=>esc(JSON.stringify(v)).replace(/'/g,'&#39;');
+function exHTML(e,wid){return `<div class=exr><div class=exk>${esc(e.ko)}</div><div class=exu>${esc(e.uz)}</div><div class=exbt><button class=pill onclick="sayKoUz(${jq(e.ko)},${jq(e.uz)},this)">🔊 Eshitish</button><button class=pill onclick="exTahlil(this,${jq(e.ko)})">🔍 Tahlil</button><button class=pill onclick="exShow(${wid},1)">🔄 Boshqa misol</button></div></div><div id=exan class=exan></div>`}
 function exShow(wid,again){const box=$('#exb'),a=S.exc[wid];if(!box||!a||!a.length)return;let i=Math.floor(Math.random()*a.length);if(a.length>1&&i==S.exlast[wid])i=(i+1)%a.length;S.exlast[wid]=i;box.innerHTML=`<div class=exh>💬 Misol gap</div>`+exHTML(a[i],wid)}
+// ---- gapni so'zma-so'z tahlil qilish
+const _anC={};let _anCur=[];
+const _dot=x=>{x=String(x||'').trim();return x&&!/[.!?]$/.test(x)?x+'.':x};
+const anText=x=>[`«${x.w}» — ${_dot(x.mean)}`,x.base&&'Tarkibi: '+_dot(x.base),x.gram&&'Grammatika: '+_dot(x.gram),x.tense&&'Zamon: '+_dot(x.tense),x.when&&'Qachon ishlatiladi: '+_dot(x.when),x.where&&'Bu gapda: '+_dot(x.where)].filter(Boolean).join(' ');
+function anRow(x,i){const L=(ic,t,v)=>v?`<div><b>${ic} ${t}:</b> ${esc(v)}</div>`:'';
+  return `<div class=exr><div class=exk>${esc(x.w)}<small>${esc(x.mean)}</small></div><div class=an>${L('🧩','Tarkibi',x.base)}${L('📐','Grammatika',x.gram)}${L('⏳','Zamon',x.tense)}${L('🕒','Qachon ishlatiladi',x.when)}${L('📍','Shu gapda',x.where)}</div><div class=exbt><button class=pill onclick="anSay(${i},this)">🔊 Eshitish</button></div></div>`}
+async function exTahlil(b,ko){const box=$('#exan');if(!box)return;
+  if(box.dataset.k===ko&&box.innerHTML){box.innerHTML='';box.dataset.k='';return}
+  box.dataset.k=ko;box.innerHTML='<div class=exh>⏳ Tahlil qilinmoqda...</div>';
+  let a=_anC[ko];
+  if(!a){const r=await api('/wex-tahlil',{body:{ko}}).catch(()=>null);
+    if(r&&r.a&&r.a.length)a=_anC[ko]=r.a;
+    else{if(box.dataset.k===ko){box.innerHTML='<div class=exh>'+esc((r&&r.e)||"Tahlil olinmadi, qayta urinib ko'ring")+'</div>';box.dataset.k=''}return}}
+  if(box.dataset.k!==ko)return;_anCur=a;
+  box.innerHTML=`<div class=exh>🔍 So'zma-so'z tahlil</div>`+a.map(anRow).join('')}
+async function anSay(i,b){const x=_anCur[i];if(!x)return;const t=window._sayT=(window._sayT||0)+1;audUnlock();try{speechSynthesis.cancel()}catch{}
+  const txt=anText(x);let old='';if(b){old=b.textContent;b.disabled=1;b.textContent='⏳'}
+  const a=await srvAudio(txt);if(b){b.disabled=0;b.textContent=old}if(window._sayT!==t)return;
+  if(a)playSrc('/audio/'+a,null,()=>speak(txt,null,'uz'));else speak(txt,null,'uz')}
 async function loadEx(w){if(!w||!w.id||w.id<1)return;const wid=w.id;
  if(!S.exc[wid]){try{const a=await api('/wex/'+wid);S.exc[wid]=Array.isArray(a)?a:[]}catch{S.exc[wid]=[]}}
  if(!cur()||cur().id!=wid)return;exShow(wid)}
@@ -1174,17 +1205,28 @@ async function gramHome(){head('Grammatika','back()');let d;try{d=await gramLoad
  <h3 class=sec style="font-size:18px">📚 Darslar</h3>
  <div class=posch>${[0,1,2,3].map(l=>`<button class="b ${S.gl==l?'sel':'g'}" onclick="S.gl=${l};gramHome()">${l?d.lv[l]:'Hammasi'}</button>`).join('')}</div>
  <div class=posch><button class="b ${S.gcat==''?'sel':'g'}" onclick="S.gcat='';gramHome()">Barcha turkum</button>${cats.map((c,i)=>`<button class="b ${S.gcat==c?'sel':'g'}" onclick="S.gcat=GCATS[${i}];gramHome()">${GCAT_ICON[c]||'📘'} ${esc(c)}</button>`).join('')}</div>
- ${pool.map(g=>`<div class=card onclick="nav(gramView,${g.id})"><div><b style="font-size:19px">${esc(g.p)}</b><br><small>${esc(g.m)}</small></div><span class=glv>${esc(d.lv[g.l])}</span></div>`).join('')||'<p class=s>Topilmadi</p>'}`);window.GCATS=cats}
+ ${pool.length?`<div class=row><button class=nxt onclick="nav(gramView,${pool[0].id})">🎓 Birma-bir tanishib chiqish (${pool.length} ta)</button></div>`:''}
+  ${pool.map(g=>`<div class=card onclick="nav(gramView,${g.id})"><div><b style="font-size:19px">${esc(g.p)}</b><br><small>${esc(g.m)}</small></div><div style="display:flex;gap:8px;align-items:center"><button class=pill onclick="event.stopPropagation();sayGram(${g.id},this)">🔊</button><span class=glv>${esc(d.lv[g.l])}</span></div></div>`).join('')||'<p class=s>Topilmadi</p>'}`);window.GCATS=cats}
 function gxCount(id){try{return +localStorage['gx'+id]||0}catch{return 0}}
 function gxBump(id){try{localStorage['gx'+id]=gxCount(id)+2}catch{}}
 async function gramView(id){head('Grammatika','back()');let d;try{d=await gramLoad()}catch{return}const g=d.g[id];if(!g)return back();
  const n=g.e.length,c=gxCount(id),ex=[g.e[c%n],g.e[(c+1)%n]].filter((x,i,a)=>a.indexOf(x)==i);gxBump(id);
- H(`<div class=card style="display:block"><span class=glv>${esc(d.lv[g.l])} · ${esc(g.c)}</span><h2 style="margin:8px 0 2px;font-size:28px">${esc(g.p)}</h2><div style="font-size:18px;font-weight:700;color:#7b5cff">${esc(g.m)}</div></div>
+ H(`<div class=card style="display:block"><span class=glv>${esc(d.lv[g.l])} · ${esc(g.c)}</span><h2 style="margin:8px 0 2px;font-size:28px">${esc(g.p)}</h2><div style="font-size:18px;font-weight:700;color:#7b5cff">${esc(g.m)}</div><div class=exbt><button class=pill onclick="sayGram(${id},this)">🔊 Grammatikani eshitish</button></div></div>
  <div class=card style="display:block"><b>📍 Qachon va qayerda ishlatiladi?</b><p style="margin:6px 0 0">${esc(g.u)}</p></div>
  <h3 class=sec style="font-size:18px">💬 Misollar</h3><div id=gxl>${ex.map(e=>gxRow(e)).join('')}</div>
  <div class=row><button class=pill onclick="gramView(${id})">🔄 Boshqa misollar</button><button class=pill onclick="gramMore(${id},this)">✨ AI yangi misol</button></div>
- <div class=row><button class=nxt onclick="nav(gramGame,'fill',${id})">✏️ Shu grammatikani mashq qilish</button></div>`)}
-function gxRow(e){return `<div class=exr><div class=exk>${hl(e[0])}</div><div class=exu>${esc(e[1])}</div><div class=exbt><button class=pill onclick="speak(${esc(JSON.stringify(plainKo(e[0]))).replace(/'/g,'&#39;')})">🔊</button></div></div>`}
+ <div class=row><button class=nxt onclick="nav(gramGame,'fill',${id})">✏️ Shu grammatikani mashq qilish</button></div>${gramNavHTML(id)}`)}
+// ---- grammatikani o'qib berish va birma-bir ko'rib chiqish
+function gramPoolIds(id){let a=gramPool().map(x=>x.id);if(!a.includes(id))a=S.gr.g.map(x=>x.id);return a}
+function gramNavHTML(id){const a=gramPoolIds(id),i=a.indexOf(id),pv=a[(i-1+a.length)%a.length],nx=a[(i+1)%a.length];
+  return `<div class=row style="justify-content:space-between;align-items:center"><button class=pill onclick="gramView(${pv})">⬅ Oldingi</button><small>${i+1} / ${a.length}</small><button class=pill onclick="gramView(${nx})">Keyingi ➡</button></div>`}
+function gramText(id){const g=S.gr.g[id],d=S.gr,_d=x=>{x=String(x||'').trim();return x&&!/[.!?]$/.test(x)?x+'.':x};
+  return [`Grammatika: ${g.p}.`,`Daraja: ${d.lv[g.l]}. Turkum: ${g.c}.`,`Ma'nosi: ${_d(g.m)}`,`Qachon va qayerda ishlatiladi: ${_d(g.u)}`].join(' ')}
+async function sayGram(id,b){if(!S.gr||!S.gr.g[id])return;const t=window._sayT=(window._sayT||0)+1;audUnlock();try{speechSynthesis.cancel()}catch{}
+  const txt=gramText(id);let old='';if(b){old=b.textContent;b.disabled=1;b.textContent='⏳'}
+  const a=await srvAudio(txt);if(b){b.disabled=0;b.textContent=old}if(window._sayT!==t)return;
+  if(a)playSrc('/audio/'+a,null,()=>speak(txt,null,'uz'));else speak(txt,null,'uz')}
+function gxRow(e){return `<div class=exr><div class=exk>${hl(e[0])}</div><div class=exu>${esc(e[1])}</div><div class=exbt><button class=pill onclick="sayKoUz(${jq(plainKo(e[0]))},${jq(e[1])},this)">🔊 Eshitish</button></div></div>`}
 async function gramMore(id,b){b.disabled=1;b.textContent='⏳ ...';const r=await api('/gram/more',{body:{id}}).catch(()=>null);b.disabled=0;b.textContent='✨ AI yangi misol';
  if(!r||!r.ex||!r.ex.length)return alert((r&&r.e)||"Yangi misol topilmadi");S.gr.g[id].e.push(...r.ex);$('#gxl').innerHTML=r.ex.map(gxRow).join('')}
 // ---------- 5 ta o'yin
