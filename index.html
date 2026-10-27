@@ -583,8 +583,14 @@ async function loadPos(){try{const a=await api('/poss');if(Array.isArray(a)&&a.l
 S.lvn={};
 const lname=(d,l)=>((S.lvn[d]||[]).find(z=>z.level==l)||{}).name||(l+'-daraja');
 function pickVoice(l){try{const vs=speechSynthesis.getVoices()||[],f=x=>vs.find(v=>String(v.lang).toLowerCase().replace('_','-').startsWith(x));return l==='uz'?(f('uz')||f('tr')||f('ru')):f(l)}catch{return null}}
+function uzNorm(t){return String(t||'').replace(/([oOgG])[\u2018\u2019\u02BB\u02BC\u0060\u00B4\u2032\u02B9']/g,'$1\u02BB').replace(/[\u2018\u2019\u02BC\u0060\u00B4\u2032\u02B9']/g,'\u02BC')}
+function uzTr(t){t=String(t||'').replace(/[\u2018\u2019\u02BB\u02BC\u0060\u00B4\u2032\u02B9]/g,"'").toLowerCase();
+ return t.replace(/o'/g,'o').replace(/g'/g,'g').replace(/'/g,'').replace(/sh/g,'ş').replace(/ch/g,'ç').replace(/x/g,'h').replace(/q/g,'k').replace(/j/g,'c').replace(/w/g,'v')}
+function uzRu(t){t=String(t||'').replace(/[\u2018\u2019\u02BB\u02BC\u0060\u00B4\u2032\u02B9]/g,"'").toLowerCase();
+ return t.replace(/o'/g,'о').replace(/g'/g,'г').replace(/yo/g,'ё').replace(/yu/g,'ю').replace(/ya/g,'я').replace(/sh/g,'ш').replace(/ch/g,'ч').replace(/ng/g,'нг').replace(/'/g,'').replace(/[a-z]/g,c=>({a:'а',b:'б',d:'д',e:'э',f:'ф',g:'г',h:'х',i:'и',j:'дж',k:'к',l:'л',m:'м',n:'н',o:'о',p:'п',q:'к',r:'р',s:'с',t:'т',u:'у',v:'в',x:'х',y:'й',z:'з'}[c]||c))}
+function uzFor(vo,t){const l=vo?String(vo.lang).toLowerCase():'';return l.startsWith('uz')?uzNorm(t):l.startsWith('ru')?uzRu(t):uzTr(t)}
 function speak(t,cb,lang){let d=0;const fin=()=>{if(d)return;d=1;clearTimeout(tm);if(cb)cb()},tm=setTimeout(fin,Math.max(4000,String(t).length*260));
- try{const u=new SpeechSynthesisUtterance(t),vo=lang?pickVoice(lang):null;u.lang=lang==='uz'?(vo?vo.lang:'uz-UZ'):'ko-KR';if(vo)u.voice=vo;u.onend=u.onerror=fin;speechSynthesis.cancel();speechSynthesis.speak(u)}catch{fin()}}
+ try{const vo=lang?pickVoice(lang):null,u=new SpeechSynthesisUtterance(lang==='uz'?uzFor(vo,t):t);u.lang=lang==='uz'?(vo?vo.lang:'tr-TR'):'ko-KR';if(vo)u.voice=vo;u.onend=u.onerror=fin;speechSynthesis.cancel();speechSynthesis.speak(u)}catch{fin()}}
 const AUD=new Audio(),SIL='data:audio/wav;base64,UklGRkQDAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YSADAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgA==';let audOk=0;
 // telefonda ovoz faqat "bosish" (click/touchend) paytida ochiladi; pointerdown sensorli ekranda hisoblanmaydi
 let MICST=null;
@@ -892,7 +898,7 @@ async function foxSend(t){let sp=0;const f=S.fox;if(f.typing)return;const v=(t??
 async function playB64(f,b64,onEnd,onErr,mime){f.audio={pause(){try{AUD.pause()}catch{}}};playSrc('data:'+(mime||'audio/wav')+';base64,'+b64,onEnd,onErr,120000)}
 function gSegs(t){t=t.replace(/\p{Extended_Pictographic}/gu,' ').replace(/\uFE0F/g,'');const segs=[];
  for(const m of t.matchAll(/([가-힣ㄱ-ㅎㅏ-ㅣ]+(?:[\s,.!?~·]+[가-힣ㄱ-ㅎㅏ-ㅣ]+)*)|([^가-힣ㄱ-ㅎㅏ-ㅣ]+)/g)){const x=m[0].replace(/\s+/g,' ').trim();if(!x||!/[\p{L}\p{N}]/u.test(x))continue;const lang=m[1]?'ko':'tr';
-  for(let i=0;i<x.length;i+=170){let e=Math.min(x.length,i+170);if(e<x.length){const sp=x.lastIndexOf(' ',e);if(sp>i+60)e=sp}segs.push([x.slice(i,e).trim(),lang]);i=e-170}}
+  for(let i=0;i<x.length;i+=170){let e=Math.min(x.length,i+170);if(e<x.length){const sp=x.lastIndexOf(' ',e);if(sp>i+60)e=sp}segs.push([lang==='tr'?uzTr(x.slice(i,e).trim()):x.slice(i,e).trim(),lang]);i=e-170}}
  return segs.slice(0,14)}
 function gSpeak(t,end,fail){const segs=gSegs(t);if(!segs.length)return fail();let k=0,any=0;
  const next=()=>{if(k>=segs.length)return end();const [x,l]=segs[k++];const q=encodeURIComponent(x),u1='https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl='+l+'&q='+q,u2='https://translate.googleapis.com/translate_tts?ie=UTF-8&client=gtx&tl='+l+'&q='+q;playSrc(u1,()=>{any=1;next()},()=>playSrc(u2,()=>{any=1;next()},()=>{if(any)next();else fail()},30000),30000)};next()}
@@ -912,7 +918,7 @@ function foxSpeakLocal(i,cb,tk){const f=S.fox;let d=0,tm;
  try{const t=f.msgs[i].content.replace(/[*_#`]/g,''),ps=t.split(/([가-힣][가-힣\s]*)/).filter(x=>x.trim());speechSynthesis.cancel();
   if(!ps.length)return go();
   const vs=(speechSynthesis.getVoices&&speechSynthesis.getVoices())||[],pk=l=>vs.find(v=>String(v.lang).toLowerCase().replace('_','-').startsWith(l));
-  ps.forEach((p,k)=>{const u=new SpeechSynthesisUtterance(p),ko=/[가-힣]/.test(p),vo=ko?pk('ko'):(pk('uz')||pk('tr')||pk('ru'));u.lang=vo?vo.lang:(ko?'ko-KR':'uz-UZ');if(vo)u.voice=vo;u.rate=.95;if(k==ps.length-1){u.onend=go;u.onerror=go}speechSynthesis.speak(u)});
+  ps.forEach((p,k)=>{const ko=/[가-힣]/.test(p),vo=ko?pk('ko'):(pk('uz')||pk('tr')||pk('ru')),u=new SpeechSynthesisUtterance(ko?p:uzFor(vo,p));u.lang=vo?vo.lang:(ko?'ko-KR':'tr-TR');if(vo)u.voice=vo;u.rate=.95;if(k==ps.length-1){u.onend=go;u.onerror=go}speechSynthesis.speak(u)});
   tm=setTimeout(go,Math.min(45000,t.length*130+4000))}catch{go()}}
 const VT={listen:"🎙 Tinglayapman, gapiring",think:"💭 O'ylayapman...",speak:"🔊 Kori gapiryapti · to'xtatish uchun bosing",mute:"🔇 Mikrofon o'chiq"};
 function foxStop(){const f=S.fox;if(!f)return;f.spk=(f.spk||0)+1;f.speaking=0;try{f.audio&&f.audio.pause()}catch{}try{speechSynthesis.cancel()}catch{}spkUi();if(f.talk){stSet('🎙 ovozli suhbat','listen');talkListen()}}
@@ -1094,16 +1100,18 @@ function watchJob(id){document.getElementById('ov')?.remove();const o=document.c
  let miss=0;const tick=async()=>{let j;try{j=await api('/admin/job/'+id)}catch{if(++miss>40||!document.getElementById('ov'))return;return setTimeout(tick,3000)}if(!document.getElementById('ov'))return;
   if(j&&(j.code>=502&&j.code<=504||/HTTP 50\d/.test(j.e||''))){$('#jst').textContent="Server band yoki qayta ishga tushmoqda, kutilmoqda...";return setTimeout(tick,4000)}
   if(!j||j.stage===undefined){if(++miss<=10){$('#jst').textContent="Server javobi kutilmoqda...";return setTimeout(tick,3000)}document.getElementById('ov').remove();return alert('Ish topilmadi (server qayta ishga tushgan bo\'lishi mumkin): '+JSON.stringify(j))}
-  $('#jst').textContent=j.stage;$('#jbar').style.width=Math.max(5,j.total?Math.round(j.done/j.total*100):5)+'%';$('#jtx').style.whiteSpace='pre-line';$('#jtx').textContent=`${j.done}/${j.total} · ${j.added} ta qo'shildi`+((j.warn||[]).length?'\n⚠️ '+j.warn[j.warn.length-1]:'');
+  const rd=j.rd||{},nf=n=>Number(n||0).toLocaleString('ru-RU'),pr=j.total>0||j.fin?100:(rd.pct||0),ad=j.total?Math.min(100,Math.round(j.done/j.total*100)):(j.fin?100:0),all=j.fin?100:Math.max(2,Math.round(pr*.5+ad*.5));
+  $('#jst').textContent=j.stage;$('#jbar').style.width=all+'%';$('#jtx').style.whiteSpace='pre-line';
+  $('#jtx').textContent=`📊 Jami: ${all}%\n📄 Fayldan o'qish: ${pr}%`+(rd.tot&&!(j.total>0)?` (${nf(rd.cur)} / ${nf(rd.tot)}${rd.unit?' '+rd.unit:''})`:'')+` · topilgan so'zlar: ${nf(rd.words||j.found||0)}`+(j.total>0?`\n🔤 So'zlarni qo'shish: ${ad}% (${nf(j.done)} / ${nf(j.total)} so'z) · ${nf(j.added)} ta qo'shildi`:'')+((j.warn||[]).length?'\n⚠️ '+j.warn[j.warn.length-1]:'');
   if(j.fin){document.getElementById('ov').remove();if(j.err)alert('Xatolik: '+j.err);else{confetti();alert((j.dict_id?'Kitob yaratildi.\n':'')+impMsg(j))}vAdmin();return}
   setTimeout(tick,1200)};tick()}
-function upProg(p){let o=document.getElementById('ov');if(!o){o=document.createElement('div');o.id='ov';o.innerHTML=`<div class=bg></div><div class=sh><h2 style="margin:0 0 6px">⬆️ Fayl yuklanmoqda</h2><div class=s id=jst></div><div class=pb><i id=jbar style="width:1%"></i></div><div class=s>Oynani yopmang, yuklash tugaguncha kuting.</div></div>`;document.body.appendChild(o)}$('#jst').textContent=Math.round(p*100)+'%';$('#jbar').style.width=Math.max(1,Math.round(p*100))+'%'}
+function upProg(p,c,t){let o=document.getElementById('ov');if(!o){o=document.createElement('div');o.id='ov';o.innerHTML=`<div class=bg></div><div class=sh><h2 style="margin:0 0 6px">⬆️ Fayl yuklanmoqda</h2><div class=s id=jst></div><div class=pb><i id=jbar style="width:1%"></i></div><div class=s>Oynani yopmang, yuklash tugaguncha kuting.</div></div>`;document.body.appendChild(o)}$('#jst').textContent=Math.round(p*100)+'%'+(t?' · '+(c/1048576).toFixed(0)+' / '+(t/1048576).toFixed(0)+' MB':'');$('#jbar').style.width=Math.max(1,Math.round(p*100))+'%'}
 async function attach(fd,f){if(f.size<=8e6){fd.append('file',f,f.name);return true}
  try{const st=await api('/admin/up/start',{body:{size:f.size,name:f.name}});if(!st||!st.id){alert('Xato: '+((st&&st.e)||JSON.stringify(st)));return false}
   const hd={'x-init':tg?.initData||'','x-dev':dev||'','content-type':'application/octet-stream'};if(localStorage.tok)hd.authorization='Bearer '+localStorage.tok;
   const CH=8<<20;upProg(0);
   for(let off=0;off<f.size;off+=CH){let ok=0,err='';for(let a=0;a<8&&!ok;a++){try{const r=await fetch('/api/admin/up/chunk/'+st.id+'?off='+off,{method:'POST',headers:hd,body:f.slice(off,off+CH)});const j=await r.json();if(j.ok)ok=1;else{err=j.e||'';if(err)break}}catch{await new Promise(z=>setTimeout(z,1500*(a+1)))}}
-   if(!ok)throw new Error(err||"Yuklash uzildi (internet yoki server javob bermadi)");upProg(Math.min(f.size,off+CH)/f.size)}
+   if(!ok)throw new Error(err||"Yuklash uzildi (internet yoki server javob bermadi)");upProg(Math.min(f.size,off+CH)/f.size,Math.min(f.size,off+CH),f.size)}
   document.getElementById('ov')?.remove();fd.append('upload_id',st.id);fd.append('upload_name',f.name);fd.append('upload_size',f.size);return true}
  catch(e){document.getElementById('ov')?.remove();if(e!==0)alert('Xato: '+((e&&e.message)||e));return false}}
 async function createBook(){const f=$('#bf').files[0];if(!f||!$('#bn').value.trim())return alert('Kitob nomi va faylni kiriting');const fd=new FormData();

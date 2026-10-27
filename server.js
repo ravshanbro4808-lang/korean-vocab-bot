@@ -484,7 +484,7 @@ function edgeTts(text,voice,ver){ver=ver||EDGE_VER;return new Promise((res,rej)=
   ws.on('error',e=>fin(e));ws.on('close',()=>fin())})}
 function ttsSegs(t,n){t=t.replace(/\p{Extended_Pictographic}/gu,' ').replace(/️/g,'');const segs=[];
   for(const m of t.matchAll(/([가-힣ㄱ-ㅎㅏ-ㅣ]+(?:[\s,.!?~·]+[가-힣ㄱ-ㅎㅏ-ㅣ]+)*)|([^가-힣ㄱ-ㅎㅏ-ㅣ]+)/g)){const x=m[0].replace(/\s+/g,' ').trim();if(!x||!/[\p{L}\p{N}]/u.test(x))continue;const lang=m[1]?'ko':'uz';
-    for(let i=0;i<x.length;i+=400){segs.push([x.slice(i,i+400).trim(),lang])}}
+    for(let i=0;i<x.length;i+=400){segs.push([lang==='uz'?uzNorm(x.slice(i,i+400).trim()):x.slice(i,i+400).trim(),lang])}}
   return segs.slice(0,n||10)}
 let edgeVerOk=null;
 async function foxEdgeTts(t){const segs=ttsSegs(t);if(!segs.length)throw new Error('matn yoq');
@@ -494,7 +494,7 @@ async function foxEdgeTts(t){const segs=ttsSegs(t);if(!segs.length)throw new Err
 async function gTts(text,lang){let le;for(const u of ['https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=','https://translate.googleapis.com/translate_tts?ie=UTF-8&client=gtx&tl=']){try{const r=await fetch(u+lang+'&q='+encodeURIComponent(text),{headers:{'user-agent':'Mozilla/5.0'},signal:AbortSignal.timeout(6000)});if(!r.ok)throw new Error('tts '+r.status);const b=Buffer.from(await r.arrayBuffer());if(b.length<300)throw new Error('tts bosh');return b}catch(e){le=e}}throw le}
 async function foxGoogleTts(t){t=t.replace(/\p{Extended_Pictographic}/gu,' ').replace(/\uFE0F/g,'');const segs=[];
   for(const m of t.matchAll(/([가-힣ㄱ-ㅎㅏ-ㅣ]+(?:[\s,.!?~·]+[가-힣ㄱ-ㅎㅏ-ㅣ]+)*)|([^가-힣ㄱ-ㅎㅏ-ㅣ]+)/g)){const x=m[0].replace(/\s+/g,' ').trim();if(!x||!/[\p{L}\p{N}]/u.test(x))continue;const lang=m[1]?'ko':'tr';
-    for(let i=0;i<x.length;i+=170){let e=Math.min(x.length,i+170);if(e<x.length){const sp=x.lastIndexOf(' ',e);if(sp>i+60)e=sp}segs.push([x.slice(i,e).trim(),lang]);i=e-170}}
+    for(let i=0;i<x.length;i+=170){let e=Math.min(x.length,i+170);if(e<x.length){const sp=x.lastIndexOf(' ',e);if(sp>i+60)e=sp}segs.push([lang==='tr'?uzTr(x.slice(i,e).trim()):x.slice(i,e).trim(),lang]);i=e-170}}
   if(!segs.length)throw new Error('matn yoq');const bufs=[];for(const [x,l] of segs.slice(0,14))bufs.push(await gTts(x,l));return Buffer.concat(bufs)}
 app.post('/api/fox-tts',async(r,s)=>{const k=foxKey(r.u,'tts'),cap=r.u.is_admin?1e9:active(r.u)?400:60,errs=[];
   const t=String(r.body.text||'').replace(/[*_#`]/g,'').trim().slice(0,600);if(!t)return s.json({e:'tts'});
@@ -675,12 +675,12 @@ async function aiWords(items,txt,vis,defPos,auto,job){
       let ri=0,dn=0,lastE='';const wv=async()=>{while(ri<rgs.length){const rg=rgs[ri++],pr=wp()+(rg?"\n\nFAQAT PDFning quyidagi sahifalaridagi so'zlarni ol (sahifa raqamlari): "+rg.join(', ')+". Har bir sahifani to'liq o'qi, hech bir so'zni tashlab ketma.":"");let okc=0;
         for(let a=0;a<3&&!okc;a++){try{const w=parseWords(await geminiFile(vis.ref||vis.b64||(vis.b64=vis.buf.toString('base64')),vis.mime,pr,30000));got.push(...w);okc=1}catch(e){lastE=friendlyErr(e&&e.message||e);await new Promise(z=>setTimeout(z,2000))}}
         if(!okc){failed++;if(job)job.failedPages.push(...(rg||[]))}
-        dn++;if(job)job.stage="AI fayldan so'zlarni qidiryapti ("+dn+"/"+rgs.length+")..."}};
+        dn++;if(job){job.stage="AI fayldan so'zlarni qidiryapti ("+dn+"/"+rgs.length+")...";rd(job,'AI',dn,rgs.length,got.length,'qism')}}};
       await Promise.all(Array.from({length:Math.min(4,rgs.length)},wv));if(!got.length&&job)job.aiErr=lastE||"AI fayldan so'z topa olmadi"}
     else{const cs=[];for(let i=0;i<txt.length&&i<20000000;i+=8000){let e=Math.min(txt.length,i+8000);const nl=txt.indexOf('\n',e);if(nl>0&&nl-e<400)e=nl;cs.push(txt.slice(i,e));i=e-8000}
       if(txt.length>20000000&&job)job.warn.push("Fayl juda katta: faqat dastlabki 20 000 000 belgi qayta ishlandi.");
       let ci=0,dn=0;const bad=[];
-      const w=async()=>{while(ci<cs.length){const c=cs[ci++];if(/[가-힣]/.test(c)){let okc=0;for(let a=0;a<2&&!okc;a++){try{got.push(...parseWords(await callClaude([{role:'user',content:wp()+"\n\n"+c}],"Sen koreys-o'zbek lug'at tuzuvchisan.",12000)));okc=1}catch(e){if(job)job.aiErr=friendlyErr(e&&e.message||e);await new Promise(z=>setTimeout(z,1500))}}if(!okc){failed++;bad.push(c)}}dn++;if(job)job.stage="AI fayldan so'zlarni qidiryapti ("+dn+"/"+cs.length+")..."}};
+      const w=async()=>{while(ci<cs.length){const c=cs[ci++];if(/[가-힣]/.test(c)){let okc=0;for(let a=0;a<2&&!okc;a++){try{got.push(...parseWords(await callClaude([{role:'user',content:wp()+"\n\n"+c}],"Sen koreys-o'zbek lug'at tuzuvchisan.",12000)));okc=1}catch(e){if(job)job.aiErr=friendlyErr(e&&e.message||e);await new Promise(z=>setTimeout(z,1500))}}if(!okc){failed++;bad.push(c)}}dn++;if(job){job.stage="AI fayldan so'zlarni qidiryapti ("+dn+"/"+cs.length+")...";rd(job,'AI',dn,cs.length,got.length,'qism')}}};
       await Promise.all(Array.from({length:Math.min(8,cs.length)},w));if(failed&&job)job.warn.push(failed+" ta matn bo'lagi AI tomonidan o'qilmadi; ular oddiy usulda ajratildi (tarjimasi/turi to'liq bo'lmasligi mumkin).");
       // qamrov tekshiruvi: matndagi so'zlar olingan so'zlar bilan qoplanganmi; qoplanmagan qatorlar AI'ga qayta beriladi
       if(got.length&&txt.length<8e6){try{
@@ -692,7 +692,7 @@ async function aiWords(items,txt,vis,defPos,auto,job){
         if(tot>20&&miss>tot*.12&&unc.length){
           const gcs=[];let cur2='';for(const l of unc){if(cur2.length+l.length>4500){gcs.push(cur2);cur2=''}cur2+=l+'\n'}if(cur2)gcs.push(cur2);const lim=gcs.slice(0,40);
           let gi=0,gd=0;const before=got.length;
-          const gw=async()=>{while(gi<lim.length){const c=lim[gi++];for(let a=0;a<2;a++){try{got.push(...parseWords(await callClaude([{role:'user',content:wp()+"\n\nDiqqat: bu qatorlardagi so'zlar oldingi o'qishda tushib qolgan. Har bir ma'noli so'zni to'liq ajratib ol.\n\n"+c}],"Sen koreys-o'zbek lug'at tuzuvchisan.",12000)));break}catch(e){await new Promise(z=>setTimeout(z,1500))}}gd++;if(job)job.stage="Yetishmagan so'zlar qidirilmoqda ("+gd+"/"+lim.length+")..."}};
+          const gw=async()=>{while(gi<lim.length){const c=lim[gi++];for(let a=0;a<2;a++){try{got.push(...parseWords(await callClaude([{role:'user',content:wp()+"\n\nDiqqat: bu qatorlardagi so'zlar oldingi o'qishda tushib qolgan. Har bir ma'noli so'zni to'liq ajratib ol.\n\n"+c}],"Sen koreys-o'zbek lug'at tuzuvchisan.",12000)));break}catch(e){await new Promise(z=>setTimeout(z,1500))}}gd++;if(job){job.stage="Yetishmagan so'zlar qidirilmoqda ("+gd+"/"+lim.length+")...";rd(job,'AI',gd,lim.length,got.length,'qism')}}};
           await Promise.all(Array.from({length:Math.min(6,lim.length)},gw));
           if(job)job.warn.push("Birinchi o'qishda ~"+Math.round(miss/tot*100)+"% so'z tushib qolgan edi; qayta o'qib "+(got.length-before)+" ta qo'shimcha so'z topildi."+(gcs.length>lim.length?" Fayl katta bo'lgani uchun qayta o'qish qisman bajarildi.":""))}
       }catch{}}
@@ -754,6 +754,12 @@ function mkParser(defPos,auto,isTab){
 const TXTEXT=new Set(['txt','csv','tsv','json','md','srt','vtt','log','html','htm','xml','lst','dic','text','tab','ass','sub']),BINEXT=new Set(['xlsx','xls','ods','docx','doc','rtf','pptx','odt','odp','epub','hwpx','hwp','pdf','zip','rar','7z','tar','gz','exe','iso','db','sqlite']);
 async function looksText(path,ext){if(TXTEXT.has(ext))return true;if(BINEXT.has(ext)||GEMMIME[ext])return false;
   const fd=await fs.promises.open(path,'r');try{const b=Buffer.alloc(8192),{bytesRead}=await fd.read(b,0,8192,0);if(!bytesRead)return false;const h=b.subarray(0,bytesRead);if((h[0]===0xFF&&h[1]===0xFE)||(h[0]===0xFE&&h[1]===0xFF))return true;return !h.includes(0)}finally{await fd.close()}}
+function uzNorm(t){return String(t||'').replace(/([oOgG])[\u2018\u2019\u02BB\u02BC\u0060\u00B4\u2032\u02B9']/g,'$1\u02BB').replace(/[\u2018\u2019\u02BC\u0060\u00B4\u2032\u02B9']/g,'\u02BC')}
+function uzTr(t){t=String(t||'').replace(/[\u2018\u2019\u02BB\u02BC\u0060\u00B4\u2032\u02B9]/g,"'").toLowerCase();
+ return t.replace(/o'/g,'o').replace(/g'/g,'g').replace(/'/g,'').replace(/sh/g,'ş').replace(/ch/g,'ç').replace(/x/g,'h').replace(/q/g,'k').replace(/j/g,'c').replace(/w/g,'v')}
+function uzRu(t){t=String(t||'').replace(/[\u2018\u2019\u02BB\u02BC\u0060\u00B4\u2032\u02B9]/g,"'").toLowerCase();
+ return t.replace(/o'/g,'о').replace(/g'/g,'г').replace(/yo/g,'ё').replace(/yu/g,'ю').replace(/ya/g,'я').replace(/sh/g,'ш').replace(/ch/g,'ч').replace(/ng/g,'нг').replace(/'/g,'').replace(/[a-z]/g,c=>({a:'а',b:'б',d:'д',e:'э',f:'ф',g:'г',h:'х',i:'и',j:'дж',k:'к',l:'л',m:'м',n:'н',o:'о',p:'п',q:'к',r:'р',s:'с',t:'т',u:'у',v:'в',x:'х',y:'й',z:'з'}[c]||c))}
+function rd(j,ph,cur,tot,words,unit){if(!j)return;j.rd={ph,cur,tot,unit:unit||'',pct:tot?Math.min(100,Math.round(cur/tot*100)):0,words:words==null?((j.rd&&j.rd.words)||0):words}}
 async function streamExtract(file,defPos,auto,job,size){
   const MAXW=MAXW_G,nm=file.originalname.toLowerCase();
   const fd=await fs.promises.open(file.path,'r');const hb=Buffer.alloc(65536);const {bytesRead}=await fd.read(hb,0,65536,0);await fd.close();const head=hb.subarray(0,bytesRead);let enc='utf-8';
@@ -763,7 +769,7 @@ async function streamExtract(file,defPos,auto,job,size){
   for await(const chunk of fs.createReadStream(file.path,{highWaterMark:+process.env.STREAM_CHUNK||(4<<20)})){
     read+=chunk.length;const t=rest+dec.decode(chunk,{stream:true}),ls=t.split(/\r?\n/);rest=ls.pop();if(rest.length>2e6){ls.push(rest);rest=''}
     P.feed(ls,false);
-    if(job&&Date.now()-last>800){last=Date.now();job.stage="Katta fayl o'qilmoqda ("+Math.round(read/size*100)+"%) — "+P.items.length+" ta so'z topildi"}
+    if(job&&Date.now()-last>800){last=Date.now();job.stage="Katta fayl o'qilmoqda ("+Math.round(read/size*100)+"%) — "+P.items.length+" ta so'z topildi";rd(job,"Fayl o'qilmoqda",Math.round(read/1048576),Math.round(size/1048576),P.items.length,'MB')}
     if(P.items.length>=MAXW){cut=true;break}}
   if(!cut)P.feed([rest+dec.decode()],true);else P.feed([],true);
   P.finish();if(job){if(cut)job.warn.push("Fayl juda katta: dastlabki "+MAXW+" ta so'z olindi (MAX_WORDS o'zgaruvchisi bilan oshirish mumkin).");job.warn.push("Katta matn fayli bo'lak-bo'lak o'qildi: «koreys - tarjima» juftliklari va koreyscha so'zlar olindi, tarjimasizlari alohida tarjima qilinadi.")}
@@ -786,8 +792,8 @@ async function extract0(file,defPos,auto,job){
   let txt='',visual=null,pages=0,vpl=null;const emptyP=[];
   try{
     if(bigVis){visual=gm;if(ext==='pdf'){pages=countPdfPages(file.path);if(job)job.pages=pages}}
-    else if(/\.pdf$/.test(nm)){try{if(job)job.stage="PDF o'qilmoqda...";const R=await pdfChild(file.path,job);if(!R)throw new Error('pdf-child');const pg=R.pg||[];
-      pages=R.pages||pg.length;txt=pg.length?pg.join('\n'):(R.text||'');if(job){job.pages=pages}
+    else if(/\.pdf$/.test(nm)){try{if(job){job.stage="PDF o'qilmoqda...";rd(job,'PDF',0,1,0,'')}const R=await pdfChild(file.path,job);if(!R)throw new Error('pdf-child');const pg=R.pg||[];
+      pages=R.pages||pg.length;txt=pg.length?pg.join('\n'):(R.text||'');if(job){job.pages=pages;rd(job,'PDF',1,1,0,'')}
       pg.forEach((t,i)=>{if(t.replace(/\s/g,'').length<15)emptyP.push(i+1)});if(job)job.emptyPages=emptyP.slice()}catch{txt='';if(job&&!job.readErr)job.readErr=job.pdfNote||"PDF matnini o'qib bo'lmadi";pages=(buf.toString('latin1').match(/\/Type\s*\/Page[^s]/g)||[]).length;if(job)job.pages=pages}
       if((txt.replace(/\s/g,'').length<40||!/[가-힣]/.test(txt))&&(buf.length<14e6||USE_GEMINI))visual='application/pdf';
       else if(emptyP.length&&(buf.length<14e6||USE_GEMINI)){visual='application/pdf';vpl=emptyP.slice()}}
@@ -807,7 +813,7 @@ async function extract0(file,defPos,auto,job){
 async function addWords(job,d,items,levelOf,auto){
   job.stage="Tekshirilmoqda...";
   const todo=items.slice(0,MAXW_G).filter(it=>!one('select 1 from words where dict_id=? and ko=?',d.id,it.ko));
-  job.dups=Math.max(0,Math.min(items.length,MAXW_G)-todo.length);todo.forEach((it,i)=>it.idx=i);job.found=items.length;job.total=todo.length;job.done=0;
+  job.dups=Math.max(0,Math.min(items.length,MAXW_G)-todo.length);todo.forEach((it,i)=>it.idx=i);job.found=items.length;job.total=todo.length;job.done=0;if(job.rd){job.rd.pct=100;job.rd.cur=job.rd.tot;job.rd.words=items.length}
   const wl=['b','o','y'].includes(job.wlvl)?job.wlvl:(['b','o','y'].includes(d.lvl)?d.lvl:''),ins=db.prepare('insert into words(dict_id,level,pos,section,ko,uz,lvl,form) values(?,?,?,?,?,?,?,?)'),cnt={};
   const put=list=>{db.transaction(()=>{for(const it of list){const lv=levelOf(it.idx,todo.length,it),k=lv+'|'+it.pos;
     if(cnt[k]==null)cnt[k]=one('select count(*) n from words where dict_id=? and level=? and pos=?',d.id,lv,it.pos).n;
