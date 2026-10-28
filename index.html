@@ -600,17 +600,26 @@ function audUnlock(){if(audOk||AUD._busy)return;try{AUD.src=SIL;const p=AUD.play
 ['click','touchend','pointerup'].forEach(t=>document.addEventListener(t,()=>{if(AUD._pend){const x=AUD._pend;AUD._pend=null;playSrc(x.src,x.end,x.err,x.max);return}audUnlock()},{capture:true,passive:true}));
 function playSrc(src,end,err,maxMs){let d=0,tm=0;AUD._busy=1;AUD._pend=null;const done=f=>{if(d)return;d=1;clearTimeout(tm);AUD._busy=0;AUD.onended=AUD.onerror=null;if(f)f()};tm=setTimeout(()=>done(end),maxMs||25000);AUD.onended=()=>done(end);AUD.onerror=()=>done(err||end);AUD.src=src;const p=AUD.play();
  if(p&&p.then)p.then(()=>{audOk=1}).catch(e=>{if(e&&e.name==='NotAllowedError'){d=1;clearTimeout(tm);AUD._busy=0;AUD.onended=AUD.onerror=null;AUD._pend={src,end,err,max:maxMs};try{stSet('🔈 Ovozni eshitish uchun ekranni bosing','speak')}catch{}}else done(err||end)})}
-function playWord(w,cb){if(!w)return;let once=0;const end=()=>{if(!once){once=1;if(cb)cb()}},sp=()=>speak(w.ko,end),pa=()=>playSrc('/audio/'+w.audio,end,sp);
+function playWordKo(w,cb){if(!w)return;let once=0;const end=()=>{if(!once){once=1;if(cb)cb()}},sp=()=>speak(w.ko,end),pa=()=>playSrc('/audio/'+w.audio,end,sp);
  if(w.audio){pa();return}
  if(!w.id||w._vf){sp();return}
  let done=0;const tm=setTimeout(()=>{if(!done){done=1;sp()}},3500);
  api('/word-voice/'+w.id,{body:{}}).then(r=>{if(r&&r.audio)w.audio=r.audio;else w._vf=1;if(done)return;done=1;clearTimeout(tm);if(w.audio)pa();else sp()}).catch(()=>{w._vf=1;if(!done){done=1;clearTimeout(tm);sp()}})}
+// har joyda: avval koreyscha, keyin o'zbekcha tarjimasi (noUz=1 — faqat javobni oshkor qiladigan o'yinlarda o'chiriladi)
+function playWord(w,cb,noUz){if(!w)return;const uz=noUz?'':String(w.uz||'').replace(/⏳.*$/,'').trim().slice(0,120);
+ if(!uz)return playWordKo(w,cb);
+ audUnlock();const t=window._sayT=(window._sayT||0)+1,run0=S.run,i0=run0?run0.i:null;
+ let up=null;if(w.id){up=w.audio_uz?Promise.resolve(w.audio_uz):api('/word-voice-uz/'+w.id,{body:{}}).then(r=>{if(r&&r.audio){w.audio_uz=r.audio;return r.audio}return null}).catch(()=>null)}
+ const sayUz=()=>speak(uz,cb,'uz');
+ playWordKo(w,()=>setTimeout(async()=>{if(window._sayT!==t)return;if(S.run!==run0||(run0&&run0.i!==i0))return;
+  const f=up?await Promise.race([up,new Promise(z=>setTimeout(()=>z(null),5000))]):null;if(window._sayT!==t)return;if(S.run!==run0||(run0&&run0.i!==i0))return;
+  if(f)playSrc('/audio/'+f,cb,sayUz);else sayUz()},200))}
 // kartochka: avval koreyscha, ketidan o'zbekcha tarjimasi aytiladi
 function cardSay(w){if(!w)return;audUnlock();const t=window._sayT=(window._sayT||0)+1,uz=String(w.uz||'').replace(/⏳.*$/,'').trim().slice(0,120);
  // o'zbekcha ovoz koreyscha aytilayotgan paytda oldindan tayyorlanadi (server bir marta yasab saqlaydi)
  let up=null;if(uz&&w.id){up=w.audio_uz?Promise.resolve(w.audio_uz):api('/word-voice-uz/'+w.id,{body:{}}).then(r=>{if(r&&r.audio){w.audio_uz=r.audio;return r.audio}return null}).catch(()=>null)}
  const say=()=>{if(uz)speak(uz,null,'uz')};
- playWord(w,()=>setTimeout(async()=>{if(window._sayT!==t)return;let same=true;try{same=cur()===w}catch{}if(!same)return;
+ playWordKo(w,()=>setTimeout(async()=>{if(window._sayT!==t)return;let same=true;try{same=cur()===w}catch{}if(!same)return;
   const f=up?await Promise.race([up,new Promise(z=>setTimeout(()=>z(null),5000))]):null;if(window._sayT!==t)return;
   if(f)playSrc('/audio/'+f,null,say);else say()},200))}
 const shuf=a=>[...a].sort(()=>Math.random()-.5);
@@ -763,10 +772,10 @@ function step(keep){const r=S.run;head('Mashq','leave()');r.ans=null;if(r.mode==
 
  if(r.mode=='rev'||r.mode=='mix'){r.dirs=r.dirs||{};if(r.dirs[r.i]===undefined)r.dirs[r.i]=r.mode=='rev'?1:(Math.random()<.5?1:0);const d=r.dirs[r.i],key=d?'ko':'uz',qk=d?'uz':'ko';r.ans=w[key];
   const o=r.o&&r.oi==r.i&&r.od==d?r.o:(r.o=shuf([w[key],...shuf([...new Set(r.w.filter(x=>x.id!=w.id&&x[key]&&x[key]!=w[key]).map(x=>x[key]))]).slice(0,3)]),r.oi=r.i,r.od=d,r.o);
-  if(!d&&!keep)setTimeout(()=>playWord(cur()),250);
-  return H(pr+mas(d?"Koreyscha so'zni toping!":"To'g'ri tarjimani toping!")+`<div class=sticker>${esc(w[qk])}${d?"<small>koreyschada qanday?</small>":`<button class=pill onclick="playWord(cur())">🔊</button>`}</div>`+o.map((t,i)=>`<button class=opt2 onclick="pick(this,${t==w[key]})"><span>${'ABCD'[i]}</span>${esc(t)}</button>`).join('')+`<div class=row>${lrn(w)}${foxBtn}</div>`)}
- if(['test','listen','speed','life','gram'].includes(r.mode)){const o=r.o&&r.oi==r.i?r.o:(r.o=w.opts?shuf(w.opts):opts(w),r.oi=r.i,r.o);if(r.mode=='listen'&&!keep)setTimeout(()=>playWord(cur()),250);
-  const top=r.mode=='listen'?mas("Quloq sol 👂 va to'g'ri tarjimani tanla!")+`<div class=spk onclick="playWord(cur())"><i>🔊</i><b></b><b></b></div>`:`<div class=sticker>${esc(w.ko)}${w.h?`<small>${esc(w.h)}</small>`:`<button class=pill onclick="playWord(cur())">🔊</button>`}</div>`;
+  if(!d&&!keep)setTimeout(()=>playWord(cur(),0,1),250);
+  return H(pr+mas(d?"Koreyscha so'zni toping!":"To'g'ri tarjimani toping!")+`<div class=sticker>${esc(w[qk])}${d?"<small>koreyschada qanday?</small>":`<button class=pill onclick="playWord(cur(),0,1)">🔊</button>`}</div>`+o.map((t,i)=>`<button class=opt2 onclick="pick(this,${t==w[key]})"><span>${'ABCD'[i]}</span>${esc(t)}</button>`).join('')+`<div class=row>${lrn(w)}${foxBtn}</div>`)}
+ if(['test','listen','speed','life','gram'].includes(r.mode)){const o=r.o&&r.oi==r.i?r.o:(r.o=w.opts?shuf(w.opts):opts(w),r.oi=r.i,r.o);if(r.mode=='listen'&&!keep)setTimeout(()=>playWord(cur(),0,1),250);
+  const top=r.mode=='listen'?mas("Quloq sol 👂 va to'g'ri tarjimani tanla!")+`<div class=spk onclick="playWord(cur(),0,1)"><i>🔊</i><b></b><b></b></div>`:`<div class=sticker>${esc(w.ko)}${w.h?`<small>${esc(w.h)}</small>`:`<button class=pill onclick="playWord(cur(),0,1)">🔊</button>`}</div>`;
   return H(pr+top+o.map((t,i)=>`<button class=opt2 onclick="pick(this,${t==w.uz})"><span>${'ABCD'[i]}</span>${esc(t)}</button>`).join('')+(['speed','life','gram'].includes(r.mode)?'':`<div class=row>${lrn(w)}${foxBtn}</div>`))}
  if(r.mode=='speak')return H(pr+mas('Mikrofonni bosib koreyschasini ayt! 🎤')+`<div class=sticker>${esc(w.uz)}<small>koreyschada qanday?</small></div><div class=row><button class=pill onclick="playWord(cur())">🔊 Namuna</button>${lrn(w)}</div><div class=micwrap><button id=mic class=mic onclick="listen()"><i>🎤</i><b>Gapirish</b></button><div class=wave><s></s><s></s><s></s><s></s><s></s></div></div><div id=hr class=res></div>${nx}`)}
 function pick(b,ok){const r=S.run;if(r.lock)return;r.lock=1;b.classList.add(ok?'ok':'no');if(ok)r.score++;else{if(r.mode=='life')r.lives--;[...document.querySelectorAll('.opt2')].find(x=>x.textContent.slice(1)==(r.ans||cur().uz))?.classList.add('ok')}setTimeout(()=>{r.lock=0;r.i++;step()},ok?600:1100)}
