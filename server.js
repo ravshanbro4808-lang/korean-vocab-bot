@@ -440,9 +440,25 @@ async function geminiTTSany(text){let le;const ms=[...new Set([TTSM,'gemini-3.8-
 let gemTtsOff=0;
 async function wordAudio(ko){if(USE_GEMINI&&Date.now()>gemTtsOff){try{return {b:Buffer.from(await geminiTTSany(ko),'base64'),ext:'wav'}}catch(e){if(/quota|exceed|429|demand|404|not found/i.test(String(e.message)))gemTtsOff=Date.now()+30*60000}}
   const r=await fetch('https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=ko&q='+encodeURIComponent(ko),{headers:{'user-agent':'Mozilla/5.0'},signal:AbortSignal.timeout(10000)});if(!r.ok)throw new Error('tts '+r.status);const b=Buffer.from(await r.arrayBuffer());if(b.length<500)throw new Error('tts bosh');return {b,ext:'mp3'}}
+const sleep=ms=>new Promise(z=>setTimeout(z,ms));
+const jsonFull=t=>{try{JSON.parse(String(t).match(/\[[\s\S]*\]/)[0]);return true}catch{return false}};
+const BUSYRE=/quota|exceed|429|rate|demand|overload|503|unavailable/i;
+// bir bo'lak matndan so'z olish: limit/band bo'lsa kutib qayta uradi; javob uzilib qolsa bo'lakni ikkiga bo'lib qayta so'raydi
+async function aiChunk(c,pre,job,depth){
+  let t=null,got=null;
+  for(let a=0;a<4;a++){
+    try{t=await callClaude([{role:'user',content:pre+c}],"Sen koreys-o'zbek lug'at tuzuvchisan.",12000);got=parseWords(t);break}
+    catch(e){const m=String(e&&e.message||e);if(job)job.aiErr=friendlyErr(m);await sleep(BUSYRE.test(m)?4000*(a+1):1500)}}
+  if(got===null)return {w:[],ok:false};
+  if(String(t).includes('[')&&!jsonFull(t)&&c.length>500&&depth<4){
+    let mid=c.indexOf('\n',c.length>>1);if(mid<0||mid>c.length-50)mid=c.length>>1;
+    const A=await aiChunk(c.slice(0,mid),pre,job,depth+1),B=await aiChunk(c.slice(mid),pre,job,depth+1);
+    return {w:got.concat(A.w,B.w),ok:A.ok&&B.ok}}
+  return {w:got,ok:true}}
 const PENDING="⏳ tarjima kutilmoqda";let trBusy=0;
-async function trFill(){if(trBusy)return;trBusy=1;try{const rows=q("select id,ko from words where uz=? limit 80",PENDING);if(!rows.length)return;let o={};if(AI_KEY){try{o=await claudeTranslate(rows.map(x=>({ko:x.ko})))}catch{}}
-  let tc=0;for(const w of rows){let uz=o[w.ko]&&o[w.ko].uz;if(!uz&&tc<12&&(!AI_KEY||!Object.keys(o).length)){tc++;uz=await tr(w.ko)}if(uz)run('update words set uz=? where id=? and uz=?',uz,w.id,PENDING)}}catch{}finally{trBusy=0}}
+async function trFill(){if(trBusy)return;trBusy=1;try{for(let k=0;k<300;k++){const rows=q("select id,ko from words where uz=? order by random() limit 100",PENDING);if(!rows.length)break;let o={};if(AI_KEY){try{o=await claudeTranslate(rows.map(x=>({ko:x.ko})))}catch{}}
+  let tc=0,okn=0;for(const w of rows){let uz=o[w.ko]&&o[w.ko].uz;if(!uz&&tc<40&&(!AI_KEY||!Object.keys(o).length)){tc++;uz=await tr(w.ko)}if(uz){run('update words set uz=? where id=? and uz=?',uz,w.id,PENDING);okn++}}
+  if(!okn)break;await sleep(1500)}}catch{}finally{trBusy=0}}
 setInterval(trFill,20000).unref();setTimeout(trFill,20000).unref();
 setInterval(()=>{if(ttsQ.length<10){ttsEnqueue(q("select id from words where audio is null or audio='' limit 40").map(x=>x.id).filter(id=>(ttsTry[id]||0)<8))}},120000).unref();
 const ttsQ=[],ttsTry={},ttsSet=new Set();let ttsRun=0,ttsPause=0;
@@ -656,7 +672,7 @@ async function callClaude(messages,system,max=500,model=FOXM){
   return USE_GEMINI?callGemini(messages,system,max,model):callAnthropic(messages,system,max,model)}
 const wp=()=>WPROMPT.replace("ot|fel|sifat|ravish|boshqa",posKeys());
 const WPROMPT="Bu fayldan koreys tilidagi BARCHA so'z va iboralarni lug'at yozuvi sifatida ajratib ol — birortasini ham tashlab ketma, matnni boshidan oxirigacha to'liq o'qi. Faylda so'zlar ro'yxat, jadval yoki gap-matn shaklida bo'lishi mumkin: gap ichidagi har bir ma'noli so'zni (ot, fe'l, sifat, ravish, son, olmosh, iboralar) alohida yozuv qilib ol. Otlarni yuklama va qo'shimchalarsiz (은/는/이/가/을/를/에/에서/의/도/와 kabilarsiz), fe'l va sifatlarni lug'at shaklida (-다) yoz — bu \"ko\" (oddiy ko'rinish). So'z matnda qanday ko'rinishda uchragan bo'lsa (masalan 학교에서, 먹었어요), aynan shuni \"form\" (o'z ko'rinishi) maydoniga yoz; ikkalasi bir xil bo'lsa form ni bo'sh qoldir. Faqat sof grammatik yuklama va tugatmalarning o'zini olma. Tarjima faylning o'zida bo'lsa (so'z yonida, keyingi qatorda, jadval ustunida, qavs ichida; o'zbekcha, ruscha yoki inglizcha, qayerda yozilgan bo'lmasin) shuni to'g'ri o'zbek tiliga (lotin yozuvi) o'tkazib ol; fayl ichida tarjima bo'lmasa, so'zning matndagi ma'nosiga qarab o'zing aniq va qisqa (1-3 ta ekvivalent, vergul bilan) o'zbekcha tarjima qil. Ruscha yoki inglizcha so'z ishlatma. FAQAT fayldagi so'zlarni ol: fayl ichida yo'q so'zni o'zingdan qo'shma, sinonim yoki misol keltirma. Har bir yozuvda uz bo'sh bo'lmasin. Takrorlama. FAQAT JSON massiv qaytar: [{\"ko\":\"...\",\"form\":\"...\",\"uz\":\"...\",\"pos\":\"ot|fel|sifat|ravish|boshqa\"}]";
-function parseWords(t){const out=[],add=o=>{if(o&&o.ko&&/[가-힣]/.test(o.ko)&&o.uz)out.push({ko:String(o.ko).trim(),uz:String(o.uz).trim(),pos:normPos(o.pos),form:String(o.form||'').trim().slice(0,60)})};t=String(t||'');
+function parseWords(t){const out=[],add=o=>{if(o&&o.ko&&/[가-힣]/.test(o.ko)&&o.uz)out.push({ko:String(o.ko).normalize('NFC').trim(),uz:String(o.uz).trim(),pos:normPos(o.pos),form:String(o.form||'').normalize('NFC').trim().slice(0,60)})};t=String(t||'');
   try{JSON.parse(t.match(/\[[\s\S]*\]/)[0]).forEach(add);return out}catch{}
   for(const m of t.match(/\{[^{}]*\}/g)||[])try{add(JSON.parse(m))}catch{}return out}
 function gcfg(model,max,fast){const c={maxOutputTokens:max};if(/gemini-3/i.test(model)){c.thinkingConfig={thinkingLevel:fast?THINK:'low'};c.maxOutputTokens=max+(fast?400:1500)}else if(/gemini-2\.5-flash/i.test(model))c.thinkingConfig={thinkingBudget:0};return c}
@@ -696,11 +712,11 @@ async function aiWords(items,txt,vis,defPos,auto,job){
         if(!okc){failed++;if(job)job.failedPages.push(...(rg||[]))}
         dn++;if(job){job.stage="AI fayldan so'zlarni qidiryapti ("+dn+"/"+rgs.length+")...";rd(job,'AI',dn,rgs.length,got.length,'qism')}}};
       await Promise.all(Array.from({length:Math.min(4,rgs.length)},wv));if(!got.length&&job)job.aiErr=lastE||"AI fayldan so'z topa olmadi"}
-    else{const cs=[];for(let i=0;i<txt.length&&i<20000000;i+=8000){let e=Math.min(txt.length,i+8000);const nl=txt.indexOf('\n',e);if(nl>0&&nl-e<400)e=nl;cs.push(txt.slice(i,e));i=e-8000}
+    else{const cs=[];const CSZ=txt.length>3e6?6000:2500;for(let i=0;i<txt.length&&i<20000000;i+=CSZ){let e=Math.min(txt.length,i+CSZ);const nl=txt.indexOf('\n',e);if(nl>0&&nl-e<400)e=nl;cs.push(txt.slice(i,e));i=e-CSZ}
       if(txt.length>20000000&&job)job.warn.push("Fayl juda katta: faqat dastlabki 20 000 000 belgi qayta ishlandi.");
       let ci=0,dn=0;const bad=[];
-      const w=async()=>{while(ci<cs.length){const c=cs[ci++];if(/[가-힣]/.test(c)){let okc=0;for(let a=0;a<2&&!okc;a++){try{got.push(...parseWords(await callClaude([{role:'user',content:wp()+"\n\n"+c}],"Sen koreys-o'zbek lug'at tuzuvchisan.",12000)));okc=1}catch(e){if(job)job.aiErr=friendlyErr(e&&e.message||e);await new Promise(z=>setTimeout(z,1500))}}if(!okc){failed++;bad.push(c)}}dn++;if(job){job.stage="AI fayldan so'zlarni qidiryapti ("+dn+"/"+cs.length+")...";rd(job,'AI',dn,cs.length,got.length,'qism')}}};
-      await Promise.all(Array.from({length:Math.min(8,cs.length)},w));if(failed&&job)job.warn.push(failed+" ta matn bo'lagi AI tomonidan o'qilmadi; ular oddiy usulda ajratildi (tarjimasi/turi to'liq bo'lmasligi mumkin).");
+      const w=async()=>{while(ci<cs.length){const c=cs[ci++];if(/[가-힣]/.test(c)){const r=await aiChunk(c,wp()+"\n\n",job,0);got.push(...r.w);if(!r.ok){failed++;bad.push(c)}}dn++;if(job){job.stage="AI fayldan so'zlarni qidiryapti ("+dn+"/"+cs.length+")...";rd(job,'AI',dn,cs.length,got.length,'qism')}}};
+      await Promise.all(Array.from({length:Math.min(5,cs.length)},w));if(failed&&job)job.warn.push(failed+" ta matn bo'lagi AI tomonidan o'qilmadi; ular oddiy usulda ajratildi (tarjimasi/turi to'liq bo'lmasligi mumkin).");
       // qamrov tekshiruvi: matndagi so'zlar olingan so'zlar bilan qoplanganmi; qoplanmagan qatorlar AI'ga qayta beriladi
       if(got.length&&txt.length<8e6){try{
         const stems=new Set(),vst=new Set();for(const g of got.concat(items.filter(i=>i.uz))){stems.add(g.ko);if(/다$/.test(g.ko)&&g.ko.length>1){stems.add(g.ko.slice(0,-1));vst.add(g.ko.slice(0,-1))}}
@@ -708,10 +724,10 @@ async function aiWords(items,txt,vis,defPos,auto,job){
         const seenT=new Set(),unc=[];let tot=0,miss=0;
         for(const l of txt.split(/\r?\n/)){if(!/[가-힣]/.test(l))continue;let lm=false;for(const t of (l.match(/[가-힣]{2,}/g)||[])){if(seenT.has(t))continue;seenT.add(t);tot++;if(!cov(t)){miss++;lm=true}}if(lm)unc.push(l)}
         if(job)job.cover=tot?Math.round((tot-miss)/tot*100):100;
-        if(tot>20&&miss>tot*.12&&unc.length){
-          const gcs=[];let cur2='';for(const l of unc){if(cur2.length+l.length>4500){gcs.push(cur2);cur2=''}cur2+=l+'\n'}if(cur2)gcs.push(cur2);const lim=gcs.slice(0,40);
+        if(tot>20&&miss>tot*.03&&unc.length){
+          const gcs=[];let cur2='';for(const l of unc){if(cur2.length+l.length>4500){gcs.push(cur2);cur2=''}cur2+=l+'\n'}if(cur2)gcs.push(cur2);const lim=gcs.slice(0,150);
           let gi=0,gd=0;const before=got.length;
-          const gw=async()=>{while(gi<lim.length){const c=lim[gi++];for(let a=0;a<2;a++){try{got.push(...parseWords(await callClaude([{role:'user',content:wp()+"\n\nDiqqat: bu qatorlardagi so'zlar oldingi o'qishda tushib qolgan. Har bir ma'noli so'zni to'liq ajratib ol.\n\n"+c}],"Sen koreys-o'zbek lug'at tuzuvchisan.",12000)));break}catch(e){await new Promise(z=>setTimeout(z,1500))}}gd++;if(job){job.stage="Yetishmagan so'zlar qidirilmoqda ("+gd+"/"+lim.length+")...";rd(job,'AI',gd,lim.length,got.length,'qism')}}};
+          const gw=async()=>{while(gi<lim.length){const c=lim[gi++];const r=await aiChunk(c,wp()+"\n\nDiqqat: bu qatorlardagi so'zlar oldingi o'qishda tushib qolgan. Har bir ma'noli so'zni to'liq ajratib ol.\n\n",job,0);got.push(...r.w);gd++;if(job){job.stage="Yetishmagan so'zlar qidirilmoqda ("+gd+"/"+lim.length+")...";rd(job,'AI',gd,lim.length,got.length,'qism')}}};
           await Promise.all(Array.from({length:Math.min(6,lim.length)},gw));
           if(job)job.warn.push("Birinchi o'qishda ~"+Math.round(miss/tot*100)+"% so'z tushib qolgan edi; qayta o'qib "+(got.length-before)+" ta qo'shimcha so'z topildi."+(gcs.length>lim.length?" Fayl katta bo'lgani uchun qayta o'qish qisman bajarildi.":""))}
       }catch{}}
@@ -733,7 +749,7 @@ async function tr(t){
   if(!r)r=await tryit(async()=>{const x=await fetch('https://api.mymemory.translated.net/get?q='+encodeURIComponent(t)+'&langpair=ko|'+TRANSLATE_TARGET,{signal:sg()});const j=await x.json();const v=j.responseData&&j.responseData.translatedText;return v&&!/MYMEMORY WARNING|QUERY LENGTH/i.test(v)?v:''});
   return r}
 async function claudeTranslate(part){
-  const txt=await callClaude([{role:'user',content:"Quyidagi koreys so'zlarini o'zbek tiliga (lotin yozuvi) tarjima qil va so'z turini aniqla (ot, fel=harakat 동사, sifat=holat 형용사, ravish, olmosh, son, yordamchi yoki boshqa; sifat va fe'lni aralashtirma). Har bir so'zning eng keng tarqalgan ma'nosini 1-3 ta qisqa o'zbekcha ekvivalent bilan ber (vergul bilan). Fe'llarni bosh shaklda (-moq) yoz. Ruscha yoki inglizcha so'z ishlatma. Ba'zi so'zlar oldida ← belgisidan keyin ular uchragan gap (kontekst) berilgan: ma'noni shu kontekstga qarab tanla; ko ni aynan berilganidek (← gacha bo'lgan qismini) o'zgartirmay qaytar. Ma'nosiga ishonching komil bo'lmasa, uz ni bo'sh qoldir, taxmin qilma. FAQAT JSON massiv qaytar: [{\"ko\":\"...\",\"uz\":\"...\",\"pos\":\""+posKeys()+"\"}]\n\n"+part.map(x=>x.ko+(x.ctx?'  ← '+x.ctx:'')).join('\n')}],"Sen tajribali koreys-o'zbek lug'at tuzuvchisan. Tarjimalar aniq, qisqa va to'g'ri o'zbek tilida bo'lsin.",6000);
+  const txt=await callClaude([{role:'user',content:"Quyidagi koreys so'zlarini o'zbek tiliga (lotin yozuvi) tarjima qil va so'z turini aniqla (ot, fel=harakat 동사, sifat=holat 형용사, ravish, olmosh, son, yordamchi yoki boshqa; sifat va fe'lni aralashtirma). Har bir so'zning eng keng tarqalgan ma'nosini 1-3 ta qisqa o'zbekcha ekvivalent bilan ber (vergul bilan). Fe'llarni bosh shaklda (-moq) yoz. Ruscha yoki inglizcha so'z ishlatma. Ba'zi so'zlar oldida ← belgisidan keyin ular uchragan gap (kontekst) berilgan: ma'noni shu kontekstga qarab tanla; ko ni aynan berilganidek (← gacha bo'lgan qismini) o'zgartirmay qaytar. Har bir haqiqiy so'z uchun albatta eng ehtimoliy tarjimani yoz; uz ni faqat so'z bo'lmagan bo'lak (yuklama, tugatma, tasodifiy belgi) uchun bo'sh qoldir. FAQAT JSON massiv qaytar: [{\"ko\":\"...\",\"uz\":\"...\",\"pos\":\""+posKeys()+"\"}]\n\n"+part.map(x=>x.ko+(x.ctx?'  ← '+x.ctx:'')).join('\n')}],"Sen tajribali koreys-o'zbek lug'at tuzuvchisan. Tarjimalar aniq, qisqa va to'g'ri o'zbek tilida bo'lsin.",6000);
   const out={};try{JSON.parse(txt.match(/\[[\s\S]*\]/)[0]).forEach(o=>{if(o&&o.ko)out[o.ko]={uz:String(o.uz||'').trim(),pos:normPos(o.pos)}})}catch{}
   return out}
 const POSMAP=[[/^(ot|otlar|noun|nouns|명사|isim)$/i,'ot'],[/^(fe['’‘`]?l|fe['’‘`]?llar|verb|verbs|동사)$/i,'fel'],[/^(sifat|sifatlar|adjective|adjectives|형용사)$/i,'sifat'],[/^(ravish|ravishlar|adverb|adverbs|부사)$/i,'ravish']];
@@ -786,11 +802,11 @@ async function streamExtract(file,defPos,auto,job,size){
   else{try{new TextDecoder('utf-8',{fatal:true}).decode(head)}catch{try{new TextDecoder('utf-8',{fatal:true}).decode(head.subarray(0,Math.max(0,head.length-3)))}catch{enc='euc-kr'}}}
   const dec=new TextDecoder(enc,{stream:true}),P=mkParser(defPos,auto,/\.(csv|tsv)$/.test(nm));let rest='',read=0,last=0,cut=false;
   for await(const chunk of fs.createReadStream(file.path,{highWaterMark:+process.env.STREAM_CHUNK||(4<<20)})){
-    read+=chunk.length;const t=rest+dec.decode(chunk,{stream:true}),ls=t.split(/\r?\n/);rest=ls.pop();if(rest.length>2e6){ls.push(rest);rest=''}
+    read+=chunk.length;const t=(rest+dec.decode(chunk,{stream:true})).normalize('NFC'),ls=t.split(/\r?\n/);rest=ls.pop();if(rest.length>2e6){ls.push(rest);rest=''}
     P.feed(ls,false);
     if(job&&Date.now()-last>800){last=Date.now();job.stage="Katta fayl o'qilmoqda ("+Math.round(read/size*100)+"%) — "+P.items.length+" ta so'z topildi";rd(job,"Fayl o'qilmoqda",Math.round(read/1048576),Math.round(size/1048576),P.items.length,'MB')}
     if(P.items.length>=MAXW){cut=true;break}}
-  if(!cut)P.feed([rest+dec.decode()],true);else P.feed([],true);
+  if(!cut)P.feed([(rest+dec.decode()).normalize('NFC')],true);else P.feed([],true);
   P.finish();if(job){if(cut)job.warn.push("Fayl juda katta: dastlabki "+MAXW+" ta so'z olindi (MAX_WORDS o'zgaruvchisi bilan oshirish mumkin).");job.warn.push("Katta matn fayli bo'lak-bo'lak o'qildi: «koreys - tarjima» juftliklari va koreyscha so'zlar olindi, tarjimasizlari alohida tarjima qilinadi.")}
   return P.items.slice(0,MAXW)}
 async function extract(file,defPos,auto,job){return await extract0(file,defPos,auto,job)}
@@ -827,7 +843,7 @@ async function extract0(file,defPos,auto,job){
     else{let t=buf.toString('utf8');if(buf[0]===0xFF&&buf[1]===0xFE)t=buf.toString('utf16le');else if((t.match(/\uFFFD/g)||[]).length>3){try{t=new TextDecoder('euc-kr').decode(buf)}catch{}}txt=t.replace(/^\uFEFF/,'')}
   }catch(e){if(job)job.readErr=String((e&&e.message)||e).slice(0,200);return null}
   if(job&&!visual&&!txt.trim()&&buf.length>=14e6)job.readErr="fayl juda katta (skan/rasm PDF 14 MB dan oshmasin) — uni bo'lib yuklang";
-  const P=mkParser(defPos,auto,/\.(xlsx|xls|ods|csv|tsv)$/.test(nm));{const LN=txt.split(/\r?\n/),ST=20000;for(let i=0;i<LN.length;i+=ST){P.feed(LN.slice(i,i+ST),false);if(job){const c=Math.min(i+ST,LN.length);job.stage="Matn tahlil qilinmoqda ("+c+" / "+LN.length+" qator)...";rd(job,"Matn tahlili",c,LN.length,P.items.length,'qator')}await new Promise(z=>setImmediate(z))}P.feed([],true)}P.finish();const items=P.items;
+  txt=txt.normalize('NFC');const P=mkParser(defPos,auto,/\.(xlsx|xls|ods|csv|tsv)$/.test(nm));{const LN=txt.split(/\r?\n/),ST=20000;for(let i=0;i<LN.length;i+=ST){P.feed(LN.slice(i,i+ST),false);if(job){const c=Math.min(i+ST,LN.length);job.stage="Matn tahlil qilinmoqda ("+c+" / "+LN.length+" qator)...";rd(job,"Matn tahlili",c,LN.length,P.items.length,'qator')}await new Promise(z=>setImmediate(z))}P.feed([],true)}P.finish();const items=P.items;
   const vis=visual&&{buf:(buf&&buf.length<14e6)?buf:null,path:file.path,size,mime:visual,pages,pageList:vpl,partial:!!vpl};try{return await aiWords(items,txt,vis,defPos,auto,job)}finally{if(vis&&vis.ref)geminiDelete(vis.ref)}}
 async function addWords(job,d,items,levelOf,auto){
   job.stage="Tekshirilmoqda...";
@@ -852,7 +868,7 @@ async function addWords(job,d,items,levelOf,auto){
       put(ok);job.done+=b.length}};
     await Promise.all(Array.from({length:Math.min(5,bs.length)},worker));rest=rest.filter(it=>it.left)}
   if(aiOn&&rest.length){job.stage="Tarjima (qayta urinish)...";const bs2=[];for(let i=0;i<rest.length;i+=20)bs2.push(rest.slice(i,i+20));let bj=0;
-    const w3=async()=>{while(bj<bs2.length){const b=bs2[bj++];let o={};for(let a=0;a<3&&!Object.keys(o).length;a++){try{o=await claudeTranslate(b)}catch{await new Promise(z=>setTimeout(z,1500))}}
+    const w3=async()=>{while(bj<bs2.length){const b=bs2[bj++];let o={};for(let a=0;a<4&&!Object.keys(o).length;a++){try{o=await claudeTranslate(b)}catch{await sleep(3000*(a+1))}}
       const ok=[];for(const it of b){const x=o[it.ko];if(x&&x.uz){it.uz=x.uz;job.translated++;if(auto&&!it.px&&x.pos){it.pos=x.pos;it.px=true}it.left=0;ok.push(it)}}put(ok)}};
     await Promise.all(Array.from({length:Math.min(4,bs2.length)},w3));rest=rest.filter(it=>it.left)}
   if(rest.length){job.stage="Tarjima (tarjima xizmati)...";const lim=rest.slice(0,3000);let ri=0;
