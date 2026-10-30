@@ -475,8 +475,11 @@ app.post('/api/word-voice/:id',async(r,s)=>{const w=one('select id,ko,audio from
   try{let p=ttsBusy.get(w.id);if(!p){p=(async()=>{const a=await wordAudio(w.ko);const name='w'+w.id+'_'+Date.now()+'.'+a.ext;fs.writeFileSync(DATA+'/audio/'+name,a.b);run("update words set audio=? where id=? and (audio is null or audio='')",name,w.id);return one('select audio from words where id=?',w.id).audio})();ttsBusy.set(w.id,p);p.finally(()=>ttsBusy.delete(w.id)).catch(()=>{})}
     s.json({audio:await p})}catch(e){s.json({e:'tts'})}});
 async function wordAudioUz(text){text=String(text).replace(/⏳.*$/,'').trim().slice(0,120);if(!text)throw new Error('bosh');
+  if(WSM){const vers=[...new Set([edgeVerOk,EDGE_VER,'143.0.3650.75','130.0.2849.68','140.0.3485.14','120.0.2210.91'].filter(Boolean))];
+    for(const v of vers){try{const b=await edgeTts(uzNorm(text),EDGE_VOICE.uz,v);if(b&&b.length>500){edgeVerOk=v;return {b,ext:'mp3'}}}catch(e){if(!/403|401/.test(String(e&&e.message)))break}}}
+  try{return {b:await gTts(text.replace(/[\u2018\u2019\u02BB\u02BC\u0060\u00B4]/g,"'"),'uz'),ext:'mp3'}}catch{}
   if(USE_GEMINI&&Date.now()>gemTtsOff){try{return {b:Buffer.from(await geminiTTSany(text),'base64'),ext:'wav'}}catch(e){if(/quota|exceed|429|demand|404|not found/i.test(String(e.message)))gemTtsOff=Date.now()+30*60000}}
-  const r=await fetch('https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=uz&q='+encodeURIComponent(text),{headers:{'user-agent':'Mozilla/5.0'},signal:AbortSignal.timeout(10000)});if(!r.ok)throw new Error('tts '+r.status);const b=Buffer.from(await r.arrayBuffer());if(b.length<500)throw new Error('tts bosh');return {b,ext:'mp3'}}
+  throw new Error('uz tts yoq')}
 const uzBusy=new Map();
 app.post('/api/word-voice-uz/:id',async(r,s)=>{const w=one('select id,uz,audio_uz from words where id=?',r.params.id);if(!w||!w.uz||w.uz===PENDING)return s.json({e:'yoq'});if(w.audio_uz)return s.json({audio:w.audio_uz});
   try{let p=uzBusy.get(w.id);if(!p){p=(async()=>{const a=await wordAudioUz(w.uz);const name='u'+w.id+'_'+Date.now()+'.'+a.ext;fs.writeFileSync(DATA+'/audio/'+name,a.b);run("update words set audio_uz=? where id=? and (audio_uz is null or audio_uz='')",name,w.id);return one('select audio_uz from words where id=?',w.id).audio_uz})();uzBusy.set(w.id,p);p.finally(()=>uzBusy.delete(w.id)).catch(()=>{})}
@@ -712,11 +715,11 @@ async function aiWords(items,txt,vis,defPos,auto,job){
         if(!okc){failed++;if(job)job.failedPages.push(...(rg||[]))}
         dn++;if(job){job.stage="AI fayldan so'zlarni qidiryapti ("+dn+"/"+rgs.length+")...";rd(job,'AI',dn,rgs.length,got.length,'qism')}}};
       await Promise.all(Array.from({length:Math.min(4,rgs.length)},wv));if(!got.length&&job)job.aiErr=lastE||"AI fayldan so'z topa olmadi"}
-    else{const cs=[];const CSZ=txt.length>3e6?6000:2500;for(let i=0;i<txt.length&&i<20000000;i+=CSZ){let e=Math.min(txt.length,i+CSZ);const nl=txt.indexOf('\n',e);if(nl>0&&nl-e<400)e=nl;cs.push(txt.slice(i,e));i=e-CSZ}
+    else{const cs=[];const CSZ=txt.length>3e6?7000:4000;for(let i=0;i<txt.length&&i<20000000;i+=CSZ){let e=Math.min(txt.length,i+CSZ);const nl=txt.indexOf('\n',e);if(nl>0&&nl-e<400)e=nl;cs.push(txt.slice(i,e));i=e-CSZ}
       if(txt.length>20000000&&job)job.warn.push("Fayl juda katta: faqat dastlabki 20 000 000 belgi qayta ishlandi.");
       let ci=0,dn=0;const bad=[];
       const w=async()=>{while(ci<cs.length){const c=cs[ci++];if(/[가-힣]/.test(c)){const r=await aiChunk(c,wp()+"\n\n",job,0);got.push(...r.w);if(!r.ok){failed++;bad.push(c)}}dn++;if(job){job.stage="AI fayldan so'zlarni qidiryapti ("+dn+"/"+cs.length+")...";rd(job,'AI',dn,cs.length,got.length,'qism')}}};
-      await Promise.all(Array.from({length:Math.min(5,cs.length)},w));if(failed&&job)job.warn.push(failed+" ta matn bo'lagi AI tomonidan o'qilmadi; ular oddiy usulda ajratildi (tarjimasi/turi to'liq bo'lmasligi mumkin).");
+      await Promise.all(Array.from({length:Math.min(+process.env.AI_PAR||8,cs.length)},w));if(failed&&job)job.warn.push(failed+" ta matn bo'lagi AI tomonidan o'qilmadi; ular oddiy usulda ajratildi (tarjimasi/turi to'liq bo'lmasligi mumkin).");
       // qamrov tekshiruvi: matndagi so'zlar olingan so'zlar bilan qoplanganmi; qoplanmagan qatorlar AI'ga qayta beriladi
       if(got.length&&txt.length<8e6){try{
         const stems=new Set(),vst=new Set();for(const g of got.concat(items.filter(i=>i.uz))){stems.add(g.ko);if(/다$/.test(g.ko)&&g.ko.length>1){stems.add(g.ko.slice(0,-1));vst.add(g.ko.slice(0,-1))}}
@@ -724,7 +727,7 @@ async function aiWords(items,txt,vis,defPos,auto,job){
         const seenT=new Set(),unc=[];let tot=0,miss=0;
         for(const l of txt.split(/\r?\n/)){if(!/[가-힣]/.test(l))continue;let lm=false;for(const t of (l.match(/[가-힣]{2,}/g)||[])){if(seenT.has(t))continue;seenT.add(t);tot++;if(!cov(t)){miss++;lm=true}}if(lm)unc.push(l)}
         if(job)job.cover=tot?Math.round((tot-miss)/tot*100):100;
-        if(tot>20&&miss>tot*.03&&unc.length){
+        if(tot>20&&miss>tot*.02&&unc.length){
           const gcs=[];let cur2='';for(const l of unc){if(cur2.length+l.length>4500){gcs.push(cur2);cur2=''}cur2+=l+'\n'}if(cur2)gcs.push(cur2);const lim=gcs.slice(0,150);
           let gi=0,gd=0;const before=got.length;
           const gw=async()=>{while(gi<lim.length){const c=lim[gi++];const r=await aiChunk(c,wp()+"\n\nDiqqat: bu qatorlardagi so'zlar oldingi o'qishda tushib qolgan. Har bir ma'noli so'zni to'liq ajratib ol.\n\n",job,0);got.push(...r.w);gd++;if(job){job.stage="Yetishmagan so'zlar qidirilmoqda ("+gd+"/"+lim.length+")...";rd(job,'AI',gd,lim.length,got.length,'qism')}}};
@@ -862,11 +865,11 @@ async function addWords(job,d,items,levelOf,auto){
   const first=todo.filter(it=>it.uz&&!(aiOn&&needAI(it)));job.stage="So'zlar bazaga yozilmoqda...";for(let i=0;i<first.length;i+=500){put(first.slice(i,i+500));job.done=Math.min(first.length,i+500);await yld()}
   const fs0=new Set(first);let rest=todo.filter(it=>!fs0.has(it));
   if(aiOn&&rest.length){job.stage="Tarjima va tur aniqlash (AI)...";
-    const bs=[];for(let i=0;i<rest.length;i+=120)bs.push(rest.slice(i,i+120));let bi=0;
+    const bs=[];for(let i=0;i<rest.length;i+=150)bs.push(rest.slice(i,i+150));let bi=0;
     const worker=async()=>{while(bi<bs.length){const b=bs[bi++];let o={};try{o=await claudeTranslate(b)}catch{}
       const ok=[];for(const it of b){const x=o[it.ko];if(x){if(!it.uz&&x.uz){it.uz=x.uz;job.translated++}if(auto&&!it.px&&x.pos){it.pos=x.pos;it.px=true}}if(it.uz)ok.push(it);else it.left=1}
       put(ok);job.done+=b.length}};
-    await Promise.all(Array.from({length:Math.min(5,bs.length)},worker));rest=rest.filter(it=>it.left)}
+    await Promise.all(Array.from({length:Math.min(+process.env.AI_PAR||8,bs.length)},worker));rest=rest.filter(it=>it.left)}
   if(aiOn&&rest.length){job.stage="Tarjima (qayta urinish)...";const bs2=[];for(let i=0;i<rest.length;i+=20)bs2.push(rest.slice(i,i+20));let bj=0;
     const w3=async()=>{while(bj<bs2.length){const b=bs2[bj++];let o={};for(let a=0;a<4&&!Object.keys(o).length;a++){try{o=await claudeTranslate(b)}catch{await sleep(3000*(a+1))}}
       const ok=[];for(const it of b){const x=o[it.ko];if(x&&x.uz){it.uz=x.uz;job.translated++;if(auto&&!it.px&&x.pos){it.pos=x.pos;it.px=true}it.left=0;ok.push(it)}}put(ok)}};

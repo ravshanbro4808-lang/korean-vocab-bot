@@ -614,6 +614,8 @@ function playWord(w,cb,noUz){if(!w)return;const uz=noUz?'':String(w.uz||'').repl
  playWordKo(w,()=>setTimeout(async()=>{if(window._sayT!==t)return;if(S.run!==run0||(run0&&run0.i!==i0))return;
   const f=up?await Promise.race([up,new Promise(z=>setTimeout(()=>z(null),5000))]):null;if(window._sayT!==t)return;if(S.run!==run0||(run0&&run0.i!==i0))return;
   if(f)playSrc('/audio/'+f,cb,sayUz);else sayUz()},200))}
+function pfWord(x){if(!x||!x.id||x._pf)return;x._pf=1;if(!x.audio)api('/word-voice/'+x.id,{body:{}}).then(a=>{if(a&&a.audio)x.audio=a.audio}).catch(()=>{});const u=String(x.uz||'').replace(/⏳.*$/,'').trim();if(u&&!x.audio_uz)api('/word-voice-uz/'+x.id,{body:{}}).then(a=>{if(a&&a.audio)x.audio_uz=a.audio}).catch(()=>{})}
+function cardAuto(r,w){if(r._said===r.i)return;r._said=r.i;setTimeout(()=>{try{if(S.run!==r||cur()!==w)return;cardSay(w)}catch{}},350);setTimeout(()=>{pfWord(r.w[r.i+1]);pfWord(r.w[r.i+2])},1200)}
 // kartochka: avval koreyscha, ketidan o'zbekcha tarjimasi aytiladi
 function cardSay(w){if(!w)return;audUnlock();const t=window._sayT=(window._sayT||0)+1,uz=String(w.uz||'').replace(/⏳.*$/,'').trim().slice(0,120);
  // o'zbekcha ovoz koreyscha aytilayotgan paytda oldindan tayyorlanadi (server bir marta yasab saqlaydi)
@@ -768,7 +770,7 @@ function step(keep){const r=S.run;head('Mashq','leave()');r.ans=null;if(r.mode==
  const pr=r.mode=='speed'?`<div class=sp2><b id=tm>⏱ 60</b><span>⭐ ${r.score}</span></div>`:r.mode=='life'?`<div class=sp2><b>${'❤️'.repeat(r.lives)}${'🖤'.repeat(3-r.lives)}</b><span>⭐ ${r.score}</span></div>`:`<div class=pb><i style="width:${Math.round(r.i/r.w.length*100)}%"></i></div>`;
  const nx=`<div class=navr>${r.i>0?'<button class=bkb onclick="S.run.i--;step()">⬅ Orqaga</button>':''}<button class=nxt onclick="S.run.i++;step()">Keyingi ➜</button></div>`;
  if(r.mode=='cards'){const nx2=`<div class=cdbar>${r.i>0?'<button class=bkb onclick="S.run.i--;step()">⬅</button>':''}<button class=pill onclick="cardSay(cur())">🔊</button><button class=pill onclick="cdRepeat()">🔁</button><button class=nxt onclick="S.run.i++;step()">Keyingi ➜</button></div>`;
-  return H(pr+mas(r.shape=='rect'?"Kartani bosing — tarjimasi ochiladi!":"Shaklni bosing — tarjimasi ochiladi!")+cardHTML(r,w)+`<div class=cdinfo>${w.form&&w.form!==w.ko?`<div class=cdform>📝 Matnda: <b>${esc(w.form)}</b> · Oddiy shakli: <b>${esc(w.ko)}</b></div>`:''}${r.i+1} / ${r.w.length} · ${esc(POS[w.pos]||"So'z")} · 👆 bosing · ⬅ ➡ suring</div>${nx2}<div id=exb class=exb></div><div class=row>${lrn(w)}${foxBtn}</div>`),setTimeout(()=>loadEx(w),0)}
+  return H(pr+mas(r.shape=='rect'?"Kartani bosing — tarjimasi ochiladi!":"Shaklni bosing — tarjimasi ochiladi!")+cardHTML(r,w)+`<div class=cdinfo>${w.form&&w.form!==w.ko?`<div class=cdform>📝 Matnda: <b>${esc(w.form)}</b> · Oddiy shakli: <b>${esc(w.ko)}</b></div>`:''}${r.i+1} / ${r.w.length} · ${esc(POS[w.pos]||"So'z")} · 👆 bosing · ⬅ ➡ suring</div>${nx2}<div id=exb class=exb></div><div class=row>${lrn(w)}${foxBtn}</div>`),setTimeout(()=>loadEx(w),0),cardAuto(r,w)}
 
  if(r.mode=='rev'||r.mode=='mix'){r.dirs=r.dirs||{};if(r.dirs[r.i]===undefined)r.dirs[r.i]=r.mode=='rev'?1:(Math.random()<.5?1:0);const d=r.dirs[r.i],key=d?'ko':'uz',qk=d?'uz':'ko';r.ans=w[key];
   const o=r.o&&r.oi==r.i&&r.od==d?r.o:(r.o=shuf([w[key],...shuf([...new Set(r.w.filter(x=>x.id!=w.id&&x[key]&&x[key]!=w[key]).map(x=>x[key]))]).slice(0,3)]),r.oi=r.i,r.od=d,r.o);
