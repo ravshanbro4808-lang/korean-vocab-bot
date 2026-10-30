@@ -827,11 +827,15 @@ async function extract0(file,defPos,auto,job){
     else{let t=buf.toString('utf8');if(buf[0]===0xFF&&buf[1]===0xFE)t=buf.toString('utf16le');else if((t.match(/\uFFFD/g)||[]).length>3){try{t=new TextDecoder('euc-kr').decode(buf)}catch{}}txt=t.replace(/^\uFEFF/,'')}
   }catch(e){if(job)job.readErr=String((e&&e.message)||e).slice(0,200);return null}
   if(job&&!visual&&!txt.trim()&&buf.length>=14e6)job.readErr="fayl juda katta (skan/rasm PDF 14 MB dan oshmasin) — uni bo'lib yuklang";
-  const P=mkParser(defPos,auto,/\.(xlsx|xls|ods|csv|tsv)$/.test(nm));P.feed(txt.split(/\r?\n/),true);P.finish();const items=P.items;
+  const P=mkParser(defPos,auto,/\.(xlsx|xls|ods|csv|tsv)$/.test(nm));{const LN=txt.split(/\r?\n/),ST=20000;for(let i=0;i<LN.length;i+=ST){P.feed(LN.slice(i,i+ST),false);if(job){const c=Math.min(i+ST,LN.length);job.stage="Matn tahlil qilinmoqda ("+c+" / "+LN.length+" qator)...";rd(job,"Matn tahlili",c,LN.length,P.items.length,'qator')}await new Promise(z=>setImmediate(z))}P.feed([],true)}P.finish();const items=P.items;
   const vis=visual&&{buf:(buf&&buf.length<14e6)?buf:null,path:file.path,size,mime:visual,pages,pageList:vpl,partial:!!vpl};try{return await aiWords(items,txt,vis,defPos,auto,job)}finally{if(vis&&vis.ref)geminiDelete(vis.ref)}}
 async function addWords(job,d,items,levelOf,auto){
   job.stage="Tekshirilmoqda...";
-  const todo=items.slice(0,MAXW_G).filter(it=>!one('select 1 from words where dict_id=? and ko=?',d.id,it.ko));
+  const yld=()=>new Promise(z=>setImmediate(z));
+  const src=items.slice(0,MAXW_G),have=new Set(q('select ko from words where dict_id=?',d.id).map(x=>x.ko)),todo=[];
+  job.chk={cur:0,tot:src.length};
+  for(let i=0;i<src.length;i++){if(!have.has(src[i].ko))todo.push(src[i]);if(i%4000===3999){job.chk.cur=i+1;job.stage="Takroriy so'zlar tekshirilmoqda ("+(i+1)+" / "+src.length+")...";await yld()}}
+  job.chk.cur=src.length;
   job.dups=Math.max(0,Math.min(items.length,MAXW_G)-todo.length);todo.forEach((it,i)=>it.idx=i);job.found=items.length;job.total=todo.length;job.done=0;if(job.rd){job.rd.pct=100;job.rd.cur=job.rd.tot;job.rd.words=items.length}
   const wl=['b','o','y'].includes(job.wlvl)?job.wlvl:(['b','o','y'].includes(d.lvl)?d.lvl:''),ins=db.prepare('insert into words(dict_id,level,pos,section,ko,uz,lvl,form) values(?,?,?,?,?,?,?,?)'),cnt={};
   const put=list=>{db.transaction(()=>{for(const it of list){const lv=levelOf(it.idx,todo.length,it),k=lv+'|'+it.pos;
@@ -839,7 +843,7 @@ async function addWords(job,d,items,levelOf,auto){
     const rr=ins.run(d.id,lv,it.pos,Math.floor(cnt[k]/d.sec)+1,it.ko,it.uz,(job.wlBy&&job.wlBy[lv])||wl,it.form||'');(job.ids=job.ids||[]).push(rr.lastInsertRowid);cnt[k]++;
     job.perLevel[lv]=(job.perLevel[lv]||0)+1;job.perPos[it.pos]=(job.perPos[it.pos]||0)+1;job.added++}})()};
   const aiOn=!!AI_KEY,needAI=it=>!it.uz||(auto&&!it.px);
-  const first=todo.filter(it=>it.uz&&!(aiOn&&needAI(it)));put(first);job.done=first.length;
+  const first=todo.filter(it=>it.uz&&!(aiOn&&needAI(it)));job.stage="So'zlar bazaga yozilmoqda...";for(let i=0;i<first.length;i+=500){put(first.slice(i,i+500));job.done=Math.min(first.length,i+500);await yld()}
   const fs0=new Set(first);let rest=todo.filter(it=>!fs0.has(it));
   if(aiOn&&rest.length){job.stage="Tarjima va tur aniqlash (AI)...";
     const bs=[];for(let i=0;i<rest.length;i+=120)bs.push(rest.slice(i,i+120));let bi=0;
@@ -854,7 +858,7 @@ async function addWords(job,d,items,levelOf,auto){
   if(rest.length){job.stage="Tarjima (tarjima xizmati)...";const lim=rest.slice(0,3000);let ri=0;
     const w2=async()=>{while(ri<lim.length){const it=lim[ri++];it.uz=await tr(it.ko);if(it.uz){job.translated++;put([it])}if(!aiOn)job.done++}};
     await Promise.all(Array.from({length:8},w2));rest=rest.filter(it=>!it.uz)}
-  if(rest.length){for(const it of rest)it.uz=PENDING;put(rest);job.pending=rest.length;setTimeout(trFill,5000)}
+  if(rest.length){for(const it of rest)it.uz=PENDING;job.stage="Tarjimasiz so'zlar yozilmoqda...";for(let i=0;i<rest.length;i+=500){put(rest.slice(i,i+500));await yld()}job.pending=rest.length;setTimeout(trFill,5000)}
   if(job.ids&&job.ids.length)ttsEnqueue(job.ids);
   if(job.expected&&job.found<job.expected*.5)job.warn.push("Faylda ~"+job.expected+" ta koreyscha qator bor, lekin faqat "+job.found+" ta so'z ajratildi. Fayl to'liq o'qilmagan bo'lishi mumkin — tekshirib ko'ring.");
   if(job.pending)job.warn.push(job.pending+" ta so'z tarjimasi kutilmoqda (fonda tarjima qilinadi).");
